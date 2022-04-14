@@ -1,0 +1,27 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        idf_ver: ["latest"]
+        example: ["simple_switch", "switch_mode", "two_ports_mode"]
+        idf_target: ["esp32"]
+
+    runs-on: ubuntu-20.04
+    container: espressif/idf:${{ matrix.idf_ver }}
+    steps:
+      - name: Checkout esp_eth_drivers
+        uses: actions/checkout@master
+        with:
+          path: esp_eth_drivers
+      - name: Build ${{ matrix.example }} with IDF-${{ matrix.idf_ver }} for ${{ matrix.idf_target }}
+        env:
+          IDF_TARGET: ${{ matrix.idf_target }}
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          cd $GITHUB_WORKSPACE/esp_eth_drivers/ksz8863/examples/${{ matrix.example }}
+          idf.py build
