@@ -1,0 +1,7 @@
+version: "0.2.0"
+targets:
+  - esp32
+description: KSZ8863 Ethernet Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/ksz8863
+dependencies:
+  idf: ">=5.0"
