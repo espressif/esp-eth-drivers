@@ -350,8 +350,6 @@ void app_main(void)
     }));
 
     bool enable = true;
-    ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, ETH_CMD_S_AUTONEGO, &enable)); // specific to our board (boot strap issue on GPIO0)
-
     // Internal EMAC needs to receive frames from other KSZ8863 ports => do not perform any filterring
     ESP_ERROR_CHECK(esp_eth_ioctl(host_eth_handle, ETH_CMD_S_PROMISCUOUS, &enable));
 

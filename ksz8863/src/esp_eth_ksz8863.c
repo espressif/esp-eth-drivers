@@ -32,7 +32,7 @@ esp_err_t ksz8863_register_tail_tag_port(esp_eth_handle_t port_eth_handle, int32
 {
     esp_err_t ret = ESP_OK;
     struct ksz8863_port_tbl_s *item = malloc(sizeof(struct ksz8863_port_tbl_s));
-    ESP_GOTO_ON_FALSE(item == NULL, ESP_ERR_NO_MEM, err, TAG, "no memory for Tail Tag port info");
+    ESP_GOTO_ON_FALSE(item, ESP_ERR_NO_MEM, err, TAG, "no memory for Tail Tag port info");
     item->eth_handle = port_eth_handle;
     item->port_num = port_num;
     SLIST_INSERT_HEAD(&s_port_tbls_head, item, next);

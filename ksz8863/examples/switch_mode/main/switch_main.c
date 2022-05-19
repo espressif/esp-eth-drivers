@@ -348,15 +348,13 @@ void app_main(void)
     esp_eth_handle_t p2_eth_handle = NULL;
     ESP_ERROR_CHECK(esp_eth_driver_install(&p2_config, &p2_eth_handle));
 
-    bool enable = true;
-    ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, ETH_CMD_S_AUTONEGO, &enable)); // specific to our board (boot strap issue on GPIO0)
-
     // Set KSZ8863 Ports 1/2 MAC addresses the same as Host MAC address since all represent the same device
     uint8_t host_mac_addr[ETH_ADDR_LEN];
     ESP_ERROR_CHECK(esp_eth_ioctl(host_eth_handle, ETH_CMD_G_MAC_ADDR, host_mac_addr));
     ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, ETH_CMD_S_MAC_ADDR, host_mac_addr));
     ESP_ERROR_CHECK(esp_eth_ioctl(p2_eth_handle, ETH_CMD_S_MAC_ADDR, host_mac_addr));
 
+    bool enable = true;
     // Tail Tagging needs to be enabled of course
     ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, KSZ8863_ETH_CMD_S_TAIL_TAG, &enable));
 

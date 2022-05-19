@@ -315,9 +315,6 @@ void app_main(void)
     esp_eth_handle_t p2_eth_handle = NULL;
     ESP_ERROR_CHECK(esp_eth_driver_install(&p2_config, &p2_eth_handle));
 
-    bool enable = true;
-    ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, ETH_CMD_S_AUTONEGO, &enable)); // specific to our board (boot strap issue on GPIO0)
-
     // Register user defined event handers
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
