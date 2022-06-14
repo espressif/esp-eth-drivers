@@ -31,12 +31,19 @@ struct ksz8863_esp_eth_netif_glue_switch_t {
 
 static esp_err_t ksz88863_eth_input_to_netif(esp_eth_handle_t eth_handle, uint8_t *buffer, uint32_t length, void *priv)
 {
+#if CONFIG_ESP_NETIF_L2_TAP
     esp_err_t ret = ESP_OK;
-    ret = esp_vfs_l2tap_eth_filter(eth_handle, buffer, &length);
-    if (length > 0) {
-        ret = esp_netif_receive((esp_netif_t *)priv, buffer, length, NULL);
+    ret = esp_vfs_l2tap_eth_filter(eth_handle, buffer, (size_t *)&length);
+    if (length == 0) {
+        return ret;
     }
-    return ret;
+#endif
+    return esp_netif_receive((esp_netif_t *)priv, buffer, length, NULL);
+}
+
+static void eth_host_l2_free(void *h, void *buffer)
+{
+    free(buffer);
 }
 
 static esp_err_t ksz8863_esp_eth_switch_post_attach(esp_netif_t *esp_netif, void *args)
@@ -51,7 +58,7 @@ static esp_err_t ksz8863_esp_eth_switch_post_attach(esp_netif_t *esp_netif, void
     esp_eth_ioctl(esp_netif_switch_glue->p1_eth_driver, KSZ8863_ETH_CMD_G_TAIL_TAG, &tail_tag_en);
     ESP_GOTO_ON_FALSE(tail_tag_en == true, ESP_ERR_INVALID_STATE, err, TAG, "Tail Tagging must be enabled");
 
-    // 1) Register ports which are to be forwarded from Host Ethernet to Port Ethernet interfaces (so to be accesible by L2 TAP)
+    // 1) Register ports which are to be forwarded from Host Ethernet to Port Ethernet interfaces (so to be accessible by L2 TAP)
     // 2) Update input path of the Port Interfaces to forward traffic to IP Stack
     if (esp_netif_switch_glue->p1_eth_driver) {
         ksz8863_register_tail_tag_port(esp_netif_switch_glue->p1_eth_driver, 0);
@@ -63,7 +70,7 @@ static esp_err_t ksz8863_esp_eth_switch_post_attach(esp_netif_t *esp_netif, void
         esp_eth_update_input_path(esp_netif_switch_glue->p2_eth_driver, ksz88863_eth_input_to_netif, esp_netif);
         ESP_LOGD(TAG, "port 2 registered for Tail Tag forwarding");
     }
-    // Make "esp host eth" to decide to which netif forward traffic
+    // Host Ethernet input function forwards traffic to Port interfaces
     esp_eth_update_input_path(esp_netif_switch_glue->host_eth_driver, ksz8863_eth_tail_tag_port_forward, NULL);
 
     ESP_ERROR_CHECK(ksz8863_register_host_eth_hndl(esp_netif_switch_glue->host_eth_driver));
@@ -72,7 +79,7 @@ static esp_err_t ksz8863_esp_eth_switch_post_attach(esp_netif_t *esp_netif, void
     esp_netif_driver_ifconfig_t driver_ifconfig = {
         .handle =  esp_netif_switch_glue->host_eth_driver,
         .transmit = ksz8863_eth_transmit_normal_lookup, // we want to transmit IP traffic with normal address lookup to KSZ (TatilTag = 0)
-        .driver_free_rx_buffer = NULL
+        .driver_free_rx_buffer = eth_host_l2_free
     };
 
     ESP_ERROR_CHECK(esp_netif_set_driver_config(esp_netif, &driver_ifconfig));
