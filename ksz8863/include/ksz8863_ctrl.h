@@ -8,7 +8,7 @@
 #include "esp_err.h"
 #include "driver/i2c.h"
 #include "driver/spi_master.h"
-#include "esp_eth.h" // for esp_eth_handle_t
+#include "esp_eth_driver.h" // for esp_eth_handle_t
 
 #ifdef __cplusplus
 extern "C" {

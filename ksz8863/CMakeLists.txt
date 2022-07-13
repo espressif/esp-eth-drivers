@@ -5,7 +5,7 @@ set(include)
 # As CONFIG_ETH_USE_ESP32_EMAC comes from Kconfig, it is not evaluated yet
 # when components are being registered.
 # Thus, always add the (private) requirements, regardless of Kconfig
-set(priv_requires driver log)
+set(priv_requires driver log esp_eth)
 
 # If Ethernet disabled in Kconfig, this is a config-only component
 if(CONFIG_ETH_USE_ESP32_EMAC)

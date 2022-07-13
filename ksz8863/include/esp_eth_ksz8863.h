@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "esp_eth.h" // for esp_eth_handle_t
+#include "esp_eth_driver.h" // for esp_eth_handle_t
 #include "ksz8863.h"
 #include "ksz8863_ctrl.h"
 #include "esp_eth_mac_ksz8863.h"
