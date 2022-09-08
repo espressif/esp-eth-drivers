@@ -19,12 +19,13 @@ if(CONFIG_ETH_USE_ESP32_EMAC)
         # esp_netif related
         if(esp_netif IN_LIST components_to_build)
             list(APPEND srcs "src/esp_eth_netif_glue_ksz8863.c")
-            list(APPEND priv_requires esp_netif)
         endif()
     endif()
 endif()
 
 idf_component_register(SRCS "${srcs}"
-                       INCLUDE_DIRS ${include}
-		       REQUIRES "esp_event" "esp_netif" # For using "ESP_EVENT_DECLARE_BASE" in header file
-                       PRIV_REQUIRES ${priv_requires})
+                       INCLUDE_DIRS "${include}"
+                       REQUIRES "esp_event" # For using "ESP_EVENT_DECLARE_BASE" in header file
+                       PRIV_REQUIRES "${priv_requires}")
+
+idf_component_optional_requires(PRIVATE esp_netif)
