@@ -5,6 +5,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_netif.h"
@@ -57,9 +58,9 @@ static void print_dyn_mac(void *pvParameters)
     while (1) {
         esp_eth_ioctl(port_eth_handle, KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
         ESP_LOGI(TAG, "Dynamic MAC Table content:");
-        ESP_LOGI(TAG, "valid entries %d", dyn_mac_tbls[0].val_entries + 1);
+        ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
         for (int i = 0; i < (dyn_mac_tbls[0].val_entries + 1) && i < 5; i++) {
-            ESP_LOGI(TAG, "port %d", dyn_mac_tbls[i].src_port + 1);
+            ESP_LOGI(TAG, "port %" PRIu8, dyn_mac_tbls[i].src_port + 1);
             ESP_LOG_BUFFER_HEX(TAG, dyn_mac_tbls[i].mac_addr, 6);
         }
         printf("\n");
@@ -76,31 +77,31 @@ static void transmit_l2test_msgs(void *pvParameters)
 
     eth_tap_fd_p1 = open("/dev/net/tap", O_NONBLOCK);
     if (eth_tap_fd_p1 < 0) {
-        ESP_LOGE(TAG, "Unable to open P1 L2 TAP interface: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to open P1 L2 TAP interface: errno %i", errno);
         goto err;
     }
     eth_tap_fd_p2 = open("/dev/net/tap", O_NONBLOCK);
     if (eth_tap_fd_p2 < 0) {
-        ESP_LOGE(TAG, "Unable to open P2 L2 TAP interface: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to open P2 L2 TAP interface: errno %i", errno);
         goto err;
     }
     uint16_t eth_type_filter = 0x7000;
     // Set Ethernet interface on which to get raw frames
     if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_INTF_DEVICE, "ETH_0")) == -1) {
-        ESP_LOGE(TAG, "Unable to bound P1 L2 TAP with Ethernet device: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to bound P1 L2 TAP with Ethernet device: errno %i", errno);
         goto err;
     }
     if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_INTF_DEVICE, "ETH_1")) == -1) {
-        ESP_LOGE(TAG, "Unable to bound P2 L2 TAP with Ethernet device: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to bound P2 L2 TAP with Ethernet device: errno %i", errno);
         goto err;
     }
 
     if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
         goto err;
     }
     if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %d", errno);
+        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
         goto err;
     }
 
@@ -136,11 +137,11 @@ static void transmit_l2test_msgs(void *pvParameters)
     while (1) {
         ret = write(eth_tap_fd_p1, &test_msg_p1, sizeof(test_msg_p1));
         if (ret == -1) {
-            ESP_LOGE(TAG, "P1 L2 TAP write error, errno: %d\n", errno);
+            ESP_LOGE(TAG, "P1 L2 TAP write error, errno: %i\n", errno);
         }
         ret = write(eth_tap_fd_p2, &test_msg_p2, sizeof(test_msg_p2));
         if (ret == -1) {
-            ESP_LOGE(TAG, "P2 L2 TAP write error, errno: %d\n", errno);
+            ESP_LOGE(TAG, "P2 L2 TAP write error, errno: %i\n", errno);
         }
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
@@ -169,7 +170,7 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
         ret = esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num);
         if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "Ethernet Link Up Port %d", port_num + 1);
+            ESP_LOGI(TAG, "Ethernet Link Up Port %" PRIi32, port_num + 1);
         } else {
             ESP_LOGI(TAG, "Ethernet Link Up");
         }
@@ -179,7 +180,7 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     case ETHERNET_EVENT_DISCONNECTED:
         ret = esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num);
         if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "Ethernet Link Down Port %d", port_num + 1);
+            ESP_LOGI(TAG, "Ethernet Link Down Port %" PRIi32, port_num + 1);
         } else {
             ESP_LOGI(TAG, "Ethernet Link Down");
         }
@@ -418,8 +419,8 @@ void app_main(void)
     esp_eth_ioctl(p1_eth_handle, KSZ8863_ETH_CMD_G_MAC_STA_TBL, &get_sta_tbl_info);
     ESP_LOGI(TAG, "static MAC table content:");
     for (uint32_t i = 0; i < 3; i++) {
-        ESP_LOGI(TAG, "fwd port %d", sta_mac_tbls[i].fwd_ports);
-        ESP_LOGI(TAG, "valid %d", sta_mac_tbls[i].entry_val);
+        ESP_LOGI(TAG, "fwd port %" PRIu16, sta_mac_tbls[i].fwd_ports);
+        ESP_LOGI(TAG, "valid %" PRIu16, sta_mac_tbls[i].entry_val);
         ESP_LOG_BUFFER_HEX(TAG, sta_mac_tbls[i].mac_addr, 6);
         printf("\n");
     }
