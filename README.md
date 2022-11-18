@@ -5,6 +5,7 @@ This repository aims to store additional Ethernet drivers which are not availabl
 List of currently supported chips:
 
 - [KSZ8863](ksz8863/README.md)
+- [ADIN1200](adin1200/README.md)
 
 ## Resources
 
