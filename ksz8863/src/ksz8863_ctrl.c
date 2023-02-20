@@ -74,8 +74,9 @@ static esp_err_t ksz8863_i2c_write(uint8_t reg_addr, uint8_t *data, size_t len)
     ESP_GOTO_ON_ERROR(i2c_master_stop(cmd), err, TAG, "I2C master stop error");
     // Lock since multiple MAC/PHY instances exist and the KSZ may be also accessed by user (MAC tables, etc...)
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_I2C_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "I2C bus lock timeout");
-    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err, TAG,
+    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err_release, TAG,
                       "I2C master command begin error");
+err_release:
     bus_unlock();
 err:
     i2c_cmd_link_delete(cmd);
@@ -100,8 +101,9 @@ static esp_err_t ksz8863_i2c_read(uint8_t reg_addr, uint8_t *data, size_t len)
     ESP_GOTO_ON_ERROR(i2c_master_stop(cmd), err, TAG, "I2C master stop error");;
     // Lock since multiple MAC/PHY instances exist and the KSZ may be also accessed by user (MAC tables, etc...)
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_I2C_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "I2C bus lock timeout");
-    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err, TAG,
+    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err_release, TAG,
                       "I2C master command begin error");
+err_release:
     bus_unlock();
 err:
     i2c_cmd_link_delete(cmd);
@@ -119,7 +121,8 @@ static esp_err_t ksz8863_spi_write(uint8_t reg_addr, uint8_t *data, size_t len)
         .tx_buffer = data
     };
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_SPI_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "SPI bus lock timeout");
-    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err, TAG, "SPI transmit fail");
+    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err_release, TAG, "SPI transmit fail");
+err_release:
     bus_unlock();
 err:
     return ret;
@@ -129,7 +132,6 @@ static esp_err_t ksz8863_spi_read(uint8_t reg_addr, uint8_t *data, size_t len)
 {
     esp_err_t ret = ESP_OK;
 
-    // TODO: double check how it behaves with DMA
     spi_transaction_t trans = {
         .flags = len <= 4 ? SPI_TRANS_USE_RXDATA : 0, // use direct reads for registers to prevent overwrites by 4-byte boundary writes
         .cmd = KSZ8863_SPI_READ_CMD,
@@ -138,13 +140,16 @@ static esp_err_t ksz8863_spi_read(uint8_t reg_addr, uint8_t *data, size_t len)
         .rx_buffer = data
     };
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_SPI_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "SPI bus lock timeout");
-    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err, TAG, "SPI transmit fail");
+    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err_release, TAG, "SPI transmit fail");
     bus_unlock();
 
     if ((trans.flags & SPI_TRANS_USE_RXDATA) && len <= 4) {
         memcpy(data, trans.rx_data, len);  // copy register values to output
     }
 err:
+    return ret;
+err_release:
+    bus_unlock();
     return ret;
 }
 
