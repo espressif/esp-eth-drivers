@@ -1,4 +1,4 @@
-version: "0.2.2"
+version: "0.2.3"
 targets:
   - esp32
 description: KSZ8863 Ethernet Driver
