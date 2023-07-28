@@ -1,0 +1,6 @@
+dependencies:
+  idf:
+    version: '>=4.1'
+description: This component initializes Ethernet driver based on Espressif IoT Development Framework Configuration.
+url: https://github.com/espressif-abhikroy/esp-eth-drivers/tree/feat/ethernet_init
+version: 0.0.1
