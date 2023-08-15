@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -10,6 +10,29 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+typedef enum {
+    ETH_DEV_TYPE_UNKNOWN,
+    ETH_DEV_TYPE_INTERNAL_ETH,
+    ETH_DEV_TYPE_SPI,
+} eth_dev_type_t;
+
+typedef struct {
+    char name[12];
+    eth_dev_type_t type;
+    union {
+        struct {
+            uint8_t eth_internal_mdc;   // MDC gpio of internal ethernet
+            uint8_t eth_internal_mdio;  // MDIO gpio of internal ethernet
+        };
+        struct {
+            uint8_t eth_spi_cs;     // CS gpio of spi ethernet
+            uint8_t eth_spi_int;    // INT gpio of spi ethernet
+        };
+    } pin;
+} eth_dev_info_t;
+
 
 /**
  * @brief Initialize Ethernet driver based on Espressif IoT Development Framework Configuration
@@ -22,7 +45,23 @@ extern "C" {
  *          - ESP_ERR_NO_MEM when there is no memory to allocate for Ethernet driver handles array
  *          - ESP_FAIL on any other failure
  */
-esp_err_t ethernet_init(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cnt_out);
+esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cnt_out);
+
+
+/**
+ * @brief Deinitialize Ethernet driver
+ */
+void ethernet_deinit_all(esp_eth_handle_t *eth_handles);
+
+
+/**
+ * @brief Returns the device type of the ethernet handle
+ *
+ * @param[out] eth_handles Initialized Ethernet driver handles
+ * @return
+ *          - eth_dev_info_t device information of the ethernet handle
+ */
+eth_dev_info_t ethernet_init_get_dev_info(esp_eth_handle_t *eth_handle);
 
 #ifdef __cplusplus
 }
