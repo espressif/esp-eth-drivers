@@ -72,11 +72,11 @@ static uint8_t eth_cnt_g = 0;
 static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + CONFIG_ETHERNET_SPI_NUMBER];
 
 
-void eth_event_handler(void *arg, esp_event_base_t event_base,
-                       int32_t event_id, void *event_data)
+static void eth_event_handler(void *arg, esp_event_base_t event_base,
+                              int32_t event_id, void *event_data)
 {
     uint8_t pin1 = 0, pin2 = 0;
-    uint8_t mac_addr[6] = {0};
+    uint8_t mac_addr[ETH_ADDR_LEN] = {0};
     // we can get the ethernet driver handle from event data
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
     eth_dev_info_t dev_info = ethernet_init_get_dev_info(eth_handle);
@@ -132,6 +132,7 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
 
     // Init common MAC configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
 
     // Init vendor specific MAC config to default
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
@@ -252,6 +253,7 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 
     // Init common MAC and PHY configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
     // Update PHY config based on board specific configuration
