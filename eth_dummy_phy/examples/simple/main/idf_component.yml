@@ -1,0 +1,6 @@
+description: Simple EMAC to EMAC example (ESP32)
+dependencies:
+  espressif/eth_dummy_phy:
+    version: '*'
+    # For local development use the local copy of the component
+    override_path: '../../../'
