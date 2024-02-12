@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  lan867x:
+    override_path: "../../../../../lan867x"
+  ethernet_init:
+    override_path: "../../../../../ethernet_init"
