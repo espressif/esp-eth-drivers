@@ -15,7 +15,9 @@
 #if CONFIG_ETH_USE_SPI_ETHERNET
 #include "driver/spi_master.h"
 #endif // CONFIG_ETH_USE_SPI_ETHERNET
-#include "ethernet_init.h"
+#if CONFIG_ETHERNET_PHY_LAN867X
+#include "esp_eth_phy_lan867x.h"
+#endif // CONFIG_ETHERNET_PHY_LAN867X
 
 
 #if CONFIG_ETHERNET_SPI_NUMBER
@@ -172,6 +174,9 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
 #elif CONFIG_ETHERNET_PHY_KSZ80XX
     dev_out->phy = esp_eth_phy_new_ksz80xx(&phy_config);
     sprintf(dev_out->dev_info.name, "KSZ80XX");
+#elif CONFIG_ETHERNET_PHY_LAN867X
+    dev_out->phy = esp_eth_phy_new_lan867x(&phy_config);
+    sprintf(dev_out->dev_info.name, "LAN867x");
 #endif
 
     // Init Ethernet driver to default and install it

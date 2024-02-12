@@ -6,6 +6,7 @@ List of currently supported chips:
 
 - [KSZ8863](ksz8863/README.md)
 - [ADIN1200](adin1200/README.md)
+- [LAN867X](lan867x/README.md)
 
 ## Resources
 
