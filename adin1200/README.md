@@ -2,11 +2,11 @@
 
 ## Overview
 
-The ADIN1200 is low power, low latency single-port Ethernet transceiver designed for industrial Ethernet applications. It is compliant with the IEEE 802.3 Ethernet standard. The ADIN1200 supports 10/100 Mbps Ethernet speeds. It supports unmanaged configuration using multi-level strapping, or managed configuration using MDIO access and operate over a wide industrial temperature range (−40°C to + 105°C). The ADIN1200 support MII, RMII, and RGMII MAC interfaces. More information about the chip can found in the product [datasheets](https://www.analog.com/media/en/technical-documentation/data-sheets/ADIN1200.pdf).
+The ADIN1200 is low power, low latency single-port Ethernet transceiver designed for industrial Ethernet applications. It is compliant with the IEEE 802.3 Ethernet standard. The ADIN1200 supports 10/100 Mbps Ethernet speeds. It supports unmanaged configuration using multi-level strapping, or managed configuration using MDIO access and operate over a wide industrial temperature range (−40°C to + 105°C). The ADIN1200 support MII, RMII, and RGMII MAC interfaces. More information about the chip can be found in the product [datasheets](https://www.analog.com/media/en/technical-documentation/data-sheets/ADIN1200.pdf).
 
 ## ESP-IDF Usage
 
-Just add include of `esp_eth_phy_adin1200.h` to your project,
+Add this component from [IDF Component Manager](https://components.espressif.com/) to your project using `idf.py add-dependency` and include `esp_eth_phy_adin1200.h`,
 
 ```c
 #include "esp_eth_phy_adin1200.h"
