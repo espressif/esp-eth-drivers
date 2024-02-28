@@ -124,6 +124,21 @@ err:
     return ret;
 }
 
+static esp_err_t ksz8863_set_link(esp_eth_phy_t *phy, eth_link_t link)
+{
+    esp_err_t ret = ESP_OK;
+    phy_ksz8863_t *ksz8863 = __containerof(phy, phy_ksz8863_t, parent);
+    esp_eth_mediator_t *eth = ksz8863->eth;
+
+    if (ksz8863->link_status != link) {
+        ksz8863->link_status = link;
+        // link status changed, inmiedately report to upper layers
+        ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LINK, (void *)ksz8863->link_status), err, TAG, "change link failed");
+    }
+err:
+    return ret;
+}
+
 static esp_err_t ksz8863_reset_sw(esp_eth_phy_t *phy)
 {
     // reset needs to be performed externally since multiple instances of PHY driver exist and so they could reset the chip multiple times
@@ -139,7 +154,7 @@ static esp_err_t ksz8863_reset_hw(esp_eth_phy_t *phy)
 /**
  * @note This function is responsible for restarting a new auto-negotiation,
  *       the result of negotiation won't be reflected to upper layers.
- *       Instead, the negotiation result is fetched by linker timer, see `ksz8863_get_link()`
+ *       Instead, the negotiation result is fetched by status link timer, see `ksz8863_get_link()`
  */
 static esp_err_t ksz8863_autonego_ctrl(esp_eth_phy_t *phy, eth_phy_autoneg_cmd_t cmd, bool *autonego_en_stat)
 {
@@ -492,6 +507,7 @@ esp_eth_phy_t *esp_eth_phy_new_ksz8863(const eth_phy_config_t *config)
     ksz8863->parent.set_mediator = ksz8863_set_mediator;
     ksz8863->parent.autonego_ctrl = ksz8863_autonego_ctrl;
     ksz8863->parent.get_link = ksz8863_get_link;
+    ksz8863->parent.set_link = ksz8863_set_link;
     ksz8863->parent.pwrctl = ksz8863_pwrctl;
     ksz8863->parent.get_addr = ksz8863_get_addr;
     ksz8863->parent.set_addr = ksz8863_set_addr;
