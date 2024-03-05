@@ -1,0 +1,8 @@
+description: iperf Benchmark Example
+dependencies:
+  espressif/iperf: "^0.1.1"
+  ch390:
+    override_path: '../../../'
+  cmd_system:
+    path: ${IDF_PATH}/examples/system/console/advanced/components/cmd_system
+
