@@ -9,7 +9,6 @@ jobs:
         idf_ver: ["latest"]
         example: ["simple-ethernet"]
         idf_target: ["esp32"]
-
     runs-on: ubuntu-20.04
     container: espressif/idf:${{ matrix.idf_ver }}
     steps:
@@ -17,11 +16,12 @@ jobs:
         uses: actions/checkout@master
         with:
           path: esp_eth_drivers
-      - name: Build ${{ matrix.example }} with IDF-${{ matrix.idf_ver }} for ${{ matrix.idf_target }}
+      - name: Build ${{ matrix.example }} with IDF-${{ matrix.idf_ver }} for ${{ matrix.idf_target }} with ${{ matrix.eth_target }}
         env:
           IDF_TARGET: ${{ matrix.idf_target }}
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
+          pip install idf-build-apps
           cd $GITHUB_WORKSPACE/esp_eth_drivers/ethernet_init/examples/${{ matrix.example }}
-          idf.py build
+          idf-build-apps build -p . --target ${{ matrix.idf_target }} --build-dir build_@t_@w --config 'sdkconfig.defaults.*='
