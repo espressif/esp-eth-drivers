@@ -65,10 +65,9 @@ void basic_init(esp_eth_handle_t *handle)
     // Configure SPI interface for specific SPI module
     spi_device_interface_config_t spi_devcfg = {
         .mode = 0,
-        .clock_speed_hz = CONFIG_IPERF_ETH_SPI_CLOCK_MHZ,
+        .clock_speed_hz = CONFIG_IPERF_ETH_SPI_CLOCK_MHZ * 1000 * 1000,
         .queue_size = 16,
-        .spics_io_num = CONFIG_IPERF_ETH_SPI_CS_GPIO
-    };
+        .spics_io_num = CONFIG_IPERF_ETH_SPI_CS_GPIO};
 
     eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_IPERF_ETH_SPI_HOST, &spi_devcfg);
     ch390_config.int_gpio_num = CONFIG_IPERF_ETH_SPI_INT_GPIO;

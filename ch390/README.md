@@ -19,12 +19,17 @@ create a configuration instance by calling `ETH_CH390_DEFAULT_CONFIG`,
 // Configure SPI interface for specific SPI module
 spi_device_interface_config_t spi_devcfg = {
     .mode = 0,
-    .clock_speed_hz = ETHERNET_SPI_CLOCK_MHZ * 1000 * 1000,
+    .clock_speed_hz = CONFIG_TCPSERVER_ETH_SPI_CLOCK_MHZ * 1000 * 1000,
     .queue_size = 16,
-    .spics_io_num = ETHERNET_SPI_CS0_GPIO
+    .spics_io_num = CONFIG_TCPSERVER_ETH_SPI_CS_GPIO
 };
 
-eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_EXAMPLE_ETH_SPI_HOST_ID,&spi_devcfg);
+eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_TCPSERVER_ETH_SPI_HOST,&spi_devcfg);
+ch390_config.int_gpio_num = CONFIG_TCPSERVER_ETH_SPI_INT_GPIO;
+
+#if CONFIG_TCPSERVER_ETH_SPI_INT_GPIO < 0
+ch390_config.poll_period_ms = CONFIG_TCPSERVER_ETH_SPI_POLLING_MS_VAL;
+#endif
 ```
 
 create a `mac` driver instance by calling `esp_eth_mac_new_ch390`,
@@ -33,8 +38,9 @@ create a `mac` driver instance by calling `esp_eth_mac_new_ch390`,
 eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
 
 // To avoid stack overflow, you could choose a larger value
-mac_config.rx_task_stack_size = 4096;     
+mac_config.rx_task_stack_size = 4096;
 
+// CH390 has a factory burned MAC. Therefore, configuring MAC address manually is not necessary.     
 esp_eth_mac_t *mac = esp_eth_mac_new_ch390(&ch390_config,&mac_config);
 ```
 
@@ -44,8 +50,6 @@ create a `phy` driver instance by calling `esp_eth_phy_new_ch390()`.
 ```c
 eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
-// CH390 has a factory burned MAC. Therefore, configuring MAC address manually is not necessary.
-phy_config.reset_gpio_num = ETHERNET_SPI_PHY_RST0_GPIO;
 esp_eth_phy_t *phy = esp_eth_phy_new_ch390(&phy_config);
 ```
 
