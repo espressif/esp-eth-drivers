@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Sergey Kharenko
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -270,10 +270,10 @@ static esp_err_t ch390_reset(emac_ch390_t *emac)
     }
     ESP_GOTO_ON_FALSE(to < emac->sw_reset_timeout_ms / 10, ESP_ERR_TIMEOUT, err, TAG, "reset timeout");
 
-    /* power on phy */
+    /* For CH390H, phy should be power on after software reset !*/
     ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_GPR, 0x00), err, TAG, "write GPR failed");
     /* mac and phy register won't be accesable within at least 1ms */
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     return ESP_OK;
 err:
@@ -325,8 +325,6 @@ static esp_err_t ch390_setup_default(emac_ch390_t *emac)
     ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_INTCKCR, 0x00), err, TAG, "write INTCKCR failed");
     /* no length limitation for rx packets */
     ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RLENCR, 0x00), err, TAG, "write RLENCR failed");
-    // /* 3K-byte for TX and 13K-byte for RX */
-    // ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MEMSCR, 0x00), err, TAG, "write MEMSCR failed");
     /* clear network status: wakeup event, tx complete */
     ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_NSR, NSR_WAKEST | NSR_TX2END | NSR_TX1END), err, TAG, "write NSR failed");
     return ESP_OK;
@@ -341,7 +339,7 @@ static esp_err_t ch390_enable_flow_ctrl(emac_ch390_t *emac, bool enable)
         /* send jam pattern (duration time = 1.15ms) when rx free space < 3k bytes */
         ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_BPTR, 0x3F), err, TAG, "write BPTR failed");
         /* flow control: high water threshold = 3k bytes, low water threshold = 8k bytes */
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCTR, 0x38), err, TAG, "write FCTR failed");
+        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCTR, FCTR_HWOT(3) | FCTR_LWOT(8)), err, TAG, "write FCTR failed");
         /* enable flow control */
         ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCR, FCR_FLOW_ENABLE), err, TAG, "write FCR failed");
     } else {
@@ -672,16 +670,9 @@ static esp_err_t emac_ch390_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
 
     // if ready != 1 or 0 reset device
     if (ready & CH390_PKT_ERR) {
-        // Reset RX FIFO pointer
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, RCR_DEFAULT), err,
-                          TAG, "write RCR failed"); // RX disable
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MPTRCR, MPTRCR_RST_RX), err,
-                          TAG, "write MPTRCR failed"); // Reset RX FIFO pointer
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MRRH, 0x0C), err,
-                          TAG, "write MRRH failed");
+        emac_ch390_stop(mac);
         esp_rom_delay_us(1000);
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, RCR_RXEN), err,
-                          TAG, "write RCR failed"); // RX enable
+        emac_ch390_start(mac);
 
         ESP_LOGE(TAG, "PACK ERR");
     } else {
@@ -691,7 +682,7 @@ static esp_err_t emac_ch390_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
             ESP_GOTO_ON_ERROR(ch390_memory_read(emac, (uint8_t *) & (rx_header), sizeof(rx_header)),
                               err, TAG, "peek rx header failed");
             *length = (rx_header.length_high << 8) + rx_header.length_low;
-            if ((rx_header.status & 0x3F) || (*length > CH390_PKT_MAX)) {
+            if ((rx_header.status & 0xBF) || (*length > CH390_PKT_MAX)) {
                 ch390_drop_frame(emac, *length);
                 *length = 0;
             } else {
@@ -790,7 +781,6 @@ static void emac_ch390_task(void *arg)
                         cache = malloc(emac->rx_len);
                         memcpy(cache, emac->rx_buffer, emac->rx_len);
                         emac->eth->stack_input(emac->eth, cache, emac->rx_len);
-                        // emac->eth->stack_input(emac->eth, emac->rx_buffer, emac->rx_len);
                     }
                 } else {
                     ESP_LOGE(TAG, "frame read from module failed");

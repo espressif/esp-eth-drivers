@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Sergey Kharenko
+ * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -18,11 +18,38 @@
 
 #include "esp_eth_phy_ch390.h"
 
-static const char *TAG = "ch390.phy";
+/** 
+ * @warning This value is NOT the same as the datasheet!!! Hoping WCH fix it 
+ * in the furture version!
+*/
+#define CH390_INFO_OUI                       0x1CDC64
+
+#define CH390_INFO_MODEL                     0x01
+
+#define ETH_PHY_PAGE_SEL_REG_ADDR 0x1F
+
+typedef union{
+    struct
+    {
+        uint32_t reserved1 : 3;
+        uint32_t force_link : 1;
+        uint32_t remote_lpbk : 1;
+        uint32_t pcs_lpbk : 1;
+        uint32_t pma_lpbk : 1;
+        uint32_t jabber_en : 1;
+        uint32_t sqe_en : 1;
+        uint32_t reserved2 : 7;
+    };
+    uint32_t val;
+}phy_ctl1_reg_t;
+#define ETH_PHY_CTL1_REG_ADDR 0X19
+#define ETH_PHY_CTL1_REG_PAGE 0x00
 
 typedef struct {
     phy_802_3_t phy_802_3;
 } phy_ch390_t;
+
+static const char *TAG = "ch390.phy";
 
 static esp_err_t ch390_update_link_duplex_speed(phy_ch390_t *ch390)
 {
@@ -83,6 +110,36 @@ err:
     return ret;
 }
 
+static esp_err_t ch390_loopback(esp_eth_phy_t *phy, bool enable)
+{
+    esp_err_t ret = ESP_OK;
+    phy_802_3_t *phy_802_3 = esp_eth_phy_into_phy_802_3(phy);
+    esp_eth_mediator_t *eth = phy_802_3->eth;
+    /* Set Loopback function */
+    // Enable PMA loopback in PHY_Control1 register
+    bmcr_reg_t bmcr;
+    phy_ctl1_reg_t phy_ctl1;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, phy_802_3->addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_PAGE_SEL_REG_ADDR, ETH_PHY_CTL1_REG_PAGE),
+                      err, TAG, "write PAGE_SEL failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, phy_802_3->addr, ETH_PHY_CTL1_REG_ADDR, &(phy_ctl1.val)), err, TAG, "read PHY_CTL1 failed");
+
+    if (enable) {
+        bmcr.en_loopback = 1;
+        phy_ctl1.pma_lpbk = 1;
+    } else {
+        bmcr.en_loopback = 0;
+        phy_ctl1.pma_lpbk = 0;
+    }
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_BMCR_REG_ADDR, bmcr.val), err, TAG, "write BMCR failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_PAGE_SEL_REG_ADDR, ETH_PHY_CTL1_REG_PAGE),
+                      err, TAG, "write PAGE_SEL failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_CTL1_REG_ADDR, phy_ctl1.val), err, TAG, "write PHY_CTL1 failed");
+    return ESP_OK;
+err:
+    return ret;
+}
+
 static esp_err_t ch390_init(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
@@ -96,7 +153,7 @@ static esp_err_t ch390_init(esp_eth_phy_t *phy)
     uint8_t model;
     ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_oui(phy_802_3, &oui), err, TAG, "read OUI failed");
     ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_manufac_info(phy_802_3, &model, NULL), err, TAG, "read manufacturer's info failed");
-    ESP_GOTO_ON_FALSE(oui == 0x1CDC64 && model == 0x01, ESP_FAIL, err, TAG, "wrong chip ID");
+    ESP_GOTO_ON_FALSE(oui == CH390_INFO_OUI && model == CH390_INFO_MODEL, ESP_FAIL, err, TAG, "wrong chip ID");
 
     return ESP_OK;
 err:
@@ -114,6 +171,7 @@ esp_eth_phy_t *esp_eth_phy_new_ch390(const eth_phy_config_t *config)
     // redefine functions which need to be customized for sake of ch390
     ch390->phy_802_3.parent.init = ch390_init;
     ch390->phy_802_3.parent.get_link = ch390_get_link;
+    ch390->phy_802_3.parent.loopback = ch390_loopback;
 
     return &ch390->phy_802_3.parent;
 err:

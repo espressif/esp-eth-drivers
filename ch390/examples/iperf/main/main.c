@@ -1,3 +1,11 @@
+/*
+ * SPDX-FileCopyrightText: 2024 Sergey Kharenko
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * SPDX-FileContributor: 2024 Sergey Kharenko
+ * SPDX-FileContributor: 2024 Espressif Systems (Shanghai) CO LTD
+ */
 #include <string.h>
 #include "sys/socket.h" // for INADDR_ANY
 #include "esp_netif.h"
@@ -12,7 +20,6 @@
 
 #include "basic.h"
 
-static const char *TAG = "iperf test";
 static esp_eth_handle_t eth_handle;
 static esp_netif_t      *eth_netif;
 
