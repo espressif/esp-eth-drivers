@@ -25,7 +25,7 @@ Both `TXD` and `SEL` pin are internally pull-up.
 
 For this driver, two modes can be switched between via `CH395 Communication Interface` in `menuconfig`. 
 
-<img src="./docs/image/ModeSelection.jpg" width="60%">
+<img src="./docs/image/ModeSelection.png" width="60%">
 
 #### 1. UART Mode(recommend)
 A large number of test results have shown that: current version of driver exhibits much **BETTER** performance in UART mode. Just create a configuration instance by calling `ETH_CH395_DEFAULT_CONFIG`
