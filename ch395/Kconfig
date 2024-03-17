@@ -1,0 +1,18 @@
+menu "CH395 Configuration"
+
+    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
+    
+    if ETH_ENABLED
+        choice ETH_CH395_INTERFACE
+            prompt "CH395 Communication Interface"
+            default ETH_CH395_INTERFACE_UART
+
+            config ETH_CH395_INTERFACE_UART
+                bool "Use UART to communicate"
+            
+            config ETH_CH395_INTERFACE_SPI
+                depends on ETH_USE_SPI_ETHERNET
+                bool "Use SPI to communicate"
+        endchoice
+    endif
+endmenu
