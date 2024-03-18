@@ -305,6 +305,7 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 #elif CONFIG_ETHERNET_USE_CH390
     eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
     ch390_config.int_gpio_num = spi_eth_module_config->int_gpio;
+    ch390_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
     dev_out->mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
     dev_out->phy = esp_eth_phy_new_ch390(&phy_config);
     sprintf(dev_out->dev_info.name, "CH390");
