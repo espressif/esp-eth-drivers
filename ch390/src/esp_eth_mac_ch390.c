@@ -777,8 +777,15 @@ static void emac_ch390_task(void *arg)
                         break;
                     } else {
                         ESP_LOGD(TAG, "receive len=%lu", emac->rx_len);
-                        /* pass the buffer to stack (e.g. TCP/IP layer) */
+
+                        /* allocate memory and check whether allocation failed */
                         cache = malloc(emac->rx_len);
+                        if(cache == NULL){
+                            ESP_LOGE(TAG, "no memory for receive buffer");
+                            continue;
+                        }
+
+                        /* pass the buffer to stack (e.g. TCP/IP layer) */
                         memcpy(cache, emac->rx_buffer, emac->rx_len);
                         emac->eth->stack_input(emac->eth, cache, emac->rx_len);
                     }
