@@ -1,0 +1,13 @@
+version: "0.0.1"
+targets:
+  - esp32
+  - esp32s2
+  - esp32c3
+  - esp32s3
+  - esp32c2
+  - esp32c6
+  - esp32h2
+description: CH395 Ethernet Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/ch395
+dependencies:
+  idf: ">=5.2"
