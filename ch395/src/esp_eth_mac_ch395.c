@@ -1408,11 +1408,17 @@ static void emac_ch395_task(void *arg)
 
         if (s_intr & SINT_STAT_RECV) {
             if (emac->parent.receive(&emac->parent, emac->rx_buffer,
-                                     &emac->rx_len)
-                    == ESP_OK) {
+                                     &emac->rx_len) == ESP_OK) {
                 ESP_LOGD(TAG, "receive len=%lu", emac->rx_len);
+
+                /* allocate memory and check whether it failed */
                 cache = malloc(emac->rx_len);
+                if(cache == NULL){
+                    ESP_LOGE(TAG, "no memory for receive buffer");
+                    continue;
+                }
                 memcpy(cache, emac->rx_buffer, emac->rx_len);
+
                 emac->eth->stack_input(emac->eth, cache, emac->rx_len);
             } else {
                 ESP_LOGE(TAG, "frame read from module failed");
