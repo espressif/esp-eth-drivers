@@ -289,15 +289,16 @@ static esp_err_t ch395_spi_io(void *spi_ctx, uint8_t cmd, uint8_t *tx_data,
     }
 
     if (tx_len > 0) {
-        spi->trans.length = 8 * tx_len;
-        spi->trans.tx_buffer = tx_data;
-        if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
-                != ESP_OK) {
-            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                        __LINE__);
-            ch395_spi_stop(spi);
-            ch395_spi_unlock(spi);
-            return ESP_FAIL;
+        for (uint32_t i = 0; i < tx_len; i++) {
+            spi->trans.tx_buffer = tx_data + i;
+            if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
+                    != ESP_OK) {
+                ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                         __LINE__);
+                ch395_spi_stop(spi);
+                ch395_spi_unlock(spi);
+                return ESP_FAIL;
+            }
         }
     }
 
