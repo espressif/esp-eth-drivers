@@ -277,6 +277,7 @@ static esp_err_t ch395_spi_io(void *spi_ctx, uint8_t cmd, uint8_t *tx_data,
     }
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &cmd;
     spi->trans.rx_buffer = NULL;
 
@@ -288,16 +289,15 @@ static esp_err_t ch395_spi_io(void *spi_ctx, uint8_t cmd, uint8_t *tx_data,
     }
 
     if (tx_len > 0) {
-        for (uint32_t i = 0; i < tx_len; i++) {
-            spi->trans.tx_buffer = tx_data + i;
-            if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
-                    != ESP_OK) {
-                ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                         __LINE__);
-                ch395_spi_stop(spi);
-                ch395_spi_unlock(spi);
-                return ESP_FAIL;
-            }
+        spi->trans.length = 8 * tx_len;
+        spi->trans.tx_buffer = tx_data;
+        if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
+                != ESP_OK) {
+            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                        __LINE__);
+            ch395_spi_stop(spi);
+            ch395_spi_unlock(spi);
+            return ESP_FAIL;
         }
     }
 
@@ -428,6 +428,7 @@ static esp_err_t ch395_get_phy_status(emac_ch395_t *emac, uint8_t *sta)
     }
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &CH395_CMD_GETPHY;
     spi->trans.rx_buffer = NULL;
     if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
@@ -495,6 +496,7 @@ static esp_err_t ch395_set_phy_mode(emac_ch395_t *emac, uint8_t mode)
     }
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &CH395_CMD_SETPHY;
     spi->trans.rx_buffer = NULL;
     if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
@@ -560,6 +562,7 @@ static esp_err_t ch395_tx_buffer(emac_ch395_t *emac, uint8_t *data,
     }
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &CH395_CMD_TXBUFFER;
     spi->trans.rx_buffer = NULL;
     if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
@@ -585,39 +588,36 @@ static esp_err_t ch395_tx_buffer(emac_ch395_t *emac, uint8_t *data,
         spi->cache[1] = (uint8_t)(len >> 8);
     }
 
-    for (uint8_t i = 0; i < 2; i++) {
-        spi->trans.tx_buffer = spi->cache + i;
-        if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
-            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                     __LINE__);
-            ch395_spi_stop(spi);
-            ch395_spi_unlock(spi);
-            return ESP_FAIL;
-        }
+    spi->trans.length = 8 * 2;
+    spi->trans.tx_buffer = spi->cache;
+    if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                    __LINE__);
+        ch395_spi_stop(spi);
+        ch395_spi_unlock(spi);
+        return ESP_FAIL;
     }
 
-    for (uint32_t i = 0; i < len; i++) {
-        spi->trans.tx_buffer = (uint8_t *)data + i;
-        if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
-            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                     __LINE__);
-            ch395_spi_stop(spi);
-            ch395_spi_unlock(spi);
-            return ESP_FAIL;
-        }
+    spi->trans.length = 8 * len;
+    spi->trans.tx_buffer = data;
+    if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                    __LINE__);
+        ch395_spi_stop(spi);
+        ch395_spi_unlock(spi);
+        return ESP_FAIL;
     }
 
     if (len < CH395_MIN_TX_PACKSZ) {
+        spi->trans.length = 8 * (CH395_MIN_TX_PACKSZ - len);
         spi->trans.tx_buffer = CH395_PADDING_BUFF;
-        for (uint8_t i = 0; i < CH395_MIN_TX_PACKSZ - len; i++) {
-            if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
-                    != ESP_OK) {
-                ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                         __LINE__);
-                ch395_spi_stop(spi);
-                ch395_spi_unlock(spi);
-                return ESP_FAIL;
-            }
+        if (spi_device_polling_transmit(spi->hdl, &(spi->trans))
+                != ESP_OK) {
+            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                        __LINE__);
+            ch395_spi_stop(spi);
+            ch395_spi_unlock(spi);
+            return ESP_FAIL;
         }
     }
 
@@ -700,6 +700,7 @@ static esp_err_t ch395_rx_buffer(emac_ch395_t *emac, uint8_t *data,
 
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &CH395_CMD_RXBUFFER;
     spi->trans.rx_buffer = NULL;
 
@@ -721,27 +722,39 @@ static esp_err_t ch395_rx_buffer(emac_ch395_t *emac, uint8_t *data,
     spi->cache[0] = (uint8_t)len;
     spi->cache[1] = (uint8_t)(len >> 8);
 
-    for (uint8_t i = 0; i < 2; i++) {
-        spi->trans.tx_buffer = spi->cache + i;
-        if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
-            ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                     __LINE__);
-            ch395_spi_stop(spi);
-            ch395_spi_unlock(spi);
-            return ESP_FAIL;
-        }
+    spi->trans.length = 8 * 2;
+    spi->trans.tx_buffer = spi->cache;
+    if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                    __LINE__);
+        ch395_spi_stop(spi);
+        ch395_spi_unlock(spi);
+        return ESP_FAIL;
     }
 
+    spi->trans.length = 8 * 4;
     spi->trans.tx_buffer = NULL;
-    for (uint32_t i = 0; i < len; i++) {
-        spi->trans.rx_buffer = data + i;
+    while(len>4){
+        spi->trans.rx_buffer = data;
         if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
             ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
-                     __LINE__);
+                        __LINE__);
             ch395_spi_stop(spi);
             ch395_spi_unlock(spi);
             return ESP_FAIL;
         }
+        data += 4;
+        len -= 4;
+    }
+
+    spi->trans.length = 8 * len;
+    spi->trans.rx_buffer = data;
+    if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__,
+                    __LINE__);
+        ch395_spi_stop(spi);
+        ch395_spi_unlock(spi);
+        return ESP_FAIL;
     }
 
     ch395_spi_stop(spi);
@@ -809,6 +822,7 @@ static esp_err_t ch395_get_rx_size(emac_ch395_t *emac, uint32_t *len)
     }
     ch395_spi_start(spi);
 
+    spi->trans.length = 8;
     spi->trans.tx_buffer = &CH395_CMD_GETRXSZ;
     spi->trans.rx_buffer = NULL;
     if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
@@ -826,16 +840,9 @@ static esp_err_t ch395_get_rx_size(emac_ch395_t *emac, uint32_t *len)
         return ESP_FAIL;
     }
 
+    spi->trans.length = 8 * 2;
     spi->trans.tx_buffer = NULL;
     spi->trans.rx_buffer = spi->cache;
-    if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
-        ch395_spi_stop(spi);
-        ch395_spi_unlock(spi);
-        return ESP_FAIL;
-    }
-
-    spi->trans.rx_buffer = spi->cache + 1;
     if (spi_device_polling_transmit(spi->hdl, &(spi->trans)) != ESP_OK) {
         ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
         ch395_spi_stop(spi);
@@ -1015,7 +1022,7 @@ static esp_err_t ch395_reset(emac_ch395_t *emac)
     ESP_GOTO_ON_ERROR(
         ch395_exchange_data(emac, CMD00_RESET_ALL, NULL, 0, NULL, 0), err, TAG,
         "reset all failed");
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(60));
 
 err:
     return ret;
@@ -1077,7 +1084,7 @@ static esp_err_t ch395_setup_default(emac_ch395_t *emac)
     ESP_GOTO_ON_ERROR(
         ch395_exchange_data(emac, CMD0W_INIT_CH395, NULL, 0, NULL, 0), err, TAG,
         "init CH395 failed");
-    vTaskDelay(pdMS_TO_TICKS(350));
+    vTaskDelay(pdMS_TO_TICKS(400));
     ESP_GOTO_ON_ERROR(ch395_cmd_pending_finish(emac), err, TAG,
                       "init CH395 timeout");
 

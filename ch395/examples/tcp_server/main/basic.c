@@ -49,7 +49,7 @@ static esp_err_t spi_bus_init(void)
         .quadhd_io_num = -1,
         // .flags = SPICOMMON_BUSFLAG_IOMUX_PINS
     };
-    ESP_GOTO_ON_ERROR(spi_bus_initialize(CONFIG_TCPSERVER_ETH_SPI_HOST, &buscfg, SPI_DMA_DISABLED),
+    ESP_GOTO_ON_ERROR(spi_bus_initialize(CONFIG_TCPSERVER_ETH_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO),
                       err, TAG, "SPI host #%d init failed", 2);
 
 err:
