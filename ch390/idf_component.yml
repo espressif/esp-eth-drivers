@@ -1,12 +1,4 @@
 version: "0.1.0"
-targets:
-  - esp32
-  - esp32s2
-  - esp32c3
-  - esp32s3
-  - esp32c2
-  - esp32c6
-  - esp32h2
 description: CH390 Ethernet Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ch390
 dependencies:
