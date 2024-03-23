@@ -325,7 +325,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
 
-    // Sync semaphore is needed since local variables are used during initialization in other tasks
+    // Sync semaphore is needed since main task local variables are used during initialization in other tasks
     init_done = xSemaphoreCreateBinary();
     assert(init_done);
 
