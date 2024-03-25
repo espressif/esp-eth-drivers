@@ -64,7 +64,10 @@ menu "Ethernet Configuration"
                     Goto https://www.microchip.com for more information about them.
 
             config ETHERNET_PHY_LAN867X
-                bool "LAN867x"
+                # bool "LAN867x"
+                # TODO: un-hide this option once processing of Matches and Rules is fixed in  IDF Component Manager and so LAN867x component can be conditionally included. 
+                bool
+                default n
                 help
                     The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for 10 Mbit/s half-duplex networking over a single pair of conductors
                     Goto https://www.microchip.com for more information about them.
