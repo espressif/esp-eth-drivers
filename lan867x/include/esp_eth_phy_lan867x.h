@@ -19,6 +19,8 @@ typedef enum {
     LAN867X_ETH_CMD_G_PLCA_NCNT,                         /*!< Get PLCA node count */
     LAN867X_ETH_CMD_S_PLCA_ID,                           /*!< Set PLCA ID */
     LAN867X_ETH_CMD_G_PLCA_ID,                           /*!< Get PLCA ID */
+    LAN867x_ETH_CMD_S_PLCA_TOT,                          /*!< Set PLCA Transmit Opportunity Timer in incriments of 100ns */
+    LAN867x_ETH_CMD_G_PLCA_TOT,                          /*!< Get PLCA Transmit Opportunity Timer in incriments of 100ns */
     LAN867X_ETH_CMD_ADD_TX_OPPORTUNITY,                  /*!< Add additional transmit opportunity for chosen node */
     LAN867X_ETH_CMD_RM_TX_OPPORTUNITY,                   /*!< Remove additional transmit opportunity for chosen node */
     LAN867X_ETH_CMD_S_MAX_BURST_COUNT,                   /*!< Set max count of additional packets, set to 0 to disable */
