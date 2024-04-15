@@ -1,0 +1,7 @@
+menu "Example options"
+    config EXAMPLE_ACT_AS_DHCP_SERVER
+        bool "Act sa DHCP server"
+        default n
+        help
+            Set ESP32 to act as DHCP server instead of as a client.
+endmenu
