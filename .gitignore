@@ -27,11 +27,11 @@ GPATH
 **/test_apps/**/sdkconfig
 **/test_apps/**/sdkconfig.old
 
-# Example project files
-**/examples/**/sdkconfig
-**/examples/**/sdkconfig.old
-**/examples/**/build
-**/examples/**/managed_components
+# Project files
+**/sdkconfig
+**/sdkconfig.old
+**/build
+**/managed_components
 
 # Doc build artifacts
 docs/_build/
