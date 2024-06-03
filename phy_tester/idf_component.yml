@@ -1,0 +1,8 @@
+version: "0.1.0"
+targets:
+  - esp32
+  - esp32p4
+description: Ethernet PHY Tester
+url: https://github.com/espressif/esp-eth-drivers/tree/master/phy_tester
+dependencies:
+  idf: ">=5.0.6"
