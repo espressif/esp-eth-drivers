@@ -11,6 +11,7 @@
 #include "esp_check.h"
 #include "esp_mac.h"
 #include "driver/gpio.h"
+#include "esp_idf_version.h"
 #include "sdkconfig.h"
 #if CONFIG_ETH_USE_SPI_ETHERNET
 #include "driver/spi_master.h"
@@ -141,8 +142,13 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
     // Init vendor specific MAC config to default
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
     // Update vendor specific MAC config based on board configuration
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
+    esp32_emac_config.smi_gpio.mdc_num = CONFIG_ETHERNET_MDC_GPIO;
+    esp32_emac_config.smi_gpio.mdio_num = CONFIG_ETHERNET_MDIO_GPIO;
+#else
     esp32_emac_config.smi_mdc_gpio_num = CONFIG_ETHERNET_MDC_GPIO;
     esp32_emac_config.smi_mdio_gpio_num = CONFIG_ETHERNET_MDIO_GPIO;
+#endif
 
 #if CONFIG_ETHERNET_SPI_SUPPORT
     // The DMA is shared resource between EMAC and the SPI. Therefore, adjust
