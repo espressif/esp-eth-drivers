@@ -5,4 +5,4 @@ examples:
   - path: ../common_examples/
 description: This component initializes Ethernet driver based on Espressif IoT Development Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 0.2.2
+version: 0.3.0
