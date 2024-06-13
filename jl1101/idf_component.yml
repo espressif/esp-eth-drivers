@@ -1,0 +1,7 @@
+version: "0.1.0"
+targets:
+  - esp32
+description: JL1101 Ethernet PHY Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/jl1101
+dependencies:
+  idf: ">=5.1"
