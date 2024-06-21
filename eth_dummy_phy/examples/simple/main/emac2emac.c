@@ -14,7 +14,6 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 #include "driver/gpio.h"
-#include "hal/gpio_hal.h"
 #include "esp_system.h"
 #include "esp_eth_driver.h"
 #include "esp_eth_phy_dummy.h"
@@ -80,11 +79,11 @@ static void cmd_ping_on_ping_end(esp_ping_handle_t hdl, void *args)
     esp_ping_delete_session(hdl);
 }
 
-static void ping_start(const esp_netif_ip_info_t *ip_info)
+static void ping_start(const esp_ip4_addr_t *ip)
 {
     esp_ping_config_t config = ESP_PING_DEFAULT_CONFIG();
 
-    ip4_addr_set_u32(ip_2_ip4(&config.target_addr), ip_info->gw.addr);
+    ip4_addr_set_u32(ip_2_ip4(&config.target_addr), ip->addr);
     config.target_addr.type = IPADDR_TYPE_V4; // currently only IPv4 for this example
 
     /* set callback functions */
@@ -147,7 +146,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 
 #if !CONFIG_EXAMPLE_DHCP_SERVER_EN
-    ping_start(ip_info);
+    ping_start(&ip_info->gw);
 #endif
 }
 
@@ -166,18 +165,21 @@ IRAM_ATTR static void gpio_isr_handler(void *arg)
 
 void app_main(void)
 {
-#if CONFIG_EXAMPLE_RMII_CLK_SOURCE_DEV
-    // ESP32 device which is RMII CLK source needs to wait with its Ethernet initialization for the "RMII CLK
-    // Sink Device" since the RMII CLK input pin (GPIO0) is also used as a boot strap pin. If the "RMII CLK Source Device" didn't wait,
+    // ESP32 device which is RMII CLK source needs to wait with its Ethernet initialization for the "RMII CLK Sink Device"
+    // since the RMII CLK input pin (GPIO0) is also used as a boot strap pin. If the "RMII CLK Source Device" didn't wait,
     // the "RMII CLK Sink Device" could boot into incorrect mode.
+#if CONFIG_EXAMPLE_RMII_CLK_SOURCE_DEV
     esp_rom_gpio_pad_select_gpio(EMAC_CLK_OUT_180_GPIO);
     gpio_set_pull_mode(EMAC_CLK_OUT_180_GPIO, GPIO_FLOATING); // to not affect GPIO0 (so the Sink Device could be flashed)
     gpio_install_isr_service(0);
-    esp_rom_gpio_pad_select_gpio(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO);
-    gpio_set_direction(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, GPIO_PULLDOWN_ONLY);
-    gpio_set_intr_type(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, GPIO_INTR_ANYEDGE);
-    gpio_intr_enable(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO);
+    gpio_config_t gpio_source_cfg = {
+        .pin_bit_mask = (1ULL << CONFIG_EXAMPLE_CLK_SINK_READY_GPIO),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_ANYEDGE
+    };
+    gpio_config(&gpio_source_cfg);
     TaskHandle_t task_handle = xTaskGetHandle(pcTaskGetName(NULL));
     gpio_isr_handler_add(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, gpio_isr_handler, task_handle);
     ESP_LOGW(TAG, "waiting for RMII CLK sink device interrupt");
@@ -190,9 +192,14 @@ void app_main(void)
     }
     ESP_LOGI(TAG, "starting Ethernet initialization");
 #else
-    esp_rom_gpio_pad_select_gpio(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO);
-    gpio_set_direction(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, GPIO_MODE_OUTPUT);
-    gpio_set_pull_mode(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, GPIO_FLOATING);
+    gpio_config_t gpio_sink_cfg = {
+        .pin_bit_mask = (1ULL << CONFIG_EXAMPLE_CLK_SINK_READY_GPIO),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&gpio_sink_cfg);
     gpio_set_level(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, 0);
     vTaskDelay(pdMS_TO_TICKS(STARTUP_DELAY_MS));
     gpio_set_level(CONFIG_EXAMPLE_CLK_SINK_READY_GPIO, 1);
@@ -210,8 +217,8 @@ void app_main(void)
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
     // Update vendor specific MAC config based on board configuration
     // No SMI, speed/duplex must be statically configured the same in both devices
-    esp32_emac_config.smi_mdc_gpio_num = -1;
-    esp32_emac_config.smi_mdio_gpio_num = -1;
+    esp32_emac_config.smi_gpio.mdc_num = -1;
+    esp32_emac_config.smi_gpio.mdio_num = -1;
 #if CONFIG_EXAMPLE_RMII_CLK_SOURCE_DEV
     esp32_emac_config.clock_config.rmii.clock_mode = EMAC_CLK_OUT;
     esp32_emac_config.clock_config.rmii.clock_gpio = EMAC_CLK_OUT_180_GPIO;
@@ -273,13 +280,6 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
     ESP_ERROR_CHECK(esp_eth_start(eth_handle));
-
-#if !CONFIG_EXAMPLE_DHCP_SERVER_EN
-    vTaskDelay(pdMS_TO_TICKS(7000));
-    esp_eth_stop(eth_handle);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    esp_eth_start(eth_handle);
-#endif
 
 #if CONFIG_EXAMPLE_RMII_CLK_SOURCE_DEV
     // Wait indefinitely or reset when "RMII CLK Sink Device" resets

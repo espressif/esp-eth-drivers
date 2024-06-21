@@ -1,3 +1,3 @@
 idf_component_register(SRCS "src/esp_eth_phy_dummy.c"
                        INCLUDE_DIRS "include"
-                       PRIV_REQUIRES log esp_eth)
+                       PRIV_REQUIRES log esp_eth esp_driver_gpio)
