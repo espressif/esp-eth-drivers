@@ -1,0 +1,7 @@
+menu "Example options"
+    config EXAMPLE_SERVER_IP_ADDRESS
+        string "Server IP address"
+        default "192.168.1.1"
+        help
+            TCP server IP.
+endmenu
