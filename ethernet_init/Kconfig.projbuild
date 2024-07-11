@@ -141,11 +141,15 @@ menu "Ethernet Configuration"
                 select ETH_SPI_ETHERNET_W5500
                 help
                     Select external SPI-Ethernet module (W5500).
+
+            config ETHERNET_USE_CH390
+                bool "CH390 Module"
+                help
+                    Select external SPI-Ethernet module (CH390).
         endchoice
 
         config ETHERNET_SPI_HOST
-            int "SPI Host Number"
-            range 0 2
+            int "SPI Host Number" 
             default 1
             help
                 Set the SPI host used to communicate with the SPI Ethernet Controller.
