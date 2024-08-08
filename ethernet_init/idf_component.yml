@@ -1,4 +1,7 @@
 dependencies:
+  espressif/lan867x: 
+    rules:
+       - if: "target in [esp32, esp32p4]"
   idf:
     version: '>=5.1'
   ch390:
@@ -8,4 +11,4 @@ examples:
   - path: ../common_examples/
 description: This component initializes Ethernet driver based on Espressif IoT Development Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 0.3.0
+version: 0.3.1
