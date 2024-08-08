@@ -5,3 +5,7 @@ dependencies:
     version: '*'
     # For local development use the local copy of the component
     override_path: '../../../'
+  #lan867x:
+  #  rules:
+  #     - if: "target in [esp32, esp32p4]"
+  #  override_path: '../../../'
