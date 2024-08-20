@@ -12,6 +12,11 @@
 #include "esp_eth_com.h"
 #include "esp_eth_mac.h"
 
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
+#include "esp_eth_mac_spi.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,7 +39,7 @@ typedef struct {
  */
 #define ETH_CH390_DEFAULT_CONFIG(spi_host, spi_devcfg_p) \
     {                                           \
-        .int_gpio_num = 0,                      \
+        .int_gpio_num = 4,                      \
         .spi_host_id = spi_host,                \
         .spi_devcfg = spi_devcfg_p,             \
         .custom_spi_driver = ETH_DEFAULT_SPI,   \

@@ -1,4 +1,0 @@
-description: TCP Server Example
-dependencies:
-  ch390:
-    override_path: '../../../'

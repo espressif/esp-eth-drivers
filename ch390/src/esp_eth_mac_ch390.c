@@ -27,6 +27,26 @@
 #include "ch390.h"
 #include "esp_eth_mac_ch390.h"
 
+/** @note -----------------------  RX Pack Structure ---------------------------
+ * |              4 Bytes Frame Head               | Data Area(pass to lwip) |
+ * |  Head |  Status  | Length(Low) | Length(High) |        ........         |
+ *     |        |
+ *     |        |
+ *     |        |       Should be the value of RSR( @ref CH390_RSR). We use @ref RSR_ERR_MASK to determine
+ *     |        |       whether the pack has error.
+ *     |        |-------------------------------------------------------------------------------------
+ *     |
+ *     |                Depends on RCSEN bit( @ref RCSCSR_RCSEN) of RCSCSR( @ref CH390_RCSCSR)
+ *     |                - RCSEN = 0, the Head shoud always be 0x01
+ *     |                - RCSEN = 1, bit 7:2 of the Head is the same as that of RCSCSR;
+ *     |                This will affect the determination of the validity of the packet. Therefore,
+ *     |                we provide discriminant masks for both cases.
+ *     |                - RCSEN = 0 ---> @ref CH390_PKT_ERR
+ *     |                - RCSEN = 1 ---> @ref CH390_PKT_ERR_WITH_RCSEN
+ *     |----------------------------------------------------------------------------------------------
+*/
+
+
 static const char *TAG = "ch390.mac";
 
 #define CH390_SPI_LOCK_TIMEOUT_MS           (50)
@@ -62,13 +82,24 @@ typedef struct {
     int                     int_gpio_num;
     esp_timer_handle_t      poll_timer;
     uint32_t                poll_period_ms;
-    uint8_t                 addr[6];
+    uint8_t                 addr[ETH_ADDR_LEN];
     bool                    flow_ctrl_enabled;
     uint8_t                 *rx_buffer;
     uint32_t                rx_len;
 } emac_ch390_t;
 
-static void *ch390_spi_init(const void *spi_config)
+
+static inline bool CH390_SPI_LOCK(eth_spi_info_t *spi)
+{
+    return xSemaphoreTake(spi->lock, pdMS_TO_TICKS(CH390_SPI_LOCK_TIMEOUT_MS)) == pdTRUE;
+}
+
+static inline bool CH390_SPI_UNLOCK(eth_spi_info_t *spi)
+{
+    return xSemaphoreGive(spi->lock) == pdTRUE;
+}
+
+static void *CH390_SPI_INIT(const void *spi_config)
 {
     void *ret = NULL;
     eth_ch390_config_t *ch390_config = (eth_ch390_config_t *)spi_config;
@@ -105,7 +136,7 @@ err:
     return ret;
 }
 
-static esp_err_t ch390_spi_deinit(void *spi_ctx)
+static esp_err_t CH390_SPI_DEINIT(void *spi_ctx)
 {
     esp_err_t ret = ESP_OK;
     eth_spi_info_t *spi = (eth_spi_info_t *)spi_ctx;
@@ -117,17 +148,7 @@ static esp_err_t ch390_spi_deinit(void *spi_ctx)
     return ret;
 }
 
-static inline bool ch390_spi_lock(eth_spi_info_t *spi)
-{
-    return xSemaphoreTake(spi->lock, pdMS_TO_TICKS(CH390_SPI_LOCK_TIMEOUT_MS)) == pdTRUE;
-}
-
-static inline bool ch390_spi_unlock(eth_spi_info_t *spi)
-{
-    return xSemaphoreGive(spi->lock) == pdTRUE;
-}
-
-static esp_err_t ch390_spi_write(void *spi_ctx, uint32_t cmd, uint32_t addr, const void *value, uint32_t len)
+static inline esp_err_t CH390_SPI_WRITE(void *spi_ctx, uint32_t cmd, uint32_t addr, const void *value, uint32_t len)
 {
     esp_err_t ret = ESP_OK;
     eth_spi_info_t *spi = (eth_spi_info_t *)spi_ctx;
@@ -138,19 +159,19 @@ static esp_err_t ch390_spi_write(void *spi_ctx, uint32_t cmd, uint32_t addr, con
         .length = 8 * len,
         .tx_buffer = value
     };
-    if (ch390_spi_lock(spi)) {
+    if (CH390_SPI_LOCK(spi)) {
         if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK) {
             ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
             ret = ESP_FAIL;
         }
-        ch390_spi_unlock(spi);
+        CH390_SPI_UNLOCK(spi);
     } else {
         ret = ESP_ERR_TIMEOUT;
     }
     return ret;
 }
 
-static esp_err_t ch390_spi_read(void *spi_ctx, uint32_t cmd, uint32_t addr, void *value, uint32_t len)
+static inline esp_err_t CH390_SPI_READ(void *spi_ctx, uint32_t cmd, uint32_t addr, void *value, uint32_t len)
 {
     esp_err_t ret = ESP_OK;
     eth_spi_info_t *spi = (eth_spi_info_t *)spi_ctx;
@@ -161,22 +182,23 @@ static esp_err_t ch390_spi_read(void *spi_ctx, uint32_t cmd, uint32_t addr, void
         .length = 8 * len,
         .rx_buffer = value
     };
-    if (ch390_spi_lock(spi)) {
+    if (CH390_SPI_LOCK(spi)) {
         if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK) {
             ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
             ret = ESP_FAIL;
         }
-        ch390_spi_unlock(spi);
+        CH390_SPI_UNLOCK(spi);
     } else {
         ret = ESP_ERR_TIMEOUT;
     }
     return ret;
 }
 
+
 /**
  * @brief write value to ch390 internal register
  */
-static esp_err_t ch390_register_write(emac_ch390_t *emac, uint8_t reg_addr, uint8_t value)
+static esp_err_t ch390_io_register_write(emac_ch390_t *emac, uint8_t reg_addr, uint8_t value)
 {
     return emac->spi.write(emac->spi.ctx, CH390_SPI_WR, reg_addr, &value, 1);
 }
@@ -184,7 +206,7 @@ static esp_err_t ch390_register_write(emac_ch390_t *emac, uint8_t reg_addr, uint
 /**
  * @brief read value from ch390 internal register
  */
-static esp_err_t ch390_register_read(emac_ch390_t *emac, uint8_t reg_addr, uint8_t *value)
+static esp_err_t ch390_io_register_read(emac_ch390_t *emac, uint8_t reg_addr, uint8_t *value)
 {
     return emac->spi.read(emac->spi.ctx, CH390_SPI_RD, reg_addr, value, 1);
 }
@@ -192,7 +214,7 @@ static esp_err_t ch390_register_read(emac_ch390_t *emac, uint8_t reg_addr, uint8
 /**
  * @brief write buffer to ch390 internal memory
  */
-static esp_err_t ch390_memory_write(emac_ch390_t *emac, uint8_t *buffer, uint32_t len)
+static esp_err_t ch390_io_memory_write(emac_ch390_t *emac, uint8_t *buffer, uint32_t len)
 {
     return emac->spi.write(emac->spi.ctx, CH390_SPI_WR, CH390_MWCMD, buffer, len);
 }
@@ -200,198 +222,11 @@ static esp_err_t ch390_memory_write(emac_ch390_t *emac, uint8_t *buffer, uint32_
 /**
  * @brief read buffer from ch390 internal memory
  */
-static esp_err_t ch390_memory_read(emac_ch390_t *emac, uint8_t *buffer, uint32_t len)
+static esp_err_t ch390_io_memory_read(emac_ch390_t *emac, uint8_t *buffer, uint32_t len)
 {
     return emac->spi.read(emac->spi.ctx, CH390_SPI_RD, CH390_MRCMD, buffer, len);
 }
 
-/**
- * @brief read mac address from internal registers
- */
-static esp_err_t ch390_get_mac_addr(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    for (int i = 0; i < 6; i++) {
-        ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_PAR + i, &emac->addr[i]), err, TAG, "read PAR failed");
-    }
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief set new mac address to internal registers
- */
-static esp_err_t ch390_set_mac_addr(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    for (int i = 0; i < 6; i++) {
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_PAR + i, emac->addr[i]), err, TAG, "write PAR failed");
-    }
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief clear multicast hash table
- */
-static esp_err_t ch390_clear_multicast_table(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    /* rx broadcast packet control by bit7 of MAC register 1DH */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_BCASTCR, 0x00), err, TAG, "write BCASTCR failed");
-    for (int i = 0; i < 7; i++) {
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MAR + i, 0x00), err, TAG, "write MAR failed");
-    }
-    /* enable receive broadcast paclets */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MAR + 7, 0x80), err, TAG, "write MAR failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief software reset ch390 internal register
- */
-static esp_err_t ch390_reset(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    /* software reset */
-    uint8_t ncr = NCR_RST;
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_NCR, ncr), err, TAG, "write NCR failed");
-    uint32_t to = 0;
-    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++) {
-        ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_NCR, &ncr), err, TAG, "read NCR failed");
-        if (!(ncr & NCR_RST)) {
-            break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-    ESP_GOTO_ON_FALSE(to < emac->sw_reset_timeout_ms / 10, ESP_ERR_TIMEOUT, err, TAG, "reset timeout");
-
-    /* For CH390H, phy should be power on after software reset !*/
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_GPR, 0x00), err, TAG, "write GPR failed");
-    /* mac and phy register won't be accesable within at least 1ms */
-    vTaskDelay(pdMS_TO_TICKS(10));
-
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief verify ch390 chip ID
- */
-static esp_err_t ch390_verify_id(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    uint8_t id[2];
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_VIDL, &id[0]), err, TAG, "read VIDL failed");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_VIDH, &id[1]), err, TAG, "read VIDH failed");
-    ESP_GOTO_ON_FALSE(0x1C == id[1] && 0x00 == id[0], ESP_ERR_INVALID_VERSION, err, TAG, "wrong Vendor ID");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_PIDL, &id[0]), err, TAG, "read PIDL failed");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_PIDH, &id[1]), err, TAG, "read PIDH failed");
-    ESP_GOTO_ON_FALSE(0x91 == id[1] && 0x51 == id[0], ESP_ERR_INVALID_VERSION, err, TAG, "wrong Product ID");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief default setup for ch390 internal registers
- */
-static esp_err_t ch390_setup_default(emac_ch390_t *emac)
-{
-    esp_err_t ret = ESP_OK;
-    /* disable wakeup */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_NCR, 0x00), err, TAG, "write NCR failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_WCR, 0x00), err, TAG, "write WCR failed");
-    /* stop transmitting, enable appending pad, crc for packets */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TCR, 0x00), err, TAG, "write TCR failed");
-    /* stop receiving, no promiscuous mode, no runt packet(size < 64bytes), receive all multicast packets */
-    /* discard long packet(size > 1522bytes) and crc error packet, enable watchdog */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, RCR_DIS_CRC | RCR_ALL), err, TAG, "write RCR failed");
-    /* retry late collision packet, at most two transmit command can be issued before transmit complete */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TCR2, TCR2_RLCP), err, TAG, "write TCR2 failed");
-    /* enable auto transmit */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_ATCR, ATCR_AUTO_TX), err, TAG, "write ATCR failed");
-    /* generate checksum for UDP, TCP and IPv4 packets */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TCSCR, TCSCR_IPCSE | TCSCR_TCPCSE | TCSCR_UDPCSE), err, TAG, "write TCSCR failed");
-    /* disable check sum for receive packets */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCSCSR, 0x00), err, TAG, "write RCSCSR failed");
-    /* interrupt pin config: push-pull output, active high */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_INTCR, 0x00), err, TAG, "write INTCR failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_INTCKCR, 0x00), err, TAG, "write INTCKCR failed");
-    /* no length limitation for rx packets */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RLENCR, 0x00), err, TAG, "write RLENCR failed");
-    /* clear network status: wakeup event, tx complete */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_NSR, NSR_WAKEST | NSR_TX2END | NSR_TX1END), err, TAG, "write NSR failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t ch390_enable_flow_ctrl(emac_ch390_t *emac, bool enable)
-{
-    esp_err_t ret = ESP_OK;
-    if (enable) {
-        /* send jam pattern (duration time = 1.15ms) when rx free space < 3k bytes */
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_BPTR, 0x3F), err, TAG, "write BPTR failed");
-        /* flow control: high water threshold = 3k bytes, low water threshold = 8k bytes */
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCTR, FCTR_HWOT(3) | FCTR_LWOT(8)), err, TAG, "write FCTR failed");
-        /* enable flow control */
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCR, FCR_FLOW_ENABLE), err, TAG, "write FCR failed");
-    } else {
-        /* disable flow control */
-        ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_FCR, 0), err, TAG, "write FCR failed");
-    }
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief start ch390: enable interrupt and start receive
- */
-static esp_err_t emac_ch390_start(esp_eth_mac_t *mac)
-{
-    esp_err_t ret = ESP_OK;
-    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
-    /* reset tx and rx memory pointer */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MPTRCR, MPTRCR_RST_RX | MPTRCR_RST_TX), err, TAG, "write MPTRCR failed");
-    /* clear interrupt status */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_ISR, ISR_CLR_STATUS), err, TAG, "write ISR failed");
-    /* enable only Rx related interrupts as others are processed synchronously */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_IMR, IMR_PAR | IMR_PRI), err, TAG, "write IMR failed");
-    /* enable rx */
-    uint8_t rcr = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
-    rcr |= RCR_RXEN;
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-/**
- * @brief stop ch390: disable interrupt and stop receive
- */
-static esp_err_t emac_ch390_stop(esp_eth_mac_t *mac)
-{
-    esp_err_t ret = ESP_OK;
-    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
-    /* disable interrupt */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_IMR, 0x00), err, TAG, "write IMR failed");
-    /* disable rx */
-    uint8_t rcr = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
-    rcr &= ~RCR_RXEN;
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
-    return ESP_OK;
-err:
-    return ret;
-}
 
 IRAM_ATTR static void ch390_isr_handler(void *arg)
 {
@@ -408,6 +243,211 @@ static void ch390_poll_timer(void *arg)
 {
     emac_ch390_t *emac = (emac_ch390_t *)arg;
     xTaskNotifyGive(emac->rx_task_hdl);
+}
+
+/**
+ * @brief read mac address from internal registers
+ */
+static esp_err_t ch390_get_mac_addr(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    for (int i = 0; i < ETH_ADDR_LEN; i++) {
+        ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_PAR + i, &emac->addr[i]), err, TAG, "read PAR failed");
+    }
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief set new mac address to internal registers
+ */
+static esp_err_t ch390_set_mac_addr(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    for (int i = 0; i < 6; i++) {
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_PAR + i, emac->addr[i]), err, TAG, "write PAR failed");
+    }
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief clear multicast hash table
+ */
+static esp_err_t ch390_clear_multicast_table(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    /* rx broadcast packet control by bit7 of MAC register 1DH */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_BCASTCR, 0x00), err, TAG, "write BCASTCR failed");
+    for (int i = 0; i < 7; i++) {
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MAR + i, 0x00), err, TAG, "write MAR failed");
+    }
+    /* enable receive broadcast paclets */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MAR + 7, 0x80), err, TAG, "write MAR failed");
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief software reset ch390 internal register
+ */
+static esp_err_t ch390_reset(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    /* software reset */
+    uint8_t ncr = NCR_RST;
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_NCR, ncr), err, TAG, "write NCR failed");
+    uint32_t to = 0;
+    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++) {
+        ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_NCR, &ncr), err, TAG, "read NCR failed");
+        if (!(ncr & NCR_RST)) {
+            break;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    ESP_GOTO_ON_FALSE(to < emac->sw_reset_timeout_ms / 10, ESP_ERR_TIMEOUT, err, TAG, "reset timeout");
+
+    /* For CH390H, phy should be power on after software reset !*/
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_GPR, 0x00), err, TAG, "write GPR failed");
+    /* mac and phy register won't be accesable within at least 1ms */
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief verify ch390 chip ID
+ */
+static esp_err_t ch390_verify_id(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    uint8_t id[2];
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_VIDL, &id[0]), err, TAG, "read VIDL failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_VIDH, &id[1]), err, TAG, "read VIDH failed");
+    ESP_GOTO_ON_FALSE(0x1C == id[1] && 0x00 == id[0], ESP_ERR_INVALID_VERSION, err, TAG, "wrong Vendor ID");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_PIDL, &id[0]), err, TAG, "read PIDL failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_PIDH, &id[1]), err, TAG, "read PIDH failed");
+    ESP_GOTO_ON_FALSE(0x91 == id[1] && 0x51 == id[0], ESP_ERR_INVALID_VERSION, err, TAG, "wrong Product ID");
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief default setup for ch390 internal registers
+ */
+static esp_err_t ch390_setup_default(emac_ch390_t *emac)
+{
+    esp_err_t ret = ESP_OK;
+    /* disable wakeup */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_NCR, 0x00), err, TAG, "write NCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_WCR, 0x00), err, TAG, "write WCR failed");
+    /* stop transmitting, enable appending pad, crc for packets */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR, 0x00), err, TAG, "write TCR failed");
+    /* stop receiving, no promiscuous mode, no runt packet(size < 64bytes), receive all multicast packets */
+    /* discard long packet(size > 1522bytes) and crc error packet, enable watchdog */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, RCR_DIS_CRC | RCR_ALL), err, TAG, "write RCR failed");
+    /* retry late collision packet, at most two transmit command can be issued before transmit complete */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR2, TCR2_RLCP), err, TAG, "write TCR2 failed");
+    /* generate checksum for UDP, TCP and IPv4 packets */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCSCR, TCSCR_IPCSE | TCSCR_TCPCSE | TCSCR_UDPCSE), err, TAG, "write TCSCR failed");
+    /* disable check sum for receive packets */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCSCSR, 0x00), err, TAG, "write RCSCSR failed");
+    /* interrupt pin config: push-pull output, active high */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_INTCR, 0x00), err, TAG, "write INTCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_INTCKCR, 0x00), err, TAG, "write INTCKCR failed");
+    /* set length limitation for rx packets to 1536(64*24)*/
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RLENCR, RLENCR_RXLEN_EN | RLENCR_RXLEN_DEFAULT), err, TAG, "write RLENCR failed");
+    /* clear network status: wakeup event, tx complete */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_NSR, NSR_WAKEST | NSR_TX2END | NSR_TX1END), err, TAG, "write NSR failed");
+    return ESP_OK;
+err:
+    return ret;
+}
+
+static esp_err_t ch390_enable_flow_ctrl(emac_ch390_t *emac, bool enable)
+{
+    esp_err_t ret = ESP_OK;
+    if (enable) {
+        /* send jam pattern (duration time = 1.15ms) when rx free space < 3k bytes */
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_BPTR, 0x3F), err, TAG, "write BPTR failed");
+        /* flow control: high water threshold = 3k bytes, low water threshold = 8k bytes */
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_FCTR, FCTR_HWOT(3) | FCTR_LWOT(8)), err, TAG, "write FCTR failed");
+        /* enable flow control */
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_FCR, FCR_FLOW_ENABLE), err, TAG, "write FCR failed");
+    } else {
+        /* disable flow control */
+        ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_FCR, 0), err, TAG, "write FCR failed");
+    }
+    return ESP_OK;
+err:
+    return ret;
+}
+
+static esp_err_t ch390_drop_frame(emac_ch390_t *emac, uint16_t length)
+{
+    esp_err_t ret = ESP_OK;
+    uint8_t mrrh, mrrl;
+
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_MRRH, &mrrh), err, TAG, "read MDRAH failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_MRRL, &mrrl), err, TAG, "read MDRAL failed");
+
+    uint16_t addr = mrrh << 8 | mrrl;
+    /* include 4B for header */
+    addr += length;
+
+    addr = addr < 0x4000 ? addr : addr - 0x3400;
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MRRH, addr >> 8), err, TAG, "write MDRAH failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MRRL, addr & 0xFF), err, TAG, "write MDRAL failed");
+err:
+    return ret;
+}
+
+/**
+ * @brief start ch390: enable interrupt and start receive
+ */
+static esp_err_t emac_ch390_start(esp_eth_mac_t *mac)
+{
+    esp_err_t ret = ESP_OK;
+    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
+    /* reset rx memory pointer */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MPTRCR, MPTRCR_RST_RX), err, TAG, "write MPTRCR failed");
+    /* clear interrupt status */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_ISR, ISR_CLR_STATUS), err, TAG, "write ISR failed");
+    /* enable only Rx related interrupts as others are processed synchronously */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_IMR, IMR_PAR | IMR_PRI), err, TAG, "write IMR failed");
+    /* enable rx */
+    uint8_t rcr = 0;
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
+    rcr |= RCR_RXEN;
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief stop ch390: disable interrupt and stop receive
+ */
+static esp_err_t emac_ch390_stop(esp_eth_mac_t *mac)
+{
+    esp_err_t ret = ESP_OK;
+    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
+    /* disable interrupt */
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_IMR, 0x00), err, TAG, "write IMR failed");
+    /* disable rx */
+    uint8_t rcr = 0;
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
+    rcr &= ~RCR_RXEN;
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
+    return ESP_OK;
+err:
+    return ret;
 }
 
 static esp_err_t emac_ch390_set_mediator(esp_eth_mac_t *mac, esp_eth_mediator_t *eth)
@@ -427,18 +467,18 @@ static esp_err_t emac_ch390_write_phy_reg(esp_eth_mac_t *mac, uint32_t phy_addr,
     emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
     /* check if phy access is in progress */
     uint8_t epcr = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
     ESP_GOTO_ON_FALSE(!(epcr & EPCR_ERRE), ESP_ERR_INVALID_STATE, err, TAG, "phy is busy");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPAR, (uint8_t)( CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPDRL, (uint8_t)(reg_value & 0xFF)), err, TAG, "write EPDRL failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPDRH, (uint8_t)((reg_value >> 8) & 0xFF)), err, TAG, "write EPDRH failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPAR, (uint8_t)( CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPDRL, (uint8_t)(reg_value & 0xFF)), err, TAG, "write EPDRL failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPDRH, (uint8_t)((reg_value >> 8) & 0xFF)), err, TAG, "write EPDRH failed");
     /* select PHY and select write operation */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPCR, EPCR_EPOS | EPCR_ERPRW), err, TAG, "write EPCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPCR, EPCR_EPOS | EPCR_ERPRW), err, TAG, "write EPCR failed");
     /* polling the busy flag */
     uint32_t to = 0;
     do {
         esp_rom_delay_us(100);
-        ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
+        ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
         to += 100;
     } while ((epcr & EPCR_ERRE) && to < CH390_PHY_OPERATION_TIMEOUT_US);
     ESP_GOTO_ON_FALSE(!(epcr & EPCR_ERRE), ESP_ERR_TIMEOUT, err, TAG, "phy is busy");
@@ -454,23 +494,23 @@ static esp_err_t emac_ch390_read_phy_reg(esp_eth_mac_t *mac, uint32_t phy_addr, 
     emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
     /* check if phy access is in progress */
     uint8_t epcr = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
     ESP_GOTO_ON_FALSE(!(epcr & 0x01), ESP_ERR_INVALID_STATE, err, TAG, "phy is busy");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPAR, (uint8_t)(CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPAR, (uint8_t)(CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
     /* Select PHY and select read operation */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_EPCR, 0x0C), err, TAG, "write EPCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPCR, 0x0C), err, TAG, "write EPCR failed");
     /* polling the busy flag */
     uint32_t to = 0;
     do {
         esp_rom_delay_us(100);
-        ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
+        ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
         to += 100;
     } while ((epcr & EPCR_ERRE) && to < CH390_PHY_OPERATION_TIMEOUT_US);
     ESP_GOTO_ON_FALSE(!(epcr & EPCR_ERRE), ESP_ERR_TIMEOUT, err, TAG, "phy is busy");
     uint8_t value_h = 0;
     uint8_t value_l = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPDRH, &value_h), err, TAG, "read EPDRH failed");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_EPDRL, &value_l), err, TAG, "read EPDRL failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPDRH, &value_h), err, TAG, "read EPDRH failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPDRL, &value_l), err, TAG, "read EPDRL failed");
     *reg_value = (value_h << 8) | value_l;
     return ESP_OK;
 err:
@@ -571,13 +611,13 @@ static esp_err_t emac_ch390_set_promiscuous(esp_eth_mac_t *mac, bool enable)
     esp_err_t ret = ESP_OK;
     emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
     uint8_t rcr = 0;
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
     if (enable) {
         rcr |= RCR_PRMSC;
     } else {
         rcr &= ~RCR_PRMSC;
     }
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
     return ESP_OK;
 err:
     return ret;
@@ -610,15 +650,21 @@ static esp_err_t emac_ch390_transmit(esp_eth_mac_t *mac, uint8_t *buf, uint32_t 
 {
     esp_err_t ret = ESP_OK;
     emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
-    /* Check if last transmit complete */
     uint8_t tcr = 0;
 
     ESP_GOTO_ON_FALSE(length <= ETH_MAX_PACKET_SIZE, ESP_ERR_INVALID_ARG, err,
-                      TAG, "frame size is too big (actual %lu, maximum %u)", length, ETH_MAX_PACKET_SIZE);
+                      TAG, "frame size is too big (actual %lu, maximum %u)",
+                      length, ETH_MAX_PACKET_SIZE);
 
+    /* copy data to tx memory */
+    ESP_GOTO_ON_ERROR(ch390_io_memory_write(emac, buf, length), err, TAG,
+                      "write memory failed");
+
+    /* Check if last transmit complete */
     int64_t wait_time = esp_timer_get_time();
     do {
-        ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_TCR, &tcr), err, TAG, "read TCR failed");
+        ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_TCR, &tcr), err, TAG,
+                          "read TCR failed");
     } while ((tcr & TCR_TXREQ) && ((esp_timer_get_time() - wait_time) < CH390_MAC_TX_WAIT_TIMEOUT_US));
 
     if (tcr & TCR_TXREQ) {
@@ -627,33 +673,13 @@ static esp_err_t emac_ch390_transmit(esp_eth_mac_t *mac, uint8_t *buf, uint32_t 
     }
 
     /* set tx length */
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TXPLL, length & 0xFF), err, TAG, "write TXPLL failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TXPLH, (length >> 8) & 0xFF), err, TAG, "write TXPLH failed");
-    /* copy data to tx memory */
-    ESP_GOTO_ON_ERROR(ch390_memory_write(emac, buf, length), err, TAG, "write memory failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TXPLL, length & 0xFF), err, TAG, "write TXPLL failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TXPLH, (length >> 8) & 0xFF), err, TAG, "write TXPLH failed");
+
     /* issue tx polling command */
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_TCR, &tcr), err, TAG, "read TCR failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_TCR, tcr | TCR_TXREQ), err, TAG, "write TCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_TCR, &tcr), err, TAG, "read TCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR, tcr | TCR_TXREQ), err, TAG, "write TCR failed");
     return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t ch390_drop_frame(emac_ch390_t *emac, uint16_t length)
-{
-    esp_err_t ret = ESP_OK;
-    uint8_t mrrh, mrrl;
-
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_MRRH, &mrrh), err, TAG, "read MDRAH failed");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_MRRL, &mrrl), err, TAG, "read MDRAL failed");
-
-    uint16_t addr = mrrh << 8 | mrrl;
-    /* include 4B for header */
-    addr += length;
-
-    addr = addr < 0x4000 ? addr : addr - 0x3400;
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MRRH, addr >> 8), err, TAG, "write MDRAH failed");
-    ESP_GOTO_ON_ERROR(ch390_register_write(emac, CH390_MRRL, addr & 0xFF), err, TAG, "write MDRAL failed");
 err:
     return ret;
 }
@@ -665,8 +691,8 @@ static esp_err_t emac_ch390_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
 
     uint8_t ready;
     /* dummy read, get the most updated data */
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_MRCMDX, &ready), err, TAG, "read MRCMDX failed");
-    ESP_GOTO_ON_ERROR(ch390_register_read(emac, CH390_MRCMDX, &ready), err, TAG, "read MRCMDX failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_MRCMDX, &ready), err, TAG, "read MRCMDX failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_MRCMDX, &ready), err, TAG, "read MRCMDX failed");
 
     // if ready != 1 or 0 reset device
     if (ready & CH390_PKT_ERR) {
@@ -675,18 +701,24 @@ static esp_err_t emac_ch390_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
         emac_ch390_start(mac);
 
         ESP_LOGE(TAG, "PACK ERR");
+        return ESP_ERR_INVALID_RESPONSE;
     } else {
         __attribute__((aligned(4))) ch390_rx_header_t rx_header; // SPI driver needs the rx buffer 4 byte align
 
         if (ready & CH390_PKT_RDY) {
-            ESP_GOTO_ON_ERROR(ch390_memory_read(emac, (uint8_t *) & (rx_header), sizeof(rx_header)),
+            ESP_GOTO_ON_ERROR(ch390_io_memory_read(emac, (uint8_t *) & (rx_header), sizeof(rx_header)),
                               err, TAG, "peek rx header failed");
             *length = (rx_header.length_high << 8) + rx_header.length_low;
-            if ((rx_header.status & 0xBF) || (*length > CH390_PKT_MAX)) {
+            if (rx_header.status & RSR_ERR_MASK) {
                 ch390_drop_frame(emac, *length);
                 *length = 0;
+                return ESP_ERR_INVALID_RESPONSE;
+            } else if (*length > ETH_MAX_PACKET_SIZE) {
+                /* reset rx memory pointer */
+                ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MPTRCR, MPTRCR_RST_RX), err, TAG, "reset rx pointer failed");
+                return ESP_ERR_INVALID_RESPONSE;
             } else {
-                ESP_GOTO_ON_ERROR(ch390_memory_read(emac, buf, *length), err, TAG, "read rx data failed");
+                ESP_GOTO_ON_ERROR(ch390_io_memory_read(emac, buf, *length), err, TAG, "read rx data failed");
                 *length -= ETH_CRC_LEN;
             }
         } else {
@@ -754,7 +786,7 @@ static void emac_ch390_task(void *arg)
 {
     emac_ch390_t *emac = (emac_ch390_t *)arg;
     uint8_t status = 0;
-    uint8_t *cache;
+    uint8_t *buffer;
     while (1) {
         // check if the task receives any notification
         if (emac->int_gpio_num >= 0) {                                   // if in interrupt mode
@@ -767,8 +799,8 @@ static void emac_ch390_task(void *arg)
         }
 
         /* clear interrupt status */
-        ch390_register_read(emac, CH390_ISR, &status);
-        ch390_register_write(emac, CH390_ISR, status);
+        ch390_io_register_read(emac, CH390_ISR, &status);
+        ch390_io_register_write(emac, CH390_ISR, status);
         /* packet received */
         if (status & ISR_PR) {
             do {
@@ -779,15 +811,15 @@ static void emac_ch390_task(void *arg)
                         ESP_LOGD(TAG, "receive len=%lu", emac->rx_len);
 
                         /* allocate memory and check whether allocation failed */
-                        cache = malloc(emac->rx_len);
-                        if(cache == NULL){
+                        buffer = malloc(emac->rx_len);
+                        if (buffer == NULL) {
                             ESP_LOGE(TAG, "no memory for receive buffer");
                             continue;
                         }
 
                         /* pass the buffer to stack (e.g. TCP/IP layer) */
-                        memcpy(cache, emac->rx_buffer, emac->rx_len);
-                        emac->eth->stack_input(emac->eth, cache, emac->rx_len);
+                        memcpy(buffer, emac->rx_buffer, emac->rx_len);
+                        emac->eth->stack_input(emac->eth, buffer, emac->rx_len);
                     }
                 } else {
                     ESP_LOGE(TAG, "frame read from module failed");
@@ -820,7 +852,7 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
     ESP_GOTO_ON_FALSE(mac_config, NULL, err, TAG, "can't set mac config to null");
     emac = calloc(1, sizeof(emac_ch390_t));
     ESP_GOTO_ON_FALSE(emac, NULL, err, TAG, "calloc emac failed");
-    /* ch390 receive is driven by interrupt only for now*/
+    /* ch390 receive is driven by interrupt or timer signal */
     ESP_GOTO_ON_FALSE((ch390_config->int_gpio_num >= 0) != (ch390_config->poll_period_ms > 0), NULL, err, TAG, "invalid configuration argument combination");
     /* bind methods and attributes */
     emac->sw_reset_timeout_ms = mac_config->sw_reset_timeout_ms;
@@ -856,10 +888,10 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
         ESP_GOTO_ON_FALSE((emac->spi.ctx = emac->spi.init(ch390_config->custom_spi_driver.config)) != NULL, NULL, err, TAG, "SPI initialization failed");
     } else {
         ESP_LOGD(TAG, "Using default SPI Driver");
-        emac->spi.init = ch390_spi_init;
-        emac->spi.deinit = ch390_spi_deinit;
-        emac->spi.read = ch390_spi_read;
-        emac->spi.write = ch390_spi_write;
+        emac->spi.init = CH390_SPI_INIT;
+        emac->spi.deinit = CH390_SPI_DEINIT;
+        emac->spi.read = CH390_SPI_READ;
+        emac->spi.write = CH390_SPI_WRITE;
         /* SPI device init */
         ESP_GOTO_ON_FALSE((emac->spi.ctx = emac->spi.init(ch390_config)) != NULL, NULL, err, TAG, "SPI initialization failed");
     }
@@ -873,7 +905,7 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
                            mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
     ESP_GOTO_ON_FALSE(xReturned == pdPASS, NULL, err, TAG, "create ch390 task failed");
 
-    emac->rx_buffer = heap_caps_malloc(CH390_PKT_MAX, MALLOC_CAP_DMA);
+    emac->rx_buffer = heap_caps_malloc(ETH_MAX_PACKET_SIZE, MALLOC_CAP_DMA);
     ESP_GOTO_ON_FALSE(emac->rx_buffer, NULL, err, TAG, "RX buffer allocation failed");
 
     if (emac->int_gpio_num < 0) {
@@ -885,8 +917,6 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
         };
         ESP_GOTO_ON_FALSE(esp_timer_create(&poll_timer_args, &emac->poll_timer) == ESP_OK, NULL, err, TAG, "create poll timer failed");
     }
-
-
     return &(emac->parent);
 
 err:

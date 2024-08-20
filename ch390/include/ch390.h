@@ -70,6 +70,11 @@ extern "C" {
 #define RSR_CE          (1<<1) // CRC error
 #define RSR_FOE         (1<<0) // FIFO overflow error
 
+//Receive status error mask(default)
+#define RSR_ERR_MASK    (RSR_RF | RSR_LCS | RSR_RWTO | RSR_PLE | \
+                        RSR_AE | RSR_CE | RSR_FOE)
+
+
 #define CH390_ROCR      0x07   // Receive overflow count reg
 #define CH390_BPTR      0x08   // Back pressure threshold reg
 #define CH390_FCTR      0x09   // Flow control threshold reg
@@ -150,7 +155,11 @@ extern "C" {
 #define CH390_ALNCR     0x4A   // SPI alignment error count reg
 #define CH390_SCCR      0x50   // System clock control reg
 #define CH390_RSCCR     0x51   // Recover system clock control reg
-#define CH390_RLENCR    0x52   // Receive data pack lenth control reg
+
+#define CH390_RLENCR            0x52   // Receive data pack lenth control reg
+#define RLENCR_RXLEN_EN         0x80   // Enable RX data pack length filter
+#define RLENCR_RXLEN_DEFAULT    0x18   // Default MAX length of RX data(div by 64)
+
 #define CH390_BCASTCR   0x53   // Receive broadcast control reg
 #define CH390_INTCKCR   0x54   // INT pin clock output control reg
 
@@ -160,8 +169,8 @@ extern "C" {
 
 #define CH390_MLEDCR    0x57   // More LED control reg 
 #define CH390_MRCMDX    0x70   // Memory read command without address increment reg
-#define CH390_MRCMDX1   0x71   // Memory read command without data pre-fetch and 
-                               // address increment reg
+// Memory read command without data pre-fetch and address increment reg
+#define CH390_MRCMDX1   0x71
 #define CH390_MRCMD     0x72   // Memory data read command with address increment reg
 #define CH390_MRRL      0x74   // Memory read low byte address reg
 #define CH390_MRRH      0x75   // Memory read high byte address reg
@@ -219,11 +228,10 @@ extern "C" {
 #define CH390_PHY_PAGE_SEL 0x1F
 
 // Packet status
-#define CH390_PKT_NONE  0x00    /* No packet received */
-#define CH390_PKT_RDY   0x01    /* Packet ready to receive */
-#define CH390_PKT_ERR   0xFE    /* Un-stable states */
-#define CH390_PKT_MAX   1536    /* Received packet max size */
-#define CH390_PKT_MIN   64
+#define CH390_PKT_NONE              0x00    /* No packet received */
+#define CH390_PKT_RDY               0x01    /* Packet ready to receive */
+#define CH390_PKT_ERR               0xFE    /* Un-stable states mask */
+#define CH390_PKT_ERR_WITH_RCSEN    0xE2    /* Un-stable states mask when RCSEN = 1 */
 
 #ifdef __cplusplus
 }

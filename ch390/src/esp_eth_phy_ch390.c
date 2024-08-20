@@ -18,8 +18,8 @@
 
 #include "esp_eth_phy_ch390.h"
 
-/** 
- * @warning This value is NOT the same as the datasheet!!! Hoping WCH fix it 
+/**
+ * @warning This value is NOT the same as the datasheet!!! Hoping WCH fix it
  * in the furture version!
 */
 #define CH390_INFO_OUI                       0x1CDC64
@@ -28,9 +28,8 @@
 
 #define ETH_PHY_PAGE_SEL_REG_ADDR 0x1F
 
-typedef union{
-    struct
-    {
+typedef union {
+    struct {
         uint32_t reserved1 : 3;
         uint32_t force_link : 1;
         uint32_t remote_lpbk : 1;
@@ -41,8 +40,9 @@ typedef union{
         uint32_t reserved2 : 7;
     };
     uint32_t val;
-}phy_ctl1_reg_t;
-#define ETH_PHY_CTL1_REG_ADDR 0X19
+} phy_ctl1_reg_t;
+
+#define ETH_PHY_CTL1_REG_ADDR 0x19
 #define ETH_PHY_CTL1_REG_PAGE 0x00
 
 typedef struct {
