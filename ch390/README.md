@@ -2,7 +2,7 @@
 
 ## Overview
 
-CH390 is an industrial-grade Ethernet controller IC with 10/100M Ethernet Media Transport Layer (MAC) and Physical Layer Transceiver (PHY), supporting CAT3, 4, 5 and CAT5, and 6 connections for 10BASE-TX and 100BASE-TX, supporting HP Auto-MDIX, low power design, and IEEE 802.3u compliant. The CH390 has a built-in 16K byte SRAM, and supports 3.3V or 2.5V parallel interface and SPI serial interface. More information about the chip can be found in the product [datasheets](https://www.wch.cn/downloads/CH390DS1_PDF.html).
+CH390 is an industrial-grade Ethernet controller IC with 10/100M Ethernet Media Transport Layer (MAC) and Physical Layer Transceiver (PHY), supporting CAT3, 4, 5 and CAT5, and 6 connections for 10BASE-T and 100BASE-TX, supporting HP Auto-MDIX, low power design, and IEEE 802.3u compliant. The CH390 has a built-in 16K byte SRAM, and supports 3.3V or 2.5V parallel interface and SPI serial interface. More information about the chip can be found in the product [datasheets](https://www.wch.cn/downloads/CH390DS1_PDF.html).
 
 ## ESP-IDF Usage
 
