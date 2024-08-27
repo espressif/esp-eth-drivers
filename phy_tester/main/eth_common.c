@@ -5,6 +5,7 @@
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "esp_rom_sys.h"
 #include "esp_event.h"
 #include "esp_check.h"
 #include "esp_log.h"
@@ -190,11 +191,18 @@ esp_err_t loopback_far_end_en(esp_eth_handle_t *eth_handle, phy_id_t phy_id, boo
 
         return ESP_FAIL;
     }
-    esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg);
-    reg_val_exp = reg_val;
-    esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
-    if (reg_val_exp != reg_val) {
+    // it was observed that e.g. IP101 needs to be commanded multiple time to take it effect
+    uint8_t attempt = 0;
+    do {
+        esp_eth_ioctl(eth_handle, ETH_CMD_WRITE_PHY_REG, &reg);
+        reg_val_exp = reg_val;
+        esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
+        attempt++;
+    } while (reg_val_exp != reg_val && attempt < 10);
+
+    if (attempt >= 10) {
         ESP_LOGE(TAG, "error to configure far-end loopback");
+        ESP_LOGE(TAG, "expected reg. val 0x%lx, actual 0x%lx", reg_val_exp, reg_val);
         return ESP_FAIL;
     }
 

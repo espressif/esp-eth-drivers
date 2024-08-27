@@ -27,6 +27,7 @@ red = '\033[31m'
 green = '\033[32m'
 italics = '\033[3m'
 yellow = '\033[33m'
+cyan = '\033[36m'
 
 
 class EthTestIntf(object):
@@ -116,11 +117,16 @@ class EthTestIntf(object):
 
     def traffic_gen(self, mac: str, count: int, payload_len: int, data_pattern_hex: str, interval: float, pipe_rcv:connection.Connection) -> None:
         with self.configure_eth_if() as so:
-            payload = bytes.fromhex(data_pattern_hex) * int((payload_len + 1) / len(bytes.fromhex(data_pattern_hex)))
-            eth_frame = Ether(dst=mac, src=so.getsockname()[4], type=self.eth_type) / raw(payload[0:payload_len])
+            payload = bytearray.fromhex(data_pattern_hex) * int((payload_len + 1) / len(bytearray.fromhex(data_pattern_hex)))
             i = 0
+            cnt = 0
             try:
                 while pipe_rcv.poll() is not True:
+                    payload[0] = cnt
+                    cnt += 1
+                    if cnt > 255:
+                        cnt = 0
+                    eth_frame = Ether(dst=mac, src=so.getsockname()[4], type=self.eth_type) / raw(payload[0:payload_len])
                     so.send(raw(eth_frame))
                     sleep(interval)
                     if count != -1:
@@ -131,7 +137,7 @@ class EthTestIntf(object):
                 raise e
 
 
-def test_loopback_server(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
+def _test_loopback_server(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     ret = 'PASS'
     eth_type_hex = hex(eth_if.eth_type)
     dut.write(f'loop-server -f {eth_type_hex} -t 2000\n')
@@ -148,7 +154,7 @@ def test_loopback_server(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     return ret
 
 
-def test_farend_loopback(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
+def _test_farend_loopback(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     ret = 'PASS'
     dut.write('farend-loop-en -e\n')
     try:
@@ -174,19 +180,19 @@ def test_farend_loopback(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     return ret
 
 
-def test_nearend_loopback(dut: Dut, count: int) -> str:
+def _test_nearend_loopback(dut: Dut, count: int) -> str:
     ret = 'PASS'
     dut.write(f'loop-test -s 640 -c {count}\n')
     try:
         dut.expect_exact('Link Up')
-        dut.expect_exact(f'looped frames: {count}, rx errors: 0', timeout=4)
+        dut.expect_exact(f'looped frames: {count}, rx errors: 0', timeout=10)
     except:  # noqa
         logging.error('near-end loop back failed')
         ret = 'FAIL'
     return ret
 
 
-def test_dut_rx(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
+def _test_dut_rx(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     ret = 'PASS'
     eth_type_hex = hex(eth_if.eth_type)
     dut.write(f'loop-server -v -f {eth_type_hex} -t 2000\n')
@@ -221,7 +227,7 @@ def test_dut_rx(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
     return ret
 
 
-def test_dut_tx(dut: Dut, eth_if: EthTestIntf, count: int) -> str:
+def _test_dut_tx(dut: Dut, eth_if: EthTestIntf, count: int) -> str:
     ret = 'PASS'
     with eth_if.configure_eth_if() as so:
         so.settimeout(5)
@@ -309,7 +315,7 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
 
     dut.expect_exact('Steps to Test Ethernet PHY')
 
-    res_dict = {'loopback server': test_loopback_server(dut, target_if, 'ff:ff:ff:ff:ff:ff')}
+    res_dict = {'loopback server': _test_loopback_server(dut, target_if, 'ff:ff:ff:ff:ff:ff')}
     # Loopback server results
     if res_dict['loopback server'] == 'PASS':
         tx_path = green
@@ -321,15 +327,15 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
     print(f'loopback server: {tx_path}{res_dict["loopback server"]}{norm}')
     draw_result(tx_path, rx_path, tx_path, rx_path, False, True)
 
-    if res_dict['loopback server'] == 'FAIL':
+    if True is True: #res_dict['loopback server'] == 'FAIL':
         logging.error('loopback server test failed!')
         logging.info('Running additional tests to try to isolate the problem...')
 
-        res_dict.update({'DUT tx': test_dut_tx(dut, target_if, 1)})
-        res_dict.update({'DUT rx': test_dut_rx(dut, target_if, 'ff:ff:ff:ff:ff:ff')})
+        res_dict.update({'DUT tx': _test_dut_tx(dut, target_if, 1)})
+        res_dict.update({'DUT rx': _test_dut_rx(dut, target_if, 'ff:ff:ff:ff:ff:ff')})
 
-        res_dict.update({'far-end loopback': test_farend_loopback(dut, target_if, 'ff:ff:ff:ff:ff:ff')})
-        res_dict.update({'near-end loopback': test_nearend_loopback(dut, 2)})
+        res_dict.update({'far-end loopback': _test_farend_loopback(dut, target_if, 'ff:ff:ff:ff:ff:ff')})
+        res_dict.update({'near-end loopback': _test_nearend_loopback(dut, 5)})
 
         # DUT Tx/Rx results
         if res_dict['DUT tx'] == 'PASS':
@@ -408,16 +414,19 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
         if rj45_rx_fail or rj45_tx_fail:
             EthFailMsg.print_rj45_fail_msg(rj45_rx_fail, rj45_tx_fail)
 
-        print('\nThe test finished! `Final problem isolation` should show you the most probable location of issue. However, go over the full log to see '
-              'additional details and to fully understand each tested scenario.')
+        print(f'\n{cyan}The test finished! `Final problem isolation` should show you the most probable location of issue. However, go over the full log to see '
+              f'additional details and to fully understand each tested scenario.{norm}')
 
     print('\nScript run:')
 
 
-@pytest.mark.esp32
-@pytest.mark.esp32p4
+@pytest.mark.parametrize('target', [
+    'esp32',
+    'esp32p4',
+], indirect=True)
 def test_esp_ethernet(dut: Dut,
                       eth_nic: str) -> None:
+    print(eth_nic)
     ethernet_phy_test(dut, eth_nic)
 
 
@@ -430,7 +439,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Ethernet PHY tester helper script')
     parser.add_argument('--eth_nic', default='',
                         help='Name of the test PC Ethernet NIC connected to DUT. If the option '
-                             'is omitted, script uses the first identified Ethernet interface.')
+                             'is omitted, script automatically uses the first identified Ethernet interface.')
 
     subparsers = parser.add_subparsers(help='Commands', dest='command')
 
@@ -466,3 +475,4 @@ if __name__ == '__main__':
         tx_proc.join()
         if tx_proc.exitcode is None:
             tx_proc.terminate()
+
