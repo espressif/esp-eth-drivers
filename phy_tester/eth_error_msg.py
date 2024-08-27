@@ -18,15 +18,17 @@ class EthFailMsg(object):
         cls.print_yellow('=================================================================================')
         cls.print_yellow(f'Ethernet initialization failed!')
         cls.print_yellow(f'------------------------------')
-        cls.print_yellow(f'Possible root causes:')
-        cls.print_yellow(f'1) RMII REF CLK mode incorrectly configured if emac initialization timeouts. Does ESP32 outputs the RMII CLK? Or is RMII CLK '
-                         'provided externally by PHY or oscillator?')
-        cls.print_yellow(f'2) If external RMII CLK is used, measure the clock signal at ESP32 REF RMII CLK input pin using oscilloscope with sufficient '
+        cls.print_yellow(f'Check the above DUT log and investigate possible root causes:')
+        cls.print_yellow(f'1) If EMAC errors:')
+        cls.print_yellow(f'   a) RMII REF CLK mode incorrectly configured if emac initialization timeouts.')
+        cls.print_yellow(f'        Does ESP32 outputs the RMII CLK? Or is RMII CLK provided externally by PHY or oscillator?')
+        cls.print_yellow(f'   b) If external RMII CLK is used, measure the clock signal at ESP32 REF RMII CLK input pin using oscilloscope with sufficient '
                          'bandwidth. There must be 50 MHz square wave signal.')
         # TODO make it target dependent
-        cls.print_yellow(f'3) Make sure programmer/monitor device correctly handles “nDTR”/”nRST” and associated transistors which are connected to GPIO0.')
-
-        cls.print_yellow(f'4) If PHY error reported: check if bootstrap (PHY address) is set correctly or set to "auto" in the code.')
+        cls.print_yellow(f'   c) Make sure programmer/monitor device correctly handles “nDTR”/”nRST” and associated transistors which are connected to GPIO0.')
+        cls.print_yellow(f'2) If PHY errors:')
+        cls.print_yellow(f'   a) Check if bootstrap (PHY address) is set correctly or set to "auto" in the code (menuconfig).')
+        cls.print_yellow(f'   b) Cross-check with schematics if MDIO and MDC GPIOs are correctly configured.')
         cls.print_yellow('=================================================================================')
 
     @classmethod
