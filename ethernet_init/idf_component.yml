@@ -4,6 +4,9 @@ dependencies:
   ch390:
     version: '*'
     override_path: '../ch390/'
+  ch182:
+    version: '*'
+    override_path: '../ch182/'
 examples:
   - path: ../common_examples/
 description: This component initializes Ethernet driver based on Espressif IoT Development Framework Configuration.

@@ -62,6 +62,16 @@ menu "Ethernet Configuration"
                     The following chips are supported: KSZ8001, KSZ8021, KSZ8031, KSZ8041,
                         KSZ8051, KSZ8061, KSZ8081, KSZ8091
                     Goto https://www.microchip.com for more information about them.
+            
+            config ETHERNET_PHY_CH182
+                bool "CH182"
+                help 
+                    CH182 is an industrial 10/100M Ethernet PHY transceiver that supports Auto-MDIX. 
+                    CH182 includes modules required for Ethernet Transceiver functions, such as 
+                    physical coding sublayer (PCS), physical medium access layer (PMA), 
+                    twisted pair physical medium dependent sublayer (TP-PMD), 10BASE-TX encoder/decoder, 
+                    twisted pair medium connection unit (TPMAU), MII and RMII interfaces.
+                    Goto https://www.wch.cn/products/CH182.html for more information about them.
 
             # TODO: un-hide this option once processing of Matches and Rules is fixed in  IDF Component Manager and so LAN867x component can be conditionally included. 
             #config ETHERNET_PHY_LAN867X

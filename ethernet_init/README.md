@@ -9,6 +9,7 @@ Supported devices are:
 * LAN87xx
 * DP83848
 * KSZ80xx
+* CH182
 * SPI Ethernet:
     * DM9051 Module
     * KSZ8851SNL Module

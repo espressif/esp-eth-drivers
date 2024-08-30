@@ -1,0 +1,9 @@
+version: "0.0.1"
+targets: 
+  - esp32
+  - esp32p4
+description: CH182 Ethernet Driver
+dependencies:
+  idf: ">=5.1"
+examples:
+  - path: ../common_examples/
