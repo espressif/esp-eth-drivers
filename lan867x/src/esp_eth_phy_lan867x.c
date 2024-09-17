@@ -209,7 +209,7 @@ static esp_err_t lan867x_set_duplex(esp_eth_phy_t *phy, eth_duplex_t duplex)
     return ESP_ERR_NOT_SUPPORTED;
 }
 
-static esp_err_t lan867x_custom_ioctl(esp_eth_phy_t *phy, uint32_t cmd, void *data)
+static esp_err_t lan867x_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
 {
     esp_err_t ret;
     phy_802_3_t *phy_802_3 = esp_eth_phy_into_phy_802_3(phy);
