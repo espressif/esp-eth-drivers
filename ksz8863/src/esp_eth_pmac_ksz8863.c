@@ -329,7 +329,7 @@ err:
     return ret;
 }
 
-static esp_err_t pmac_ksz8863_custom_ioctl(esp_eth_mac_t *mac, uint32_t cmd, void *data)
+static esp_err_t pmac_ksz8863_custom_ioctl(esp_eth_mac_t *mac, int cmd, void *data)
 {
     esp_err_t ret = ESP_OK;
     pmac_ksz8863_t *pmac = __containerof(mac, pmac_ksz8863_t, parent);

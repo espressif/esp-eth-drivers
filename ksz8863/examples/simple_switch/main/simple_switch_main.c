@@ -274,8 +274,9 @@ void app_main(void)
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
 
     phy_config.reset_gpio_num = -1; // KSZ8863 is reset by separate function call since multiple instances exist
-    esp32_emac_config.smi_mdc_gpio_num = -1; // MIIM interface is not used since does not provide access to all registers
-    esp32_emac_config.smi_mdio_gpio_num = -1;
+    // MIIM interface is not used since does not provide access to all registers
+    esp32_emac_config.smi_gpio.mdc_num = -1;
+    esp32_emac_config.smi_gpio.mdio_num = -1;
 
     // Init Host Ethernet Interface (Port 3)
     esp_eth_mac_t *host_mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);

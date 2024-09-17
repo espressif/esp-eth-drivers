@@ -23,8 +23,14 @@ Note that usage of the `Dummy PHY` component does not conform with the RevMII st
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
     // Update vendor specific MAC config based on board configuration
     // No SMI, speed/duplex must be statically configured the same in both devices
+    // MIIM interface is not used since does not provide access to all registers
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
+    esp32_emac_config.smi_gpio.mdc_num = -1;
+    esp32_emac_config.smi_gpio.mdio_num = -1;
+#else
     esp32_emac_config.smi_mdc_gpio_num = -1;
     esp32_emac_config.smi_mdio_gpio_num = -1;
+#endif
 
     // Create new ESP32 Ethernet MAC instance
     esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
