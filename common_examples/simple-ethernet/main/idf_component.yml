@@ -4,4 +4,4 @@ dependencies:
   ethernet_init:
     version: '*'
     # For local development use the local copy of the component
-    override_path: '../../../ethernet_init/'
+    override_path: '../../../ethernet_init'

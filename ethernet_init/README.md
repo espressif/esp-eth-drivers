@@ -13,8 +13,9 @@ Supported devices are:
     * DM9051 Module
     * KSZ8851SNL Module
     * W5500 Module
-    
+    * ENC28J60 Module
     * CH390 Module
+
 ## API
 
 ### Steps to use the component in an example code:
