@@ -24,7 +24,12 @@
 #if CONFIG_ETHERNET_USE_CH390
 #include "esp_eth_mac_ch390.h"
 #include "esp_eth_phy_ch390.h"
-#endif
+#endif // CONFIG_ETHERNET_USE_CH390
+
+#if CONFIG_ETHERNET_USE_ENC28J60
+#include "esp_eth_enc28j60.h"
+#endif // CONFIG_ETHERNET_USE_ENC28J60
+
 
 #if CONFIG_ETHERNET_SPI_NUMBER
 #define SPI_ETHERNETS_NUM           CONFIG_ETHERNET_SPI_NUMBER
@@ -315,6 +320,21 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
     dev_out->mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
     dev_out->phy = esp_eth_phy_new_ch390(&phy_config);
     sprintf(dev_out->dev_info.name, "CH390");
+#elif CONFIG_ETHERNET_USE_ENC28J60
+    spi_devcfg.cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(CONFIG_ETHERNET_SPI_CLOCK_MHZ);
+    eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+    enc28j60_config.int_gpio_num = spi_eth_module_config->int_gpio;
+    dev_out->mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
+
+    // ENC28J60 Errata #1 check
+    ESP_GOTO_ON_FALSE(dev_out->mac, NULL, err, TAG, "creation of ENC28J60 MAC instance failed");
+    ESP_GOTO_ON_FALSE(emac_enc28j60_get_chip_info(dev_out->mac) >= ENC28J60_REV_B5 || CONFIG_ETHERNET_SPI_CLOCK_MHZ >= 8,
+                      NULL, err, TAG, "SPI frequency must be at least 8 MHz for chip revision less than 5");
+
+    phy_config.autonego_timeout_ms = 0; // ENC28J60 doesn't support auto-negotiation
+    phy_config.reset_gpio_num = -1; // ENC28J60 doesn't have a pin to reset internal PHY
+    dev_out->phy = esp_eth_phy_new_enc28j60(&phy_config);
+    sprintf(dev_out->dev_info.name, "ENC28J60");
 #endif
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
@@ -326,6 +346,12 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, ETH_CMD_S_MAC_ADDR, spi_eth_module_config->mac_addr) == ESP_OK,
                           NULL, err, TAG, "SPI Ethernet MAC address config failed");
     }
+
+#if CONFIG_ETHERNET_ENC28J60_DUPLEX_FULL
+    // It is recommended to use ENC28J60 in Full Duplex mode since multiple errata exist to the Half Duplex mode
+    eth_duplex_t duplex = ETH_DUPLEX_FULL;
+    ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
+#endif
 
     return eth_handle;
 err:
