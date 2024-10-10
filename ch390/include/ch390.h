@@ -23,7 +23,7 @@ extern "C" {
 #define NCR_WAKEEN      (1<<6) // Enable wakeup function
 #define NCR_FDX         (1<<3) // Duplex mode of the internal PHY
 #define NCR_LBK_MAC     (1<<1) // MAC loop-back
-#define NCR_RST         (1<<0) // Softwate reset
+#define NCR_RST         (1<<0) // Software reset
 
 #define CH390_NSR       0x01   // Network status reg
 #define NSR_SPEED       (1<<7) // Speed of internal PHY
@@ -156,7 +156,7 @@ extern "C" {
 #define CH390_SCCR      0x50   // System clock control reg
 #define CH390_RSCCR     0x51   // Recover system clock control reg
 
-#define CH390_RLENCR            0x52   // Receive data pack lenth control reg
+#define CH390_RLENCR            0x52   // Receive data pack length control reg
 #define RLENCR_RXLEN_EN         0x80   // Enable RX data pack length filter
 #define RLENCR_RXLEN_DEFAULT    0x18   // Default MAX length of RX data(div by 64)
 
