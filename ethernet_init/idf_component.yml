@@ -3,7 +3,7 @@ dependencies:
     rules:
        - if: "target in [esp32, esp32p4]"
   idf:
-    version: '>=5.3'
+    version: '>=5.4'
   espressif/ch390:
     version: '*'
     override_path: '../ch390/'
@@ -14,4 +14,4 @@ examples:
   - path: ../common_examples/
 description: This component initializes Ethernet driver based on Espressif IoT Development Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 0.3.3
+version: 0.4.0

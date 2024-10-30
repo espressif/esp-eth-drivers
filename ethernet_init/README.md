@@ -4,6 +4,7 @@ This component makes it easier to set up and control Ethernet connections in Esp
 It also allows users to select from various supported Ethernet chips, making development faster.
 
 Supported devices are:
+* Generic 802.3 PHY (any Ethernet PHY chip compliant with IEEE 802.3)
 * IP101
 * RTL8201/SR8201
 * LAN87xx
@@ -15,6 +16,8 @@ Supported devices are:
     * W5500 Module
     * ENC28J60 Module
     * CH390 Module
+
+> ⚠️ **Warning**: When selecting `Generic 802.3 PHY`, basic functionality should always work for PHY compliant with IEEE 802.3. However, some specific features might be limited. A typical example is loopback functionality, where certain PHYs may require setting a specific speed mode to operate correctly.
 
 ## API
 
