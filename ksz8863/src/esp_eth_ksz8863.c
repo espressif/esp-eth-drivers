@@ -10,6 +10,8 @@
 #include <sys/queue.h>
 #include "esp_log.h"
 #include "esp_check.h"
+#include "driver/gpio.h"
+#include "esp_rom_gpio.h"
 
 #include "esp_eth_ksz8863.h"
 #include "ksz8863.h" // registers
