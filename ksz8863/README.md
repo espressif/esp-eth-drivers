@@ -72,7 +72,9 @@ The figure below shows data path when KSZ8863 is used in this Port Mode. The con
 
 ## KSZ8863 Configuration & Control interface
 
-KSZ8863 can be managed via either I2C or SPI bus.
+KSZ8863 can be managed via either I2C or SPI bus. SMI is not supported. 
+
+SMI used in KSZ8863 is a non-standard implementation of IEEE 802.3 MII management interface (MIIM). The core differences are the unusual addressing method used to get access to the full set of KSZ8863's registers and opcode numbering (MIIM sends opcode `0b10` to read and `0b01` to write, SMI expects `0b00` for both). It is impossible for ESP32 to produce opcode `0b00` by design, since it follows IEEE 802.3 MII management interface specification.
 
 ### KSZ8863 Control and Configuration
 

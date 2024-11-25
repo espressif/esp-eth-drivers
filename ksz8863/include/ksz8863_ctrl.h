@@ -6,7 +6,7 @@
 #pragma once
 
 #include "esp_err.h"
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "driver/spi_master.h"
 #include "esp_eth_driver.h" // for esp_eth_handle_t
 
@@ -24,7 +24,9 @@ typedef enum {
 
 typedef struct {
     uint8_t dev_addr;
-    i2c_port_t i2c_master_port;
+    uint32_t scl_speed_hz;
+    i2c_port_num_t i2c_port;
+    i2c_master_bus_handle_t bus_handle;
 } ksz8863_ctrl_i2c_config_t;
 
 typedef struct {

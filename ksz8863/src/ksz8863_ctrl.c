@@ -20,24 +20,14 @@
 #define KSZ8863_SPI_LOCK_TIMEOUT_MS 500
 
 typedef struct {
-    i2c_port_t i2c_port;
-    uint8_t dev_addr;
-} ksz8863_i2c_spec_t;
-
-typedef struct {
-    spi_device_handle_t spi_handle;
-} ksz8863_spi_spec_t;
-
-typedef struct {
     ksz8863_intf_mode_t mode;
     SemaphoreHandle_t bus_lock;
     esp_err_t (*ksz8863_reg_read)(uint8_t reg_addr, uint8_t *data, size_t len);
     esp_err_t (*ksz8863_reg_write)(uint8_t reg_addr, uint8_t *data, size_t len);
     union {
-        ksz8863_i2c_spec_t i2c_bus_spec;
-        ksz8863_spi_spec_t spi_bus_spec;
+        spi_device_handle_t spi_handle;
+        i2c_master_dev_handle_t i2c_handle;
     };
-
 } ksz8863_ctrl_intf_t;
 
 static ksz8863_ctrl_intf_t *s_ksz8863_ctrl_intf = NULL;
@@ -57,56 +47,27 @@ static inline bool bus_unlock(void)
 static esp_err_t ksz8863_i2c_write(uint8_t reg_addr, uint8_t *data, size_t len)
 {
     esp_err_t ret = ESP_OK;
-    i2c_port_t i2c_port = s_ksz8863_ctrl_intf->i2c_bus_spec.i2c_port;
-    uint8_t dev_addr = s_ksz8863_ctrl_intf->i2c_bus_spec.dev_addr;
-
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    ESP_RETURN_ON_FALSE(cmd, ESP_ERR_NO_MEM, TAG, "I2C link create error");
-    ESP_GOTO_ON_ERROR(i2c_master_start(cmd), err, TAG, "I2C master start error");
-    ESP_GOTO_ON_ERROR(i2c_master_write_byte(cmd, dev_addr | I2C_MASTER_WRITE, true), err, TAG, "I2C master write error");
-    ESP_GOTO_ON_ERROR(i2c_master_write_byte(cmd, reg_addr, true), err, TAG, "I2C master write error");
-    if (likely(reg_addr != KSZ8863_RESET_ADDR)) {
-        ESP_GOTO_ON_ERROR(i2c_master_write(cmd, data, len, true), err, TAG, "I2C master write error");
+    uint8_t *reg_addr_and_data = malloc(len + 1);
+    // Create a packet containing the register and data to be transmitted
+    reg_addr_and_data[0] = reg_addr;
+    memcpy(reg_addr_and_data + 1, data, len);
+    // When performing a soft reset, the KSZ8863 doesn't produce an ACK. Print a warning that the error is expected and ignore it.
+    if unlikely(reg_addr == KSZ8863_RESET_ADDR) {
+        ESP_LOGW(TAG, "The following I2C error can be ignored. It is thrown by the I2C driver because KSZ8863 does not produce ACK when performing soft reset. It is expected behaviour and requires no actions on your side.");
+        i2c_master_transmit(s_ksz8863_ctrl_intf->i2c_handle, reg_addr_and_data, len + 1, KSZ8863_I2C_TIMEOUT_MS);
     } else {
-        // when SW reset is performed, KSZ does not generate ACK
-        ESP_GOTO_ON_ERROR(i2c_master_write(cmd, data, len, false), err, TAG, "I2C master write error");
+        ESP_GOTO_ON_ERROR(i2c_master_transmit(s_ksz8863_ctrl_intf->i2c_handle, reg_addr_and_data, len + 1, KSZ8863_I2C_TIMEOUT_MS), err, TAG, "Error during i2c write operation");
     }
-    ESP_GOTO_ON_ERROR(i2c_master_stop(cmd), err, TAG, "I2C master stop error");
-    // Lock since multiple MAC/PHY instances exist and the KSZ may be also accessed by user (MAC tables, etc...)
-    ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_I2C_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "I2C bus lock timeout");
-    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err_release, TAG,
-                      "I2C master command begin error");
-err_release:
-    bus_unlock();
 err:
-    i2c_cmd_link_delete(cmd);
+    free(reg_addr_and_data);
     return ret;
 }
 
 static esp_err_t ksz8863_i2c_read(uint8_t reg_addr, uint8_t *data, size_t len)
 {
     esp_err_t ret = ESP_OK;
-    i2c_port_t i2c_port = s_ksz8863_ctrl_intf->i2c_bus_spec.i2c_port;
-    uint8_t dev_addr = s_ksz8863_ctrl_intf->i2c_bus_spec.dev_addr;
-
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    ESP_RETURN_ON_FALSE(cmd, ESP_ERR_NO_MEM, TAG, "I2C link create error");
-    ESP_GOTO_ON_ERROR(i2c_master_start(cmd), err, TAG, "I2C master start error");
-    ESP_GOTO_ON_ERROR(i2c_master_write_byte(cmd, dev_addr | I2C_MASTER_WRITE, true), err, TAG, "I2C master write error");
-    ESP_GOTO_ON_ERROR(i2c_master_write_byte(cmd, reg_addr, true), err, TAG, "I2C master write error");
-    // restart before read
-    ESP_GOTO_ON_ERROR(i2c_master_start(cmd), err, TAG, "I2C master start error");
-    ESP_GOTO_ON_ERROR(i2c_master_write_byte(cmd, dev_addr | I2C_MASTER_READ, true), err, TAG, "I2C master write error");;
-    ESP_GOTO_ON_ERROR(i2c_master_read(cmd, data, len, I2C_MASTER_LAST_NACK), err, TAG, "I2C master read error");
-    ESP_GOTO_ON_ERROR(i2c_master_stop(cmd), err, TAG, "I2C master stop error");;
-    // Lock since multiple MAC/PHY instances exist and the KSZ may be also accessed by user (MAC tables, etc...)
-    ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_I2C_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "I2C bus lock timeout");
-    ESP_GOTO_ON_ERROR(i2c_master_cmd_begin(i2c_port, cmd, pdMS_TO_TICKS(KSZ8863_I2C_TIMEOUT_MS)), err_release, TAG,
-                      "I2C master command begin error");
-err_release:
-    bus_unlock();
+    ESP_GOTO_ON_ERROR(i2c_master_transmit_receive(s_ksz8863_ctrl_intf->i2c_handle, &reg_addr, 1, data, len, KSZ8863_I2C_TIMEOUT_MS), err, TAG, "Error during i2c read operation");
 err:
-    i2c_cmd_link_delete(cmd);
     return ret;
 }
 
@@ -121,7 +82,7 @@ static esp_err_t ksz8863_spi_write(uint8_t reg_addr, uint8_t *data, size_t len)
         .tx_buffer = data
     };
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_SPI_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "SPI bus lock timeout");
-    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err_release, TAG, "SPI transmit fail");
+    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_handle, &trans), err_release, TAG, "SPI transmit fail");
 err_release:
     bus_unlock();
 err:
@@ -140,7 +101,7 @@ static esp_err_t ksz8863_spi_read(uint8_t reg_addr, uint8_t *data, size_t len)
         .rx_buffer = data
     };
     ESP_GOTO_ON_FALSE(bus_lock(KSZ8863_SPI_LOCK_TIMEOUT_MS), ESP_ERR_TIMEOUT, err, TAG, "SPI bus lock timeout");
-    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle, &trans), err_release, TAG, "SPI transmit fail");
+    ESP_GOTO_ON_ERROR(spi_device_polling_transmit(s_ksz8863_ctrl_intf->spi_handle, &trans), err_release, TAG, "SPI transmit fail");
     bus_unlock();
 
     if ((trans.flags & SPI_TRANS_USE_RXDATA) && len <= 4) {
@@ -287,19 +248,24 @@ esp_err_t ksz8863_ctrl_intf_init(ksz8863_ctrl_intf_config_t *config)
     s_ksz8863_ctrl_intf = calloc(1, sizeof(ksz8863_ctrl_intf_t));
     ESP_RETURN_ON_FALSE(s_ksz8863_ctrl_intf, ESP_ERR_NO_MEM, TAG, "no memory");
 
-    ESP_GOTO_ON_FALSE(s_ksz8863_ctrl_intf->bus_lock = xSemaphoreCreateMutex(), ESP_ERR_NO_MEM, err, TAG, "mutex creation failed");
 
     s_ksz8863_ctrl_intf->mode = config->host_mode;
 
     switch (config->host_mode) {
     case KSZ8863_I2C_MODE:
-        s_ksz8863_ctrl_intf->i2c_bus_spec.i2c_port = config->i2c_dev_config->i2c_master_port;
-        s_ksz8863_ctrl_intf->i2c_bus_spec.dev_addr = config->i2c_dev_config->dev_addr;
+        i2c_device_config_t dev_cfg = {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = config->i2c_dev_config->dev_addr >> 1,
+                    .scl_speed_hz = config->i2c_dev_config->scl_speed_hz,
+        };
+        ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(config->i2c_dev_config->bus_handle, &dev_cfg, &s_ksz8863_ctrl_intf->i2c_handle), err, TAG, "Error when trying to add the I2C device");
 
         s_ksz8863_ctrl_intf->ksz8863_reg_read = ksz8863_i2c_read;
         s_ksz8863_ctrl_intf->ksz8863_reg_write = ksz8863_i2c_write;
         break;
     case KSZ8863_SPI_MODE:;
+        ESP_GOTO_ON_FALSE(s_ksz8863_ctrl_intf->bus_lock = xSemaphoreCreateMutex(), ESP_ERR_NO_MEM, err, TAG, "mutex creation failed");
+
         spi_device_interface_config_t devcfg = {
             .command_bits = 8,
             .address_bits = 8,
@@ -308,11 +274,10 @@ esp_err_t ksz8863_ctrl_intf_init(ksz8863_ctrl_intf_config_t *config)
             .spics_io_num = config->spi_dev_config->spics_io_num,
             .queue_size = 20
         };
-        ESP_ERROR_CHECK(spi_bus_add_device(config->spi_dev_config->host_id, &devcfg, &s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle));
+        ESP_ERROR_CHECK(spi_bus_add_device(config->spi_dev_config->host_id, &devcfg, &s_ksz8863_ctrl_intf->spi_handle));
 
         s_ksz8863_ctrl_intf->ksz8863_reg_read = ksz8863_spi_read;
         s_ksz8863_ctrl_intf->ksz8863_reg_write = ksz8863_spi_write;
-    case KSZ8863_SMI_MODE:
     default:
         break;
     }
@@ -327,15 +292,15 @@ esp_err_t ksz8863_ctrl_intf_deinit(void)
     if (s_ksz8863_ctrl_intf != NULL) {
         switch (s_ksz8863_ctrl_intf->mode) {
         case KSZ8863_I2C_MODE:
+            i2c_master_bus_rm_device(s_ksz8863_ctrl_intf->i2c_handle);
             break;
         case KSZ8863_SPI_MODE:
-            spi_bus_remove_device(s_ksz8863_ctrl_intf->spi_bus_spec.spi_handle);
-        case KSZ8863_SMI_MODE:
+            vSemaphoreDelete(s_ksz8863_ctrl_intf->bus_lock);
+            spi_bus_remove_device(s_ksz8863_ctrl_intf->spi_handle);
         default:
             break;
         }
 
-        vSemaphoreDelete(s_ksz8863_ctrl_intf->bus_lock);
         free(s_ksz8863_ctrl_intf);
         s_ksz8863_ctrl_intf = NULL;
     }

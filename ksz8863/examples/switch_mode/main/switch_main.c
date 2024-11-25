@@ -171,11 +171,13 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     esp_err_t ret;
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
+    /* we should not try to use KSZ8863-specific ioctl commands with the general host handle, only with port handles */
+    esp_eth_handle_t host_eth_handle = *(esp_eth_handle_t *)arg;
 
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
-        ret = esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num);
+        ret = eth_handle != host_eth_handle ? esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num) : ESP_FAIL;
         if (ret == ESP_OK) {
             ESP_LOGI(TAG, "Ethernet Link Up Port %" PRIi32, port_num + 1);
         } else {
@@ -185,7 +187,7 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         break;
     case ETHERNET_EVENT_DISCONNECTED:
-        ret = esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num);
+        ret = eth_handle != host_eth_handle ? esp_eth_ioctl(eth_handle, KSZ8863_ETH_CMD_G_PORT_NUM, &port_num) : ESP_FAIL;
         if (ret == ESP_OK) {
             ESP_LOGI(TAG, "Ethernet Link Down Port %" PRIi32, port_num + 1);
         } else {
@@ -218,18 +220,6 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 }
 
-esp_err_t i2c_init(i2c_port_t i2c_master_port, i2c_config_t *i2c_conf)
-{
-    esp_err_t ret;
-
-    ESP_GOTO_ON_ERROR(i2c_param_config(i2c_master_port, i2c_conf), err, TAG, "I2C parameters configuration failed");
-    ESP_GOTO_ON_ERROR(i2c_driver_install(i2c_master_port, i2c_conf->mode, 0, 0, 0), err, TAG, "I2C driver install failed");
-
-    return ESP_OK;
-err:
-    return ret;
-}
-
 // board specific initialization routine, user to update per specific needs
 esp_err_t ksz8863_board_specific_init(esp_eth_handle_t eth_handle)
 {
@@ -237,18 +227,20 @@ esp_err_t ksz8863_board_specific_init(esp_eth_handle_t eth_handle)
 
 #if CONFIG_EXAMPLE_CTRL_I2C
     // initialize I2C interface
-    i2c_config_t i2c_bus_config = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = CONFIG_EXAMPLE_I2C_SDA_GPIO,
+    i2c_master_bus_config_t i2c_mst_config = {
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .i2c_port = CONFIG_EXAMPLE_I2C_MASTER_PORT,
         .scl_io_num = CONFIG_EXAMPLE_I2C_SCL_GPIO,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = CONFIG_EXAMPLE_I2C_CLOCK_KHZ * 1000,
+        .sda_io_num = CONFIG_EXAMPLE_I2C_SDA_GPIO,
+        .glitch_ignore_cnt = 7,
     };
-    ESP_GOTO_ON_ERROR(i2c_init(CONFIG_EXAMPLE_I2C_MASTER_PORT, &i2c_bus_config), err, TAG, "I2C initialization failed");
+    i2c_master_bus_handle_t bus_handle;
+    ESP_GOTO_ON_ERROR(i2c_new_master_bus(&i2c_mst_config, &bus_handle), err, TAG, "I2C initialization failed");
     ksz8863_ctrl_i2c_config_t i2c_dev_config = {
+        .bus_handle = bus_handle,
         .dev_addr = KSZ8863_I2C_DEV_ADDR,
-        .i2c_master_port = CONFIG_EXAMPLE_I2C_MASTER_PORT,
+        .i2c_port = CONFIG_EXAMPLE_I2C_MASTER_PORT,
+        .scl_speed_hz = CONFIG_EXAMPLE_I2C_CLOCK_KHZ * 1000
     };
     ksz8863_ctrl_intf_config_t ctrl_intf_cfg = {
         .host_mode = KSZ8863_I2C_MODE,
@@ -371,7 +363,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_netif_attach(eth_netif, ksz8863_esp_eth_new_netif_glue_switch(&sw_netif_glue_cfg)));
 
     // Register user defined event handers
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, &host_eth_handle));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
     // start Ethernet driver state machines
