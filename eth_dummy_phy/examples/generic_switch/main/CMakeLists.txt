@@ -6,5 +6,5 @@ else()
     list(APPEND priv_requires driver)
 endif()
 
-idf_component_register(SRCS "emac2emac.c"
+idf_component_register(SRCS "generic_switch.c"
                        PRIV_REQUIRES ${priv_requires})

@@ -1,0 +1,6 @@
+description: EMAC to EMAC example - Generic Switch
+dependencies:
+  espressif/eth_dummy_phy:
+    version: '*'
+    # For local development use the local copy of the component
+    override_path: '../../../'
