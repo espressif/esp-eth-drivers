@@ -6,3 +6,8 @@ eth_dummy_phy/examples/simple:
     - if: IDF_TARGET in ["esp32"]
       temporary: true
       reason: example is currently tailored for esp32 due to RMII CLK source/sink and GPIO0 boot strap pin collision
+
+
+eth_dummy_phy/examples/generic_switch:
+  enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]
