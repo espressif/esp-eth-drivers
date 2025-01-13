@@ -47,6 +47,7 @@ typedef union {
         uint32_t reserved1 : 14;    // Reserved
         uint32_t rst : 1;           // PLCA Reset
         uint32_t en : 1;            // PLCA Enable
+        uint16_t padding1;          // Padding
     };
     uint32_t val;
 } lan867x_plca_ctrl0_reg_t;
@@ -54,8 +55,9 @@ typedef union {
 
 typedef union {
     struct {
-        uint8_t id;     // PLCA ID
-        uint8_t ncnt;   // Node count
+        uint8_t id;         // PLCA ID
+        uint8_t ncnt;       // Node count
+        uint16_t padding1;  // Padding
     };
     uint32_t val;
 } lan867x_plca_ctrl1_reg_t;
@@ -63,8 +65,9 @@ typedef union {
 
 typedef union {
     struct {
-        uint8_t reserved1;  // Reserved
         uint8_t totmr;      // Transmit Opportunity Timer
+        uint8_t reserved1;  // Reserved
+        uint16_t padding1;  // Padding
     };
     uint32_t val;
 } lan867x_plca_totmr_reg_t;
@@ -72,8 +75,9 @@ typedef union {
 
 typedef union {
     struct {
-        uint8_t maxbc;  // Maximum burst count
-        uint8_t btmr;   // Burst timer
+        uint8_t btmr;       // Burst timer
+        uint8_t maxbc;      // Maximum burst count
+        uint16_t padding1;  // Padding
     };
     uint32_t val;
 } lan867x_plca_burst_reg_t;
@@ -254,12 +258,12 @@ static esp_err_t lan867x_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
         ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_mmd_register(phy_802_3, MISC_REGISTERS_DEVICE, ETH_PHY_PLCA_CTRL1_REG_MMD_ADDR, &plca_ctrl1.val), err, TAG, "read PLCA_CTRL1 failed");
         *((uint8_t *) data) = plca_ctrl1.id;
         break;
-    case LAN867x_ETH_CMD_S_PLCA_TOT:
+    case LAN867X_ETH_CMD_S_PLCA_TOT:
         ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_mmd_register(phy_802_3, MISC_REGISTERS_DEVICE, ETH_PHY_PLCA_TOTMR_REG_MMD_ADDR, &plca_totmr.val), err, TAG, "read PLCA_TOTMR failed");
         plca_totmr.totmr = *((uint8_t *) data);
         ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_write_mmd_register(phy_802_3, MISC_REGISTERS_DEVICE, ETH_PHY_PLCA_TOTMR_REG_MMD_ADDR, plca_totmr.val), err, TAG, "write PLCA_TOTMR failed");
         break;
-    case LAN867x_ETH_CMD_G_PLCA_TOT:
+    case LAN867X_ETH_CMD_G_PLCA_TOT:
         ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_mmd_register(phy_802_3, MISC_REGISTERS_DEVICE, ETH_PHY_PLCA_TOTMR_REG_MMD_ADDR, &plca_totmr.val), err, TAG, "read PLCA_TOTMR failed");
         *((uint8_t *) data) = plca_totmr.totmr;
         break;
