@@ -73,21 +73,24 @@ menu "Ethernet Configuration"
         config ETHERNET_MDC_GPIO
             int "SMI MDC GPIO number"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
-            default 23
+            default 23 if IDF_TARGET_ESP32
+            default 31 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used by SMI MDC.
 
         config ETHERNET_MDIO_GPIO
             int "SMI MDIO GPIO number"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
-            default 18
+            default 18 if IDF_TARGET_ESP32
+            default 52 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used by SMI MDIO.
 
         config ETHERNET_PHY_RST_GPIO
             int "PHY Reset GPIO number"
             range -1 ENV_GPIO_OUT_RANGE_MAX
-            default 5
+            default 5 if IDF_TARGET_ESP32
+            default 51 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used to reset PHY chip.
                 Set to -1 to disable PHY chip hardware reset.
@@ -189,7 +192,7 @@ menu "Ethernet Configuration"
             default 13 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32S3
             default 2 if IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C2 || IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C61
             default 0 if IDF_TARGET_ESP32H2
-            default 52 if IDF_TARGET_ESP32P4
+            default 24 if IDF_TARGET_ESP32P4
             default 9 if IDF_TARGET_ESP32C5
             help
                 Set the GPIO number used by SPI MISO.
@@ -208,7 +211,7 @@ menu "Ethernet Configuration"
             default 10 if IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32C2
             default 3 if IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C61
             default 1 if IDF_TARGET_ESP32H2
-            default 53 if IDF_TARGET_ESP32P4
+            default 21 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used by SPI CS0, i.e. Chip Select associated with the first SPI Eth module).
 
