@@ -73,21 +73,24 @@ menu "Ethernet Configuration"
         config ETHERNET_MDC_GPIO
             int "SMI MDC GPIO number"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
-            default 23
+            default 23 if IDF_TARGET_ESP32
+            default 31 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used by SMI MDC.
 
         config ETHERNET_MDIO_GPIO
             int "SMI MDIO GPIO number"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
-            default 18
+            default 18 if IDF_TARGET_ESP32
+            default 52 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used by SMI MDIO.
 
         config ETHERNET_PHY_RST_GPIO
             int "PHY Reset GPIO number"
             range -1 ENV_GPIO_OUT_RANGE_MAX
-            default 5
+            default 5 if IDF_TARGET_ESP32
+            default 51 if IDF_TARGET_ESP32P4
             help
                 Set the GPIO number used to reset PHY chip.
                 Set to -1 to disable PHY chip hardware reset.
@@ -144,7 +147,7 @@ menu "Ethernet Configuration"
                 bool "CH390 Module"
                 help
                     Select external SPI-Ethernet module (CH390).
-            
+
             config ETHERNET_USE_ENC28J60
                 bool "ENC28J60 Module"
                 help
@@ -153,7 +156,7 @@ menu "Ethernet Configuration"
         endchoice
 
         config ETHERNET_SPI_HOST
-            int "SPI Host Number" 
+            int "SPI Host Number"
             default 1
             help
                 Set the SPI host used to communicate with the SPI Ethernet Controller.
