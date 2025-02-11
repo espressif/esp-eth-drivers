@@ -1,6 +1,7 @@
 name: Build
 
-on:  push:
+on:
+  push:
     branches:
       - "!refs/pull/*" # Exclude push events related to PRs
   pull_request:
