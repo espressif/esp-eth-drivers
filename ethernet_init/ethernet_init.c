@@ -177,7 +177,9 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
     phy_config.reset_gpio_num = CONFIG_ETHERNET_PHY_RST_GPIO;
 
     // Create new PHY instance based on board configuration
-#if CONFIG_ETHERNET_PHY_IP101
+#if CONFIG_ETHERNET_PHY_GENERIC
+    dev_out->phy = esp_eth_phy_new_generic(&phy_config);
+#elif CONFIG_ETHERNET_PHY_IP101
     dev_out->phy = esp_eth_phy_new_ip101(&phy_config);
     sprintf(dev_out->dev_info.name, "IP101");
 #elif CONFIG_ETHERNET_PHY_RTL8201
