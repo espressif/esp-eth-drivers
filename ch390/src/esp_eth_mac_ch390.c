@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * SPDX-FileContributor: 2024 Sergey Kharenko
+ * SPDX-FileContributor: 2024-2025 Sergey Kharenko
  * SPDX-FileContributor: 2024 Espressif Systems (Shanghai) CO LTD
  */
 
@@ -310,7 +310,7 @@ static esp_err_t ch390_reset(emac_ch390_t *emac)
     }
     ESP_GOTO_ON_FALSE(to < emac->sw_reset_timeout_ms / 10, ESP_ERR_TIMEOUT, err, TAG, "reset timeout");
 
-    /* For CH390H, phy should be power on after software reset !*/
+    /* For CH390H/D, phy should be power on after software reset !*/
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_GPR, 0x00), err, TAG, "write GPR failed");
     /* mac and phy register won't be accesable within at least 1ms */
     vTaskDelay(pdMS_TO_TICKS(10));
