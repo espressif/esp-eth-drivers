@@ -1,4 +1,4 @@
-# WCH CH390H Ethernet Driver (beta)
+# WCH CH390H/D Ethernet Driver
 
 ## Overview
 
@@ -62,6 +62,7 @@ and use the Ethernet driver as you are used to. For more information of how to u
 | 0.1.0       | 2024-03-06 | Initial Release                                                                                                        |
 | 0.2.0       | 2024-08-29 | Fix start/stop issue: cannot acquire the ip address after several start/stop loops randomly                            |
 | 0.2.1       | 2024-11-25 | Correct some typos in comment; Fix the issue that loopback and auto-negotiation cannot be enabled at the same time     |
+| 0.2.2       | 2025-2-14  | Add support of CH390D; Remove beta symbol                                                                              |
 
 ## Acknowledgement
 In no particular order:
