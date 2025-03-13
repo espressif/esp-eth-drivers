@@ -1,6 +1,61 @@
+minimum_pre_commit_version: 4.0.0                        # Specifies the minimum version of pre-commit required for this configuration
+default_install_hook_types: [pre-commit,commit-msg]      # Default hook types to install if not specified in individual hooks
+default_stages: [pre-commit]
+
+
 repos:
--   repo: https://github.com/igrr/astyle_py.git
-    rev: 689550dafa9bf64075efc1a683f6fffebbcaaf00
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
     hooks:
-    -   id: astyle_py
-        args: ['--style=otbs', '--attach-namespaces', '--attach-classes', '--indent=spaces=4', '--convert-tabs', '--align-pointer=name', '--align-reference=name', '--keep-one-line-statements', '--pad-header', '--pad-oper']
+      - id: trailing-whitespace                          # Removes trailing whitespaces from lines
+        exclude: 'api\.md$'
+      - id: end-of-file-fixer                            # Ensures files end with a newline
+        exclude: 'api\.md$'
+      - id: check-executables-have-shebangs              # Checks executables have a proper shebang
+      - id: mixed-line-ending                            # Detects mixed line endings (CRLF/LF)
+        args: ['-f=lf']                                  # Forces files to use LF line endings
+      - id: double-quote-string-fixer                    # Converts single quotes to double quotes in strings
+
+  - repo: https://github.com/espressif/check-copyright/
+    rev: v1.1.1
+    hooks:
+      - id: check-copyright
+        args: ['--config', '.ci/check_copyright_config.yaml']
+
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v3.0.3
+    hooks:
+      - id: pylint                                       # Runs pylint on Python code
+        additional_dependencies: ['PyYAML']
+        args: ['--max-line-length=160']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.5
+    hooks:
+      - id: ruff                                         # Runs ruff linter (replaces flake8)
+        args: ['--fix', '--exit-non-zero-on-fix']
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy                                         # Runs mypy for Python type checking
+        additional_dependencies: ['PyYAML', 'types-PyYAML']
+
+  - repo: https://github.com/espressif/conventional-precommit-linter
+    rev: v1.10.0
+    hooks:
+      - id: conventional-precommit-linter                # Lints commit messages for conventional format
+        stages: [commit-msg]
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell # Code spell checker
+        args: ["--write-changes"]
+        additional_dependencies: [tomli]
+
+  - repo: https://github.com/espressif/astyle_py.git
+    rev: v1.1.0
+    hooks:
+      - id: astyle_py
+        args: ['--astyle-version=3.4.7', '--rules=.ci/astyle-rules.yml']
