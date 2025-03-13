@@ -1,0 +1,43 @@
+{
+    "bootstrap-sha": "ce809a36dbb3cd5b27bc7c7b35b3b6ace7aa6673",
+    "include-component-in-tag": true,
+    "include-v-in-tag": true,
+    "tag-separator": "@",
+    "extra-files": [
+      {
+        "type": "yaml",
+        "path": "idf_component.yml",
+        "jsonpath": "$.version"
+      }
+    ],
+    "packages": {
+        "adin1200": {
+          "component": "adin1200",
+          "release-type": "go"
+        },
+        "ch390": {
+          "component": "ch390",
+          "release-type": "go"
+        },
+        "enc28j60": {
+          "component": "enc28j60",
+          "release-type": "go"
+        },
+        "eth_dummy_phy": {
+          "component": "eth_dummy_phy",
+          "release-type": "go"
+        },
+        "ethernet_init": {
+          "component": "ethernet_init",
+          "release-type": "go"
+        },
+        "ksz8863": {
+          "component": "ksz8863",
+          "release-type": "go"
+        },
+        "lan867x": {
+          "component": "lan867x",
+          "release-type": "go"
+        }
+    }
+}
