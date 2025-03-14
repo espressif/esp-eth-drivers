@@ -80,12 +80,11 @@ def update_changelog(component:str) -> None:
                 _changelog = f'- {match.group(3)} ([{commit}]({RELEASE_TAG_BASE_URL}{commit}))'
             changelogs[CHANGELOG_SECTIONS[match.group(1)]].append(_changelog)
 
-    print(changelogs)
-
     # Update changelog file
     changelog_data: List[str]
+    file = str(PROJECT_ROOT / component / 'CHANGELOG.md')
     try:
-        with open(str(PROJECT_ROOT / component / 'CHANGELOG.md'), encoding='utf-8') as fr:
+        with open(file, encoding='utf-8') as fr:
             changelog_data = fr.readlines()
     except FileNotFoundError:
         changelog_data = [f'# Changelog - {component}\n\n', '']
@@ -97,8 +96,10 @@ def update_changelog(component:str) -> None:
         changed = True
     if changed:
         changelog_data.insert(2, f'## [{CZ_NEW_TAG}]({RELEASE_TAG_BASE_URL}/{CZ_NEW_TAG})\n\n')
-    with open(str(PROJECT_ROOT / component / 'CHANGELOG.md'), 'w', encoding='utf-8') as fw:
+    with open(file, 'w', encoding='utf-8') as fw:
         fw.write(''.join(changelog_data))
+    subprocess.check_call(['git', 'add', f'{file}'],
+                          cwd=PROJECT_ROOT)
 
 
 if __name__ == '__main__':
