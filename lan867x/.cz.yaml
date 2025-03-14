@@ -1,0 +1,8 @@
+---
+commitizen:
+  bump_message: 'bump(lan867x): $current_version -> $new_version'
+  pre_bump_hooks: python ../tools/changelog.py lan867x
+  tag_format: lan867x-v$version
+  version: 1.0.2
+  version_files:
+  - 'idf_component.yml:^version: '

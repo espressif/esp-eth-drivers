@@ -289,7 +289,7 @@ static esp_err_t lan867x_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
         ESP_GOTO_ON_FALSE(false, ESP_ERR_NO_MEM, err, TAG, "Unable to add additional transmit opportunity for 0x%02x. Maximum amount (8) reached.", *((uint8_t *) data));
         break;
     case LAN867X_ETH_CMD_RM_TX_OPPORTUNITY:
-        // Look for the first occurance of id and replace it with 0x00
+        // Look for the first occurrence of id and replace it with 0x00
         for (uint16_t i = 0; i < 4; i++) {
             ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_read_mmd_register(phy_802_3, MISC_REGISTERS_DEVICE, ETH_PHY_PLCA_MULTID_BASE_MMD_ADDR + i, &plca_multiple_id_reg.val), err, TAG, "read MULTID%d failed", i);
             for (uint8_t j = 0; j < 2; j++) {

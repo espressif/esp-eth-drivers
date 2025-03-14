@@ -1,0 +1,8 @@
+---
+commitizen:
+  bump_message: 'bump(ethernet_init): $current_version -> $new_version'
+  pre_bump_hooks: python ../tools/changelog.py ethernet_init
+  tag_format: ethernet_init-v$version
+  version: 0.4.0
+  version_files:
+  - 'idf_component.yml:^version: '
