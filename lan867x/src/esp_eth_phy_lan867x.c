@@ -126,7 +126,13 @@ static esp_err_t lan867x_update_link_duplex_speed(phy_lan867x_t *lan867x)
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMSR_REG_ADDR, &(bmsr.val)), err, TAG, "read BMSR failed");
     eth_speed_t speed = bmcr.speed_select ? ETH_SPEED_100M : ETH_SPEED_10M;
-    eth_duplex_t duplex = bmcr.duplex_mode  ? ETH_DUPLEX_FULL : ETH_DUPLEX_HALF;
+    eth_duplex_t duplex;
+    if (bmcr.en_loopback) {
+        // if loopback enabled, we need to falsely indicate full duplex to the EMAC to be able to Tx and Rx at the same time
+        duplex = ETH_DUPLEX_FULL;
+    } else {
+        duplex = bmcr.duplex_mode  ? ETH_DUPLEX_FULL : ETH_DUPLEX_HALF;
+    }
     eth_link_t link = bmsr.link_status ? ETH_LINK_UP : ETH_LINK_DOWN;
     // This will be ran exactly once, when everything is setting up
     if (lan867x->phy_802_3.link_status != link) {
