@@ -5,6 +5,8 @@
  */
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
+#include <inttypes.h>
 #include "ethernet_init.h"
 #include "esp_log.h"
 #include "esp_event.h"
@@ -124,6 +126,34 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+#if CONFIG_ETHERNET_BOARD_SPECIFIC_INIT_WEAK
+__attribute__((weak)) esp_err_t eth_board_specific_init(esp_eth_handle_t eth_handle)
+{
+    ESP_LOGW(TAG, "No board specific init defined - define your own init function");
+    return ESP_OK;
+}
+#else
+esp_err_t eth_board_specific_init(esp_eth_handle_t eth_handle)
+{
+#ifdef CONFIG_ETHERNET_EXT_OSC_EN_GPIO_NUM
+    if (CONFIG_ETHERNET_EXT_OSC_EN_GPIO_NUM >= 0) {
+        uint32_t pin = CONFIG_ETHERNET_EXT_OSC_EN_GPIO_NUM;
+        gpio_config_t gpio_sink_cfg = {
+            .pin_bit_mask = (1ULL << pin),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
+        };
+        gpio_config(&gpio_sink_cfg);
+        // enable external oscillator
+        gpio_set_level(pin, 1);
+    }
+#endif
+    return ESP_OK;
+}
+#endif
+
 #if CONFIG_ETHERNET_INTERNAL_SUPPORT
 /**
  * @brief Internal ESP32 Ethernet initialization
@@ -193,12 +223,13 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
     sprintf(dev_out->dev_info.name, "KSZ80XX");
 #elif CONFIG_ETHERNET_PHY_LAN867X
     dev_out->phy = esp_eth_phy_new_lan867x(&phy_config);
-    sprintf(dev_out->dev_info.name, "LAN867x");
+    sprintf(dev_out->dev_info.name, "LAN867X");
 #endif
 
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(dev_out->mac, dev_out->phy);
+    config.on_lowlevel_init_done = eth_board_specific_init;
     ESP_GOTO_ON_FALSE(esp_eth_driver_install(&config, &eth_handle) == ESP_OK, NULL,
                       err, TAG, "Ethernet driver install failed");
 
@@ -462,6 +493,65 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 #else
     ESP_LOGD(TAG, "no Ethernet device selected to init");
 #endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT
+
+#ifdef CONFIG_ETHERNET_USE_PLCA
+    for (int i = 0; i < eth_cnt_g; i++) {
+        if (strcmp(eth_instance_g[i].dev_info.name, "LAN867X") == 0) {
+            uint8_t plca_id = 0; // PLCA coordinator as default
+#if CONFIG_ETHERNET_PLCA_COORDINATOR
+            // Configure PLCA as coordinator
+            uint8_t plca_nodes_count = CONFIG_ETHERNET_PLCA_NODE_COUNT;
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_NCNT, &plca_nodes_count),
+                              err, TAG, "failed to set PLCA node count");
+            ESP_LOGI(TAG, "PLCA node count %" PRIu8, plca_nodes_count);
+#elif CONFIG_ETHERNET_PLCA_FOLLOWER
+            // Configure PLCA with node number from config
+            plca_id = CONFIG_ETHERNET_PLCA_ID;
+#endif
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_ID, &plca_id),
+                              err, TAG, "failed to set PLCA node ID");
+
+            uint8_t plca_max_burst_count = CONFIG_ETHERNET_PLCA_BURST_COUNT;
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_MAX_BURST_COUNT, &plca_max_burst_count),
+                              err, TAG, "failed to set PLCA max burst count");
+
+#ifdef CONFIG_ETHERNET_PLCA_BURST_TIMER
+            uint8_t plca_burst_timer = CONFIG_ETHERNET_PLCA_BURST_TIMER;
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_BURST_TIMER, &plca_burst_timer),
+                              err, TAG, "failed to set PLCA max burst timer");
+#endif
+
+#ifdef CONFIG_ETHERNET_PLCA_MULTI_IDS_EN
+            const char *start = CONFIG_ETHERNET_PLCA_MULTI_IDS;
+            for (int id_cnt = 0; id_cnt < 8; id_cnt++) {
+                char *end;
+                long multi_id = strtol(start, &end, 10);
+                if (start == end) {
+                    break;
+                }
+                start = end;
+                if (multi_id <= 0 || multi_id >= 0xFF) {
+                    ESP_LOGE(TAG, "Invalid PLCA additional local ID: %li", multi_id);
+                } else {
+                    ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_ADD_TX_OPPORTUNITY, &multi_id),
+                                      err, TAG, "failed to add additional local ID (%li)", multi_id);
+                    ESP_LOGI(TAG, "PLCA additional local ID: %li", multi_id);
+                }
+            }
+#endif
+            // it is recommended to be Transmit Opportunity Timer always configured to desired value
+            uint8_t plca_tot = CONFIG_ETHERNET_PLCA_TOT;
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_TOT, &plca_tot),
+                              err, TAG, "failed to set PLCA Transmit Opportunity timer");
+
+            bool plca_en = true;
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_EN_PLCA, &plca_en),
+                              err, TAG, "failed to enable PLCA");
+            ESP_LOGI(TAG, "PLCA enabled, node ID: %" PRIu8, plca_id);
+        }
+    }
+#endif // CONFIG_ETHERNET_USE_PLCA
+
     *eth_handles_out = eth_handles;
     *eth_cnt_out = eth_cnt_g;
 
