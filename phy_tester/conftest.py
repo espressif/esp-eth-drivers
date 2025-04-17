@@ -15,6 +15,10 @@ def eth_nic(request: FixtureRequest) -> str:
     """
     return request.config.getoption('eth_nic') or ''
 
+@pytest.fixture(scope='session')
+def always_run_all_tests(request: FixtureRequest) -> bool:
+    return request.config.getoption('always_run_all_tests') or False
+
 def pytest_addoption(parser: pytest.Parser) -> None:
     """
     Add a command line option to specify the network interface (NIC) name the DUT is connected to.
@@ -23,4 +27,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     idf_group.addoption(
         '--eth-nic',
         help='Network interface (NIC) name the DUT is connected to',
+    )
+    idf_group.addoption(
+        '--always-run-all-tests',
+        help='Always run all tests',
+        action='store_true',
     )

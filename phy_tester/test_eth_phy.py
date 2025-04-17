@@ -149,6 +149,7 @@ class EthTestIntf:
                 payload[i] = i & 0xff
             eth_frame = Ether(dst=mac, src=so.getsockname()[4], type=self.eth_type) / raw(payload)
             try:
+                logging.info('sending test frame')
                 so.send(raw(eth_frame))
             except Exception as e:  # pylint: disable=broad-except  # noqa
                 raise e
@@ -161,6 +162,7 @@ class EthTestIntf:
             if rx_eth_frame.load != eth_frame.load:
                 logging.error("doesn't match!")
                 return False
+            logging.info('test frame received')
         return True
 
     def traffic_gen(
@@ -285,7 +287,7 @@ def _test_nearend_loopback(dut: Dut, count: int) -> str:
     dut.write(f'loop-test -s 640 -c {count}\n')
     try:
         dut.expect_exact('Link Up')
-        dut.expect_exact(f'looped frames: {count}, rx errors: 0', timeout=10)
+        dut.expect_exact(f'TXed frames: {count}, looped frames: {count}, RX errors: 0', timeout=10)
     except:  # pylint: disable=bare-except  # noqa
         logging.error('near-end loop back failed')
         ret = 'FAIL'
@@ -443,13 +445,14 @@ def draw_result(near_tx_color: str,
     print('. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .')
 
 
-def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
+def ethernet_phy_test(dut: Dut, test_pc_nic: str, always_run_all_tests: bool) -> None:
     """
     Runs the Ethernet PHY tests.
 
     Args:
         dut: DUT object
         test_pc_nic: Name of the test PC Ethernet NIC connected to DUT
+        always_run_all_tests: True if all tests should be run, False otherwise
     """
     target_if = EthTestIntf(ETH_TYPE, test_pc_nic)
     try:
@@ -472,8 +475,7 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
     print(f'loopback server: {tx_path}{res_dict["loopback server"]}{NORM}')
     draw_result(tx_path, rx_path, tx_path, rx_path, False, True)
 
-    if res_dict['loopback server'] == 'FAIL':
-        logging.error('loopback server test failed!')
+    if res_dict['loopback server'] == 'FAIL' or always_run_all_tests:
         logging.info('Running additional tests to try to isolate the problem...')
 
         res_dict.update({'DUT tx': _test_dut_tx(dut, target_if, 1)})
@@ -570,9 +572,9 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str) -> None:
     'esp32p4',
 ], indirect=True)
 def test_esp_ethernet(dut: Dut,
-                      eth_nic: str) -> None:
-    print(eth_nic)
-    ethernet_phy_test(dut, eth_nic)
+                      eth_nic: str,
+                      always_run_all_tests: bool) -> None:
+    ethernet_phy_test(dut, eth_nic, always_run_all_tests)
 
 
 if __name__ == '__main__':

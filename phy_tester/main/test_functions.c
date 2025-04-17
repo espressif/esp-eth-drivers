@@ -130,7 +130,7 @@ static void tx_task(void *arg)
 {
     tx_task_config_t *tx_task_config = (tx_task_config_t *)arg;
 
-    uint8_t *tx_buffer = calloc(sizeof(uint8_t), tx_task_config->frame_len);
+    uint8_t *tx_buffer = calloc(tx_task_config->frame_len, sizeof(uint8_t));
     if (!tx_buffer) {
         ESP_LOGE(TAG, "no memory for TX frame buffer");
         goto err;
@@ -333,11 +333,13 @@ esp_err_t loopback_near_end_test(
 
     uint32_t rx_err_cnt = 0;
     uint32_t rx_cnt = 0;
+    uint32_t tx_cnt = 0;
     frame_info_t rx_frame_info;
     frame_info_t tx_frame_info;
     // go over received frames and compare them with control samples
-    while (xQueueReceive(rx_frame_queue, &rx_frame_info, pdMS_TO_TICKS(period_us / 1000 * 2)) == pdTRUE) {
-        if (xQueueReceive(tx_frame_queue, &tx_frame_info, pdMS_TO_TICKS(10)) == pdTRUE) {
+    while (xQueueReceive(tx_frame_queue, &tx_frame_info, pdMS_TO_TICKS(period_us / 1000 * 2)) == pdTRUE) {
+        tx_cnt++;
+        if (xQueueReceive(rx_frame_queue, &rx_frame_info, pdMS_TO_TICKS(100)) == pdTRUE) { // TODO 10ms for 100mbps and 100ms for 10mbps mode
             if (rx_frame_info.frame_len == tx_frame_info.frame_len) {
                 if (memcmp(rx_frame_info.frame, tx_frame_info.frame, tx_frame_info.frame_len) == 0) {
                     rx_cnt++;
@@ -350,12 +352,12 @@ esp_err_t loopback_near_end_test(
                 ESP_LOGE(TAG, "unexpected length of received frame");
                 rx_err_cnt++;
             }
-            free(tx_frame_info.frame);
+            free(rx_frame_info.frame);
         }
-        free(rx_frame_info.frame);
+        free(tx_frame_info.frame);
     }
     // TODO add wait for Tx task end
-    ESP_LOGI(TAG, "looped frames: %lu, rx errors: %lu", rx_cnt, rx_err_cnt);
+    ESP_LOGI(TAG, "TXed frames: %lu, looped frames: %lu, RX errors: %lu", tx_cnt, rx_cnt, rx_err_cnt);
 err_stop:
     ESP_GOTO_ON_ERROR(esp_eth_stop(eth_handle), err, TAG, "failed to stop Ethernet");
 err:

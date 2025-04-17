@@ -30,7 +30,8 @@ static char *supported_phys[PHY_ID_END] = {
     "LAN87XX",      /* PHY_LAN87XX */
     "KSZ80XX",      /* PHY_KSZ80XX */
     "RTL8201",      /* PHY_RTL8201 */
-    "DP83848"       /* PHY_DP83848 */
+    "DP83848",      /* PHY_DP83848 */
+    "LAN867x"       /* PHY_LAN867X */
 };
 
 static struct {
@@ -42,6 +43,15 @@ static struct {
     struct arg_str *hex;
     struct arg_end *end;
 } phy_control_args;
+
+static struct {
+    struct arg_lit *info;
+    struct arg_lit *autoneg;
+    struct arg_int *speed;
+    struct arg_lit *half_dplx;
+    struct arg_lit *full_dplx;
+    struct arg_end *end;
+} phy_mode_args;
 
 /* "dump_regs" command */
 static struct {
@@ -161,6 +171,64 @@ static int phy_cmd_control(int argc, char **argv)
     return 0;
 }
 
+static int phy_mode_control(int argc, char **argv)
+{
+    bool autoneg;
+    eth_speed_t speed;
+    eth_duplex_t duplex;
+    int nerrors = arg_parse(argc, argv, (void **)&phy_mode_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, phy_mode_args.end, argv[0]);
+        return 1;
+    }
+
+    if (phy_mode_args.info->count != 0) {
+        esp_eth_ioctl(s_eth_handles[0], ETH_CMD_G_AUTONEGO, &autoneg);
+        esp_eth_ioctl(s_eth_handles[0], ETH_CMD_G_SPEED, &speed);
+        esp_eth_ioctl(s_eth_handles[0], ETH_CMD_G_DUPLEX_MODE, &duplex);
+
+        printf("--- Ethernet mode info ---\n");
+        printf("Autonegotiation: %s\n", autoneg == true ? "enabled" : "disabled");
+        printf("Speed: %u\n", speed == ETH_SPEED_10M ? 10 : speed == ETH_SPEED_100M ? 100 : 1000);
+        printf("Duplex: %s\n", duplex == ETH_DUPLEX_HALF ? "half" : "full");
+    } else {
+        if (phy_mode_args.autoneg->count != 0) {
+            bool autoneg = true;
+            esp_eth_ioctl(s_eth_handles[0], ETH_CMD_S_AUTONEGO, &autoneg);
+            if (phy_mode_args.full_dplx->count != 0 || phy_mode_args.half_dplx->count != 0 || phy_mode_args.speed->count != 0) {
+                ESP_LOGE(TAG, "Can't set speed or duplex mode when autonegotiation is enabled!");
+                return -1;
+            }
+        } else {
+            bool autoneg = false;
+            esp_eth_ioctl(s_eth_handles[0], ETH_CMD_S_AUTONEGO, &autoneg);
+            if (phy_mode_args.full_dplx->count != 0 && phy_mode_args.half_dplx->count == 0) {
+                duplex = ETH_DUPLEX_FULL;
+                esp_eth_ioctl(s_eth_handles[0], ETH_CMD_S_DUPLEX_MODE, &duplex);
+            } else if (phy_mode_args.full_dplx->count == 0 && phy_mode_args.half_dplx->count != 0) {
+                duplex = ETH_DUPLEX_HALF;
+                esp_eth_ioctl(s_eth_handles[0], ETH_CMD_S_DUPLEX_MODE, &duplex);
+            } else {
+                ESP_LOGE(TAG, "Invalid duplex mode arguments.");
+                return -1;
+            }
+            if (phy_mode_args.speed->count != 0) {
+                if (phy_mode_args.speed->ival[0] == 10) {
+                    speed = ETH_SPEED_10M;
+                } else if (phy_mode_args.speed->ival[0] == 100) {
+                    speed = ETH_SPEED_100M;
+                } else {
+                    ESP_LOGE(TAG, "Invalid speed.");
+                    return -1;
+                }
+                esp_eth_ioctl(s_eth_handles[0], ETH_CMD_S_SPEED, &speed);
+            }
+        }
+        ESP_LOGW(TAG, "Ethernet needs to be started to new speed/duplex settings take effect.");
+    }
+    return 0;
+}
+
 static int phy_dump(int argc, char **argv)
 {
     int nerrors = arg_parse(argc, argv, (void **)&phy_dump_regs_args);
@@ -276,8 +344,7 @@ static int nearend_loopback_enable(int argc, char **argv)
         }
     }
     if (phy_id >= PHY_ID_END) {
-        ESP_LOGE(TAG, "unsupported PHY");
-        return 1;
+        ESP_LOGW(TAG, "untested PHY is used");
     }
 
     // TODO add check that only one option at a time
@@ -308,7 +375,7 @@ static int farend_loopback_enable(int argc, char **argv)
         }
     }
     if (phy_id >= PHY_ID_END) {
-        ESP_LOGE(TAG, "unsupported PHY");
+        ESP_LOGE(TAG, "unsupported PHY (far-end loopback enable is PHY specific)");
         return 1;
     }
 
@@ -411,6 +478,21 @@ void register_ethernet(void)
         .argtable = &phy_control_args
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd));
+
+    phy_mode_args.info = arg_lit0(NULL, "info", "Get current config (when used, other args are ignored)");
+    phy_mode_args.autoneg = arg_lit0("a", "auto", "Set autonegotiation");
+    phy_mode_args.speed = arg_int0("s", "speed", "<10/100/1000>", "Set speed");
+    phy_mode_args.half_dplx = arg_lit0("h", "halfdplx", "Set half duplex");
+    phy_mode_args.full_dplx = arg_lit0("f", "fulldplx", "Set full duplex");
+    phy_mode_args.end = arg_end(1);
+    const esp_console_cmd_t mode_cmd = {
+        .command = "mode",
+        .help = "Ethernet PHY mode control (speed/duplex)",
+        .hint = NULL,
+        .func = phy_mode_control,
+        .argtable = &phy_mode_args
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&mode_cmd));
 
     phy_dump_regs_args.dump_802_3 = arg_lit0("a", "all", "Dump IEEE 802.3 registers");
     phy_dump_regs_args.dump_range_start = arg_int0(NULL, NULL, "<first reg>", "Dump a range of registers start addr");
