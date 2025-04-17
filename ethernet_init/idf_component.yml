@@ -1,7 +1,9 @@
 dependencies:
   espressif/lan867x:
+    version: '*'
     rules:
        - if: "target in [esp32, esp32p4]"
+    override_path: '../lan867x/'
   idf:
     version: '>=5.4'
   espressif/ch390:
