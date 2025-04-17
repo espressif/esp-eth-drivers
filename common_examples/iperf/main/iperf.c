@@ -15,6 +15,7 @@
 
 static const char *TAG = "iperf_example";
 
+#if CONFIG_EXAMPLE_ACT_AS_DHCP_SERVER
 static void start_dhcp_server_after_connection(void *arg, esp_event_base_t base, int32_t id, void *event_data)
 {
     esp_netif_t *eth_netif = esp_netif_next_unsafe(NULL);
@@ -28,6 +29,7 @@ static void start_dhcp_server_after_connection(void *arg, esp_event_base_t base,
         eth_netif = esp_netif_next_unsafe(eth_netif);
     }
 }
+#endif
 
 void app_main(void)
 {
@@ -110,5 +112,13 @@ void app_main(void)
     esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
     esp_console_new_repl_uart(&uart_config, &repl_config, &repl);
     app_register_iperf_commands();
+
+    printf("\n ========================================================\n");
+    printf(" |                    Ethernet iperf                    |\n");
+    printf(" |                                                      |\n");
+    printf(" | Type 'help' to display a list of available commands. |\n");
+    printf(" |                                                      |\n");
+    printf("\n ========================================================\n");
+
     esp_console_start_repl(repl);
 }

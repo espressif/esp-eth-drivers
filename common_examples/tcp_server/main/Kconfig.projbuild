@@ -1,7 +1,33 @@
 menu "Example options"
+    config EXAMPLE_TCP_SERVER_PORT
+        int "TCP server listening port"
+        default 8080
+        help
+            Set TCP server listening port.
+
     config EXAMPLE_ACT_AS_DHCP_SERVER
-        bool "Act sa DHCP server"
+        bool "Act as DHCP server"
         default n
         help
-            Set ESP32 to act as DHCP server instead of as a client.
+            Set device to act as DHCP server instead of as a client.
+
+    config EXAMPLE_DHCP_LEASE_TIME
+        int "DHCP lease time"
+        depends on EXAMPLE_ACT_AS_DHCP_SERVER
+        default 120 if !ETHERNET_PHY_LAN867X
+        default 1 if ETHERNET_PHY_LAN867X
+        help
+            Set DHCP lease time in units of LWIP_DHCPS_LEASE_UNIT (default 60 seconds).
+            Example: Setting this to 1 means a 60-second lease time.
+
+            This setting is particularly important for devices like LAN867X because it always reports
+            its link as "up". In a scenario where:
+
+            1. Multiple DHCP clients exist in the network
+            2. The DHCP server and some (but not all) clients restart
+            3. The server might assign IP addresses without knowledge of still-active clients
+
+            A short lease time helps resolve potential IP conflicts quickly, as remaining
+            active clients will attempt to renew their leases sooner.
+
 endmenu
