@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,12 +14,14 @@
 #include "ethernet_init.h"
 #include "lwip/sockets.h"
 #include "sdkconfig.h"
+#include "errno.h"
 
-#define SOCKET_PORT         5000
-#define SOCKET_MAX_LENGTH   128
+#define INVALID_SOCKET      -1
+#define SOCKET_MAX_LENGTH   1440 // at least equal to MSS
+#define MAX_MSG_LENGTH      128
 
 static const char *TAG = "tcp_client";
-static SemaphoreHandle_t x_got_ip_semaphore;
+static SemaphoreHandle_t got_ip_sem;
 
 /** Event handler for IP_EVENT_ETH_GOT_IP */
 static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *data)
@@ -33,7 +35,7 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
-    xSemaphoreGive(x_got_ip_semaphore);
+    xSemaphoreGive(got_ip_sem);
 }
 
 void app_main(void)
@@ -41,16 +43,19 @@ void app_main(void)
     // Create default event loop that running in background
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     // Initialize semaphore
-    x_got_ip_semaphore = xSemaphoreCreateBinary();
+    got_ip_sem = xSemaphoreCreateBinary();
+    if (got_ip_sem == NULL) {
+        ESP_LOGE(TAG, "Failed to create semaphore");
+        return;
+    }
+
     // Initialize Ethernet driver
     uint8_t eth_port_cnt = 0;
     esp_eth_handle_t *eth_handles;
-    char if_key_str[10];
-    char if_desc_str[10];
     ESP_ERROR_CHECK(ethernet_init_all(&eth_handles, &eth_port_cnt));
-    esp_netif_init();
-    // Register user defined event handers
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
+    // Initialize TCP/IP network interface aka the esp-netif (should be called only once in application)
+    ESP_ERROR_CHECK(esp_netif_init());
+
     // Create instance(s) of esp-netif for Ethernet(s)
     if (eth_port_cnt == 1) {
         // Use ESP_NETIF_DEFAULT_ETH when just one Ethernet interface is used and you don't need to modify
@@ -68,6 +73,8 @@ void app_main(void)
             .stack = ESP_NETIF_NETSTACK_DEFAULT_ETH
         };
 
+        char if_key_str[10];
+        char if_desc_str[10];
         for (int i = 0; i < eth_port_cnt; i++) {
             sprintf(if_key_str, "ETH_%d", i);
             sprintf(if_desc_str, "eth%d", i);
@@ -78,51 +85,100 @@ void app_main(void)
 
             // Attach Ethernet driver to TCP/IP stack
             ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handles[i])));
-            esp_eth_start(eth_handles[i]);
         }
     }
-    // Wait until IP address is assigned to this device
-    xSemaphoreTake(x_got_ip_semaphore, portMAX_DELAY);
-    ESP_LOGI(TAG, "TCP client has started, waiting for the server to accept a connection.");
-    int client_fd, ret;
-    struct sockaddr_in server;
-    char rxbuffer[SOCKET_MAX_LENGTH] = {0};
-    char txbuffer[SOCKET_MAX_LENGTH] = {0};
-    client_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_fd == -1) {
-        ESP_LOGE(TAG, "Could not create the socket (errno: %d)", errno);
-        goto err;
+
+    // Register user defined event handers
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
+
+    // Start Ethernet driver state machine
+    for (int i = 0; i < eth_port_cnt; i++) {
+        ESP_ERROR_CHECK(esp_eth_start(eth_handles[i]));
     }
-    server.sin_family = AF_INET;
-    server.sin_port = htons(SOCKET_PORT);
-    server.sin_addr.s_addr = inet_addr(CONFIG_EXAMPLE_SERVER_IP_ADDRESS);
-    ret = connect(client_fd, (struct sockaddr *)&server, sizeof(struct sockaddr));
-    if (ret == -1) {
-        ESP_LOGE(TAG, "An error has occurred while connecting to the server (errno: %d)", errno);
-        goto err;
-    }
+
     int transmission_cnt = 0;
-    while (1) {
-        snprintf(txbuffer, SOCKET_MAX_LENGTH, "Transmission #%d. Hello from ESP32 TCP client", ++transmission_cnt);
-        ESP_LOGI(TAG, "Transmitting: \"%s\"", txbuffer);
-        ret = send(client_fd, txbuffer, SOCKET_MAX_LENGTH, 0);
-        if (ret == -1) {
-            ESP_LOGE(TAG, "An error has occurred while sending data (errno: %d)", errno);
-            break;
-        }
-        ret = recv(client_fd, rxbuffer, SOCKET_MAX_LENGTH, 0);
-        if (ret == -1) {
-            ESP_LOGE(TAG, "An error has occurred while receiving data (errno: %d)", errno);
-        } else if (ret == 0) {
-            break;  // done reading
-        }
-        ESP_LOGI(TAG, "Received \"%s\"", rxbuffer);
-        memset(txbuffer, 0, SOCKET_MAX_LENGTH);
-        memset(rxbuffer, 0, SOCKET_MAX_LENGTH);
-        vTaskDelay(pdMS_TO_TICKS(500));
+    int client_fd = INVALID_SOCKET;
+
+    // Initialize server address
+    char txbuffer[MAX_MSG_LENGTH] = {0};
+    char rxbuffer[SOCKET_MAX_LENGTH] = {0};
+    struct sockaddr_in serv_addr;
+    serv_addr.sin_family = AF_INET;
+    if (inet_pton(AF_INET, CONFIG_EXAMPLE_SERVER_IP_ADDRESS, &serv_addr.sin_addr) <= 0) {
+        ESP_LOGE(TAG, "Invalid address or address not supported: errno %d", errno);
+        goto err;
     }
-    return;
+    serv_addr.sin_port = htons(CONFIG_EXAMPLE_SERVER_PORT);
+
+    // Wait until IP address is assigned to this device
+    ESP_LOGI(TAG, "Waiting for IP address...");
+    if (xSemaphoreTake(got_ip_sem, portMAX_DELAY) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to get IP address");
+        goto err;
+    }
+
+    // Main connection loop
+    while (1) {
+        ESP_LOGI(TAG, "Trying to connect to server...");
+        // Create socket if needed
+        if (client_fd < 0) {
+            client_fd = socket(AF_INET, SOCK_STREAM, 0);
+            if (client_fd < 0) {
+                ESP_LOGE(TAG, "Failed to create socket: errno %d", errno);
+                goto err;
+            }
+        }
+
+        // Try to connect to server
+        ESP_LOGI(TAG, "Connecting to server %s:%d", CONFIG_EXAMPLE_SERVER_IP_ADDRESS, CONFIG_EXAMPLE_SERVER_PORT);
+        if (connect(client_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            ESP_LOGE(TAG, "Failed to connect to server: errno %d", errno);
+        } else {
+            ESP_LOGI(TAG, "Connected to server");
+
+            // Communication loop - runs until disconnection
+            while (1) {
+                snprintf(txbuffer, MAX_MSG_LENGTH, "Transmission #%d. Hello from ESP32 TCP client!\n", ++transmission_cnt);
+                int bytesSent = send(client_fd, txbuffer, strlen(txbuffer), 0);
+
+                if (bytesSent < 0) {
+                    ESP_LOGE(TAG, "Failed to send data: errno %d", errno);
+                    break; // Exit inner loop to reconnect
+                }
+
+                ESP_LOGI(TAG, "Sent transmission #%d, %d bytes", transmission_cnt, bytesSent);
+
+                // Receive response from server
+                int bytesRead = recv(client_fd, rxbuffer, SOCKET_MAX_LENGTH, 0);
+                if (bytesRead < 0) {
+                    ESP_LOGE(TAG, "Error reading from socket: errno %d", errno);
+                    break; // Exit inner loop to reconnect
+                } else if (bytesRead == 0) {
+                    ESP_LOGW(TAG, "Server closed connection");
+                    break; // Exit inner loop to reconnect
+                } else {
+                    rxbuffer[bytesRead] = '\0'; // Null-terminate the received data
+                    ESP_LOGI(TAG, "Received %d bytes: %s", bytesRead, rxbuffer);
+                }
+                // Delay between transmissions
+                vTaskDelay(pdMS_TO_TICKS(1000));
+            }
+        }
+        // If we get here, connection was lost, close socket and wait before reconnecting
+        if (client_fd != INVALID_SOCKET) {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(client_fd, 0);
+            close(client_fd);
+            client_fd = INVALID_SOCKET;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 err:
-    close(client_fd);
-    ESP_LOGI(TAG, "Program was stopped because an error occurred");
+    if (got_ip_sem) {
+        vSemaphoreDelete(got_ip_sem);
+    }
+    if (client_fd != INVALID_SOCKET) {
+        shutdown(client_fd, 0);
+        close(client_fd);
+    }
 }
