@@ -25,6 +25,7 @@ typedef enum {
     PHY_KSZ80XX,
     PHY_RTL8201,
     PHY_DP83848,
+    PHY_LAN867X,
     PHY_ID_END
 } phy_id_t;
 

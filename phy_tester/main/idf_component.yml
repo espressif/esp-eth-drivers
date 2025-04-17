@@ -1,20 +1,10 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  espressif/ethernet_init: "^0.0.8"
+  espressif/ethernet_init:
+    version: "*"
+    override_path: '../../ethernet_init'
   ## Required IDF version
   idf:
     version: ">=5.2.0"
-  # # Put list of dependencies here
-  # # For components maintained by Espressif:
-  # component: "~1.0.0"
-  # # For 3rd party components:
-  # username/component: ">=1.0.0,<2.0.0"
-  # username2/component2:
-  #   version: "~1.0.0"
-  #   # For transient dependencies `public` flag can be set.
-  #   # `public` flag doesn't have an effect dependencies of the `main` component.
-  #   # All dependencies of `main` are public by default.
-  #   public: true
-
   cmd_system:
     path: ${IDF_PATH}/examples/system/console/advanced/components/cmd_system
