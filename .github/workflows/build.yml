@@ -14,8 +14,6 @@ jobs:
         example: ["ksz8863/examples/simple_switch",
                   "ksz8863/examples/switch_mode",
                   "ksz8863/examples/two_ports_mode",
-                  "lan867x/examples/lan867x_tcp_sockets/client",
-                  "lan867x/examples/lan867x_tcp_sockets/server"
                   ]
         idf_target: ["esp32"]
 
