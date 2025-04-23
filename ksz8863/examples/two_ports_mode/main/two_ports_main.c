@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <stdio.h>
 #include <string.h>
@@ -344,7 +344,7 @@ void app_main(void)
     }));
 
     bool enable = true;
-    // Internal EMAC needs to receive frames from other KSZ8863 ports => do not perform any filterring
+    // Internal EMAC needs to receive frames from other KSZ8863 ports => do not perform any filtering
     ESP_ERROR_CHECK(esp_eth_ioctl(host_eth_handle, ETH_CMD_S_PROMISCUOUS, &enable));
 
     // Register Ports to which forward traffic received by "host eth"

@@ -3,7 +3,7 @@ menu "Example Configuration"
         bool "Use PLCA"
         default n
         help
-            Use PLCA istead of CSMA/CD, in some cases PLCA may be more robust against collisions
+            Use PLCA instead of CSMA/CD, in some cases PLCA may be more robust against collisions
 
     config EXAMPLE_LAN867X_PLCA_ID
         depends on EXAMPLE_LAN867X_USE_PLCA

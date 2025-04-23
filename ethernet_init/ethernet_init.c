@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -29,7 +29,6 @@
 #if CONFIG_ETHERNET_USE_ENC28J60
 #include "esp_eth_enc28j60.h"
 #endif // CONFIG_ETHERNET_USE_ENC28J60
-
 
 #if CONFIG_ETHERNET_SPI_NUMBER
 #define SPI_ETHERNETS_NUM           CONFIG_ETHERNET_SPI_NUMBER
@@ -86,7 +85,6 @@ static const char *TAG = "ethernet_init";
 static uint8_t eth_cnt_g = 0;
 static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + CONFIG_ETHERNET_SPI_NUMBER];
 
-
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
 {
@@ -125,7 +123,6 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         break;
     }
 }
-
 
 #if CONFIG_ETHERNET_INTERNAL_SUPPORT
 /**
@@ -370,7 +367,6 @@ err:
 }
 #endif // CONFIG_ETHERNET_SPI_SUPPORT
 
-
 esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cnt_out)
 {
     esp_err_t ret = ESP_OK;
@@ -477,7 +473,6 @@ err:
 #endif
 }
 
-
 void ethernet_deinit_all(esp_eth_handle_t *eth_handles)
 {
     while (eth_cnt_g) {
@@ -507,7 +502,6 @@ void ethernet_deinit_all(esp_eth_handle_t *eth_handles)
         ESP_LOGE(TAG, "Something is very wrong. eth_cnt_g is not zero(%d).", eth_cnt_g);
     }
 }
-
 
 /**
  * @brief Returns the device type of the ethernet handle

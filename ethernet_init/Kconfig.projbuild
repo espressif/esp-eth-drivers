@@ -67,7 +67,7 @@ menu "Ethernet Configuration"
                 bool "KSZ80xx"
                 help
                     With the KSZ80xx series, Microchip offers single-chip 10BASE-T/100BASE-TX
-                    Ethernet Physical Layer Tranceivers (PHY).
+                    Ethernet Physical Layer Transceivers (PHY).
                     The following chips are supported: KSZ8001, KSZ8021, KSZ8031, KSZ8041,
                         KSZ8051, KSZ8061, KSZ8081, KSZ8091
                     Goto https://www.microchip.com for more information about them.
@@ -156,7 +156,7 @@ menu "Ethernet Configuration"
                 bool "CH390 Module"
                 help
                     Select external SPI-Ethernet module (CH390).
-            
+
             config ETHERNET_USE_ENC28J60
                 bool "ENC28J60 Module"
                 help
@@ -165,7 +165,7 @@ menu "Ethernet Configuration"
         endchoice
 
         config ETHERNET_SPI_HOST
-            int "SPI Host Number" 
+            int "SPI Host Number"
             default 1
             help
                 Set the SPI host used to communicate with the SPI Ethernet Controller.

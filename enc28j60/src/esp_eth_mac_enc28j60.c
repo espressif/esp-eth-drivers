@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -412,7 +412,7 @@ out:
 }
 
 /**
- * @brief Read ENC28J60 internal memroy
+ * @brief Read ENC28J60 internal memory
  */
 static esp_err_t enc28j60_read_packet(emac_enc28j60_t *emac, uint32_t addr, uint8_t *packet, uint32_t len)
 {
@@ -431,7 +431,7 @@ out:
  * @brief Write ENC28J60 internal PHY register
  */
 static esp_err_t emac_enc28j60_write_phy_reg(esp_eth_mac_t *mac, uint32_t phy_addr,
-        uint32_t phy_reg, uint32_t reg_value)
+                                             uint32_t phy_reg, uint32_t reg_value)
 {
     esp_err_t ret = ESP_OK;
     emac_enc28j60_t *emac = __containerof(mac, emac_enc28j60_t, parent);
@@ -467,7 +467,7 @@ out:
  * @brief Read ENC28J60 internal PHY register
  */
 static esp_err_t emac_enc28j60_read_phy_reg(esp_eth_mac_t *mac, uint32_t phy_addr,
-        uint32_t phy_reg, uint32_t *reg_value)
+                                            uint32_t phy_reg, uint32_t *reg_value)
 {
     esp_err_t ret = ESP_OK;
     MAC_CHECK(reg_value, "can't set reg_value to null", out, ESP_ERR_INVALID_ARG);
@@ -975,7 +975,7 @@ static esp_err_t emac_enc28j60_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_
     MAC_CHECK(enc28j60_register_read(emac, ENC28J60_EPKTCNT, &pk_counter) == ESP_OK,
               "read EPKTCNT failed", out, ESP_FAIL);
 
-    *length = rx_len - 4; // substract the CRC length
+    *length = rx_len - 4; // subtract the CRC length
     emac->packets_remain = pk_counter > 0;
 out:
     return ret;
@@ -1009,7 +1009,7 @@ static esp_err_t emac_enc28j60_init(esp_eth_mac_t *mac)
     /* reset enc28j60 */
     MAC_CHECK(enc28j60_do_reset(emac) == ESP_OK, "reset enc28j60 failed", out, ESP_FAIL);
     /* verify chip id */
-    MAC_CHECK(enc28j60_verify_id(emac) == ESP_OK, "vefiry chip ID failed", out, ESP_FAIL);
+    MAC_CHECK(enc28j60_verify_id(emac) == ESP_OK, "verify chip ID failed", out, ESP_FAIL);
     /* default setup of internal registers */
     MAC_CHECK(enc28j60_setup_default(emac) == ESP_OK, "enc28j60 default setup failed", out, ESP_FAIL);
     /* clear multicast hash table */
@@ -1105,7 +1105,7 @@ esp_eth_mac_t *esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_co
         core_num = esp_cpu_get_core_id();
     }
     BaseType_t xReturned = xTaskCreatePinnedToCore(emac_enc28j60_task, "enc28j60_tsk", mac_config->rx_task_stack_size, emac,
-                           mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
+                                                   mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
     MAC_CHECK(xReturned == pdPASS, "create enc28j60 task failed", err, NULL);
 
     return &(emac->parent);

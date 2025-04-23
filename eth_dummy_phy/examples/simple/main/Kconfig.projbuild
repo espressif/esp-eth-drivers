@@ -4,10 +4,10 @@ menu "Example Configuration"
         prompt "RMII CLK"
         default EXAMPLE_RMII_CLK_SOURCE_DEV
         help
-            Configure device type. ESP32 device which is RMII CLK source needs to wait 
-            with its Ethernet initialization for the "RMII CLK Sink Device" since 
-            the RMII CLK input pin (GPIO0) is also used as a boot strap pin. If 
-            the "RMII CLK Source Device" didn't wait, the "RMII CLK Sink Device" 
+            Configure device type. ESP32 device which is RMII CLK source needs to wait
+            with its Ethernet initialization for the "RMII CLK Sink Device" since
+            the RMII CLK input pin (GPIO0) is also used as a boot strap pin. If
+            the "RMII CLK Source Device" didn't wait, the "RMII CLK Sink Device"
             could boot into incorrect mode.
 
         config EXAMPLE_RMII_CLK_SOURCE_DEV
@@ -22,12 +22,12 @@ menu "Example Configuration"
         help
             GPIO number at which the "RMII CLK Sink Device" is ready and so the "RMII
             CLK Source Device" can continue in its Ethernet initialization.
-    
+
     config EXAMPLE_DHCP_SERVER_EN
         bool "Enable DHCP Server"
         default n
         help
-            Enable the DHCP Server on the device. The DHCP server is enabled only at 
+            Enable the DHCP Server on the device. The DHCP server is enabled only at
             the first interface if multiple interfaces are available.
 
 endmenu

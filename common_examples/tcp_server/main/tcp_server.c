@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <stdio.h>
 #include <string.h>
@@ -155,5 +155,5 @@ void app_main(void)
     }
     return;
 err:
-    ESP_LOGI(TAG, "Program was stopped because an error occured");
+    ESP_LOGI(TAG, "Program was stopped because an error occurred");
 }

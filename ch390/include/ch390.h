@@ -1,11 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * SPDX-FileContributor: 2023-2024 NanjingQinhengMicroelectronics CO LTD
  * SPDX-FileContributor: 2024 Sergey Kharenko
- * SPDX-FileContributor: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2024-2025 Espressif Systems (Shanghai) CO LTD
  */
 #pragma once
 
@@ -74,12 +74,11 @@ extern "C" {
 #define RSR_ERR_MASK    (RSR_RF | RSR_LCS | RSR_RWTO | RSR_PLE | \
                         RSR_AE | RSR_CE | RSR_FOE)
 
-
 #define CH390_ROCR      0x07   // Receive overflow count reg
 #define CH390_BPTR      0x08   // Back pressure threshold reg
 #define CH390_FCTR      0x09   // Flow control threshold reg
-#define FCTR_HWOT(ot)   (( ot & 0xf ) << 4)
-#define FCTR_LWOT(ot)   ( ot & 0xf )
+#define FCTR_HWOT(overflow_th)   (( overflow_th & 0xf ) << 4)
+#define FCTR_LWOT(overflow_th)   ( overflow_th & 0xf )
 
 #define CH390_FCR       0x0A   // Transmit/Receive flow control reg
 #define FCR_FLOW_ENABLE (0x39) // Enable Flow Control
@@ -149,8 +148,8 @@ extern "C" {
 #define CH390_INTCR     0x39   // INT pin control reg
 #define INCR_TYPE_OD    0x02   // Open drain output
 #define INCR_TYPE_PP    0x00   // Push pull output
-#define INCR_POL_L      0x01   // Low level positive 
-#define INCR_POL_H      0x00   // High level positive 
+#define INCR_POL_L      0x01   // Low level positive
+#define INCR_POL_H      0x00   // High level positive
 
 #define CH390_ALNCR     0x4A   // SPI alignment error count reg
 #define CH390_SCCR      0x50   // System clock control reg
@@ -167,16 +166,16 @@ extern "C" {
 #define MPTRCR_RST_TX   (1<<1) // Reset TX Memory Pointer
 #define MPTRCR_RST_RX   (1<<0) // Reset RX Memory Pointer
 
-#define CH390_MLEDCR    0x57   // More LED control reg 
+#define CH390_MLEDCR    0x57   // More LED control reg
 #define CH390_MRCMDX    0x70   // Memory read command without address increment reg
 // Memory read command without data pre-fetch and address increment reg
 #define CH390_MRCMDX1   0x71
 #define CH390_MRCMD     0x72   // Memory data read command with address increment reg
 #define CH390_MRRL      0x74   // Memory read low byte address reg
 #define CH390_MRRH      0x75   // Memory read high byte address reg
-#define CH390_MWCMDX    0x76   // Memory write command without ddress increment reg
+#define CH390_MWCMDX    0x76   // Memory write command without address increment reg
 #define CH390_MWCMD     0x78   // Memory write command
-#define CH390_MWRL      0x7A   // Memory write low byte address reg    
+#define CH390_MWRL      0x7A   // Memory write low byte address reg
 #define CH390_MWRH      0x7B   // Memory write high byte address reg
 #define CH390_TXPLL     0x7C   // Transmit pack low byte length reg
 #define CH390_TXPLH     0x7D   // Transmit pack high byte length reg
@@ -214,7 +213,6 @@ extern "C" {
 #define CH390_GPIO1     0x02
 #define CH390_GPIO2     0x04
 #define CH390_GPIO3     0x08
-
 
 // PHY registers
 #define CH390_PHY          0x40

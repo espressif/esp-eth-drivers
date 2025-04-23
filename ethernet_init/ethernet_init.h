@@ -11,7 +11,6 @@
 extern "C" {
 #endif
 
-
 typedef enum {
     ETH_DEV_TYPE_UNKNOWN,
     ETH_DEV_TYPE_INTERNAL_ETH,
@@ -33,7 +32,6 @@ typedef struct {
     } pin;
 } eth_dev_info_t;
 
-
 /**
  * @brief Initialize Ethernet driver based on Espressif IoT Development Framework Configuration
  *
@@ -47,12 +45,10 @@ typedef struct {
  */
 esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cnt_out);
 
-
 /**
  * @brief Deinitialize Ethernet driver
  */
 void ethernet_deinit_all(esp_eth_handle_t *eth_handles);
-
 
 /**
  * @brief Returns the device type of the ethernet handle

@@ -18,7 +18,6 @@
 
 static const char *TAG = "ksz8863_eth";
 
-
 struct ksz8863_port_tbl_s {
     esp_eth_handle_t eth_handle;
     int32_t port_num;
@@ -119,7 +118,7 @@ err:
     return ret;
 }
 
-// this is abstraction function to not polute KSZ8863 MAC layer with Host Ethernet layer via which is needed to perform transmit
+// this is abstraction function to not pollute KSZ8863 MAC layer with Host Ethernet layer via which is needed to perform transmit
 esp_err_t ksz8863_eth_transmit_via_host(void *buf, size_t length, uint8_t tail_tag)
 {
     esp_err_t ret = ESP_OK;

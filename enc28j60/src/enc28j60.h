@@ -85,7 +85,7 @@ extern "C" {
 #define ENC28J60_EPMCSH   (0x0111) // Pattern Match Checksum High Byte (EPMCS<15:0>)
 #define ENC28J60_EPMOL    (0x0114) // Pattern Match Offset Low Byte (EPMO<7:0>)
 #define ENC28J60_EPMOH    (0x0115) // Pattern Match Offset High Byte (EPMO<12:8>)
-#define ENC28J60_ERXFCON  (0x0118) // Receive Fileter Control
+#define ENC28J60_ERXFCON  (0x0118) // Receive Filter Control
 #define ENC28J60_EPKTCNT  (0x0119) // Ethernet Packet Count
 
 // Bank 2 Register

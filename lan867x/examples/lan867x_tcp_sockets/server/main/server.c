@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -89,7 +94,7 @@ void app_main(void)
 #endif // otherwise rely on CSMA/CD
     // Start Ethernet driver state machine
     ESP_ERROR_CHECK(esp_eth_start(eth_handles[0]));
-    // Initialize Berkley socket which will listen on port SOCKET_PORT for transmission from client
+    // Initialize Berkeley socket which will listen on port SOCKET_PORT for transmission from client
     char rxbuffer[SOCKET_MAX_LENGTH] = {0};
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in address;

@@ -17,7 +17,7 @@ The KSZ8863 Espressif driver can be utilized in three modes of operation:
 
 ## KSZ8863 as Simple Switch
 
-This is the simplest way of use the KSZ8863 driver. It is completely transparent from user point of view since the KSZ8863 is initialized and used like any other Ethernet device currently supported by the ESP-IDF. The system behaves the same as the ESP32 Ethernet interface was connected to external switch. You have no tail tagging option, i.e. you cannot specifically define where to send Ethernet frame and all routing is performed in KSZ8863 based on its internal MAC lookup tables. On the other hand, you still have an option to configure the KSZ8863, if you need so. To be able to control the configuration of P1 and P2 ports (MACs or PHYs), ESP Ethernet handles associated with these ports need to be initialized. You get also an access to the port state (link status, speed, etc.). 
+This is the simplest way of use the KSZ8863 driver. It is completely transparent from user point of view since the KSZ8863 is initialized and used like any other Ethernet device currently supported by the ESP-IDF. The system behaves the same as the ESP32 Ethernet interface was connected to external switch. You have no tail tagging option, i.e. you cannot specifically define where to send Ethernet frame and all routing is performed in KSZ8863 based on its internal MAC lookup tables. On the other hand, you still have an option to configure the KSZ8863, if you need so. To be able to control the configuration of P1 and P2 ports (MACs or PHYs), ESP Ethernet handles associated with these ports need to be initialized. You get also an access to the port state (link status, speed, etc.).
 
 ---
 
@@ -68,11 +68,11 @@ The figure below shows data path when KSZ8863 is used in this Port Mode. The con
 ### Port Mode Known Limitations
 
 - To keep the ports separated and due to a fact that there is no option to generally configure multicast forwarding in KSZ8863, **Multicast traffic is not forwarded to Host port** by default. Workaround: either configure KSZ8863 to promiscuous mode via ``esp_eth_ioctl`` or add a record to static MAC table with that multicast address forwarded to P3.
-- The first Static MAC table entry (indx. 0) is not allowed to be modified in this mode using ``esp_eth_ioctl`` since it is used internally by the driver.
+- The first Static MAC table entry (index. 0) is not allowed to be modified in this mode using ``esp_eth_ioctl`` since it is used internally by the driver.
 
 ## KSZ8863 Configuration & Control interface
 
-KSZ8863 can be managed via either I2C or SPI bus. SMI is not supported. 
+KSZ8863 can be managed via either I2C or SPI bus. SMI is not supported.
 
 SMI used in KSZ8863 is a non-standard implementation of IEEE 802.3 MII management interface (MIIM). The core differences are the unusual addressing method used to get access to the full set of KSZ8863's registers and opcode numbering (MIIM sends opcode `0b10` to read and `0b01` to write, SMI expects `0b00` for both). It is impossible for ESP32 to produce opcode `0b00` by design, since it follows IEEE 802.3 MII management interface specification.
 

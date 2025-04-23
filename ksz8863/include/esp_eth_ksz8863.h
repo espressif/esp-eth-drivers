@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +11,6 @@
 #include "ksz8863_ctrl.h"
 #include "esp_eth_mac_ksz8863.h"
 #include "esp_eth_phy_ksz8863.h"
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,7 +67,7 @@ typedef struct {
  *
  * @note: Since since multiple MAC/PHY instances exist due to fact that the device has multiple ports, the reset is not
  * called from MAC/PHY but needs to be called separately to be sure, that is called only once and at right time.
- * Otherwise it could reset other already initalized instance.
+ * Otherwise it could reset other already initialized instance.
  *
  * @param port_eth_handle handle of Ethernet driver
  * @return esp_err_t
@@ -81,7 +80,7 @@ esp_err_t ksz8863_sw_reset(esp_eth_handle_t port_eth_handle);
  *
  * @note: Since since multiple MAC/PHY instances exist due to fact that the device has multiple ports, the reset is not
  * called from MAC/PHY but needs to be called separately to be sure, that is called only once and at right time.
- * Otherwise it could reset other already initalized instance.
+ * Otherwise it could reset other already initialized instance.
  *
  * @param reset_gpio_num GPIO pin number associated with KSZ8863 reset pin
  * @return esp_err_t
@@ -100,7 +99,7 @@ esp_err_t ksz8863_hw_reset(int reset_gpio_num);
 esp_err_t ksz8863_p3_rmii_internal_clk(esp_eth_handle_t port_eth_handle, bool rmii_internal_clk);
 
 /**
- * @brief Configures invertion of P3 RMII REFCKL
+ * @brief Configures inversion of P3 RMII REFCKL
  *
  * @param port_eth_handle handle of Ethernet driver
  * @param rmii_clk_invert true when to invert invert P3 RMII REFCKL

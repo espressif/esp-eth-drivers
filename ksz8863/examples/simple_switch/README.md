@@ -60,9 +60,9 @@ I (4653) simple_switch_example: Ethernet HW Addr 00:00:00:00:00:00
 I (4663) simple_switch_example: Dynamic MAC Table content:
 I (4663) simple_switch_example: valid entries 2
 I (4663) simple_switch_example: port 1
-I (4673) simple_switch_example: 00 e0 4c 68 01 ac 
+I (4673) simple_switch_example: 00 e0 4c 68 01 ac
 I (4673) simple_switch_example: port 3
-I (4683) simple_switch_example: 8c 4b 14 0a 14 63 
+I (4683) simple_switch_example: 8c 4b 14 0a 14 63
 
 I (5903) esp_netif_handlers: eth ip: 192.168.20.105, mask: 255.255.255.0, gw: 192.168.20.1
 I (5903) simple_switch_example: Ethernet Got IP Address
@@ -83,7 +83,7 @@ $ ip a
     link/ether 70:85:c2:d3:ea:18 brd ff:ff:ff:ff:ff:ff
     inet 192.168.20.116/24 brd 192.168.20.255 scope global dynamic noprefixroute enp4s0
        valid_lft 346sec preferred_lft 346sec
-    inet6 fe80::4efa:2bae:e58c:231e/64 scope link noprefixroute 
+    inet6 fe80::4efa:2bae:e58c:231e/64 scope link noprefixroute
        valid_lft forever preferred_lft forever
 
 ...
@@ -99,7 +99,7 @@ $ sudo tcpdump -i enp4s0
 dropped privs to tcpdump
 tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
 listening on enp4s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
-11:16:12.576802 8c:4b:14:0a:14:63 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60: 
+11:16:12.576802 8c:4b:14:0a:14:63 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60:
 	0x0000:  0000 5468 6973 2069 7320 4553 5033 3220  ..This.is.ESP32.
 	0x0010:  4c32 2054 4150 2074 6573 7420 6d73 6700  L2.TAP.test.msg.
 	0x0020:  0000 0000 0000 0000 0000 0000 0000       ..............

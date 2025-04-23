@@ -32,18 +32,16 @@ typedef union {
         uint32_t pair_01_swap : 1; /* Pair 0 and Pair 1 swap */
         uint32_t autoneg_stat : 1; /* Autonegotiation Status Bit */
         uint32_t par_det_flt_stat: 1; /* Parallel Detection Fault Status Bit */
-        uint32_t reserverd : 1; /* Reserved */
+        uint32_t reserved : 1; /* Reserved */
         uint32_t phy_in_stndby : 1; /* PHY is in standby state and does not attempt to bring up links */
     };
     uint32_t val;
 } ps1r_reg_t;
 #define ETH_PHY_PS1R_REG_ADDR (0x1A)
 
-
 typedef struct {
     phy_802_3_t phy_802_3;
 } phy_adin1200_t;
-
 
 static esp_err_t adin1200_update_link_duplex_speed(phy_adin1200_t *adin1200)
 {
