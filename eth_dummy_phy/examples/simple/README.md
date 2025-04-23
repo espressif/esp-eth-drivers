@@ -51,7 +51,7 @@ Connect devkits' pins as shown in the table below. For demonstration purposes, y
 The Ready interrupt pin (`READY_IRQ`) is used to synchronize initialization of `RMII CLK Source Device` (ESP32-WROOM) with initialization of `RMII CLK Sink Device` (ESP32-WROVER). The `RMII CLK Source Device` needs to wait with its Ethernet initialization for the `RMII CLK Sink Device` since **the RMII CLK input pin of `RMII CLK Sink Device` (GPIO0) is also used as a boot strap pin for ESP32 chip**. If the `RMII CLK Source Device` didn't wait, the `RMII CLK Sink Device` could boot into incorrect mode. See the code for more information.
 
 Note that there are more options of how to achieve the intended behavior by hardware means:
-* You can keep the `RMII CKL Source Device` in reset state by pulling the EN pin low and enable it only after the `RMII CLK Sink Device` is ready (similarly how it's realized by [ESP32-Ethernet-Kit](https://docs.espressif.com/projects/esp-idf/en/latest/hw-reference/get-started-ethernet-kit.html) with PHY as a CLK source). However, make sure that there is still a way to handle EN pin for reset and flash operation. 
+* You can keep the `RMII CKL Source Device` in reset state by pulling the EN pin low and enable it only after the `RMII CLK Sink Device` is ready (similarly how it's realized by [ESP32-Ethernet-Kit](https://docs.espressif.com/projects/esp-idf/en/latest/hw-reference/get-started-ethernet-kit.html) with PHY as a CLK source). However, make sure that there is still a way to handle EN pin for reset and flash operation.
 * Use external 50 MHz oscillator and enable it only after both ESP32 devices are ready.
 * May not be needed at all if `RMII CLK Sink Device` is not ESP32.
 
@@ -140,4 +140,4 @@ I (2403) emac2emac: ~~~~~~~~~~~
 
 ## General Notes
 
-* There is no speed/duplex auto-negotiation between devices, therefore both devices EMACs must be statically configured to the same speed/duplex. The example default configuration is 100Mbps/full duplex mode. If you need to change it, use `esp_eth_ioctl()` function with `ETH_CMD_S_SPEED` or `ETH_CMD_S_DUPLEX_MODE` command.  
+* There is no speed/duplex auto-negotiation between devices, therefore both devices EMACs must be statically configured to the same speed/duplex. The example default configuration is 100Mbps/full duplex mode. If you need to change it, use `esp_eth_ioctl()` function with `ETH_CMD_S_SPEED` or `ETH_CMD_S_DUPLEX_MODE` command.

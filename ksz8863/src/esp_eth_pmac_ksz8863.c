@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -30,7 +30,6 @@ typedef struct {
     uint8_t port_reg_offset;
     uint32_t status;
 } pmac_ksz8863_t;
-
 
 struct slist_mac_ksz8863_s {
     pmac_ksz8863_t *mac_ksz8863_info;
@@ -128,7 +127,7 @@ static esp_err_t ksz8863_setup_global_defaults(pmac_ksz8863_t *pmac)
             gcr1.tail_tag_en = 1;
             ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, 0, KSZ8863_GCR1_ADDR, gcr1.val), err, TAG, "write GC1 failed");
 
-            // Broadcast needs to be forwared to P3 and so P1/P2 act as endpoints (no traffic exchanged between them directly)
+            // Broadcast needs to be forwarded to P3 and so P1/P2 act as endpoints (no traffic exchanged between them directly)
             ksz8863_sta_mac_table_t stat_mac_table;
             memset(stat_mac_table.data, 0, sizeof(stat_mac_table));
             stat_mac_table.fwd_ports = KSZ8863_TO_PORT3;
@@ -143,7 +142,7 @@ err:
     return ret;
 }
 
-// TODO: investigate if needed (currently seems it no needed, since it is started automaticaly)
+// TODO: investigate if needed (currently seems it no needed, since it is started automatically)
 static esp_err_t pmac_ksz8863_start(esp_eth_mac_t *mac)
 {
     esp_err_t ret = ESP_OK;
@@ -310,7 +309,7 @@ static esp_err_t pmac_ksz8863_set_mac_tbl(pmac_ksz8863_t *pmac, ksz8863_mac_tbl_
                       "static MAC tbl entry 0 cannot be changed in Multi-port Mode");
     for (int i = 0; i < tbls_info->etries_num; i++) {
         ESP_GOTO_ON_ERROR(ksz8863_indirect_write(KSZ8863_STA_MAC_TABLE, tbls_info->start_entry + i, &tbls_info->sta_tbls[i],
-                          sizeof(ksz8863_sta_mac_table_t)), err, TAG, "failed to write MAC table");
+                                                 sizeof(ksz8863_sta_mac_table_t)), err, TAG, "failed to write MAC table");
     }
 err:
     return ret;
@@ -467,7 +466,7 @@ static esp_err_t pmac_ksz8863_init(esp_eth_mac_t *mac)
 
     ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LLINIT, NULL), err, TAG, "lowlevel init failed");
     /* verify chip id */
-    ESP_GOTO_ON_ERROR(ksz8863_verify_id(pmac), err, TAG, "vefiry chip ID failed");
+    ESP_GOTO_ON_ERROR(ksz8863_verify_id(pmac), err, TAG, "verify chip ID failed");
     /* default setup of internal registers */
     ESP_GOTO_ON_ERROR(ksz8863_setup_port_defaults(pmac), err, TAG, "ksz8863 default port specific setup failed");
     ESP_GOTO_ON_ERROR(ksz8863_setup_global_defaults(pmac), err, TAG, "ksz8863 default global setup failed");

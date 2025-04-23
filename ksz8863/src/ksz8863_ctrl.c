@@ -248,7 +248,6 @@ esp_err_t ksz8863_ctrl_intf_init(ksz8863_ctrl_intf_config_t *config)
     s_ksz8863_ctrl_intf = calloc(1, sizeof(ksz8863_ctrl_intf_t));
     ESP_RETURN_ON_FALSE(s_ksz8863_ctrl_intf, ESP_ERR_NO_MEM, TAG, "no memory");
 
-
     s_ksz8863_ctrl_intf->mode = config->host_mode;
 
     switch (config->host_mode) {
@@ -256,7 +255,7 @@ esp_err_t ksz8863_ctrl_intf_init(ksz8863_ctrl_intf_config_t *config)
         i2c_device_config_t dev_cfg = {
             .dev_addr_length = I2C_ADDR_BIT_LEN_7,
             .device_address = config->i2c_dev_config->dev_addr >> 1,
-                    .scl_speed_hz = config->i2c_dev_config->scl_speed_hz,
+                                                               .scl_speed_hz = config->i2c_dev_config->scl_speed_hz,
         };
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(config->i2c_dev_config->bus_handle, &dev_cfg, &s_ksz8863_ctrl_intf->i2c_handle), err, TAG, "Error when trying to add the I2C device");
 

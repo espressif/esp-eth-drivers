@@ -2,7 +2,7 @@
 
 **!!!WORK IN PROGRESS!!!**
 
-The Ethernet PHY tester is a tool to help you debug issues with Ethernet PHY. It's especially handy when you're in process of bringing up a custom board with Ethernet and you face issues. 
+The Ethernet PHY tester is a tool to help you debug issues with Ethernet PHY. It's especially handy when you're in process of bringing up a custom board with Ethernet and you face issues.
 
 ## Features
 
@@ -20,7 +20,7 @@ The Ethernet PHY tester is a tool to help you debug issues with Ethernet PHY. It
 3) Connect to the board and run commands from console (type `help` to list available commands).
 
 or run automatic test to identify Ethernet related issue of your board:
- 
+
 1) Configure PHY and Ethernet component based on your actual board's needs in sdkconfig.
 2) Build.
 3) Find your network interface (NIC) name the DUT is connected to (e.g. use `ip` command).

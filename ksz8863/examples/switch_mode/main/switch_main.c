@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <stdio.h>
 #include <string.h>
@@ -356,10 +356,10 @@ void app_main(void)
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
     esp_netif_t *eth_netif = esp_netif_new(&cfg);
     ksz8863_esp_eth_netif_glue_config_t sw_netif_glue_cfg = KSZ8863_DEFAULT_NETIF_GLUE_CONFIG(
-                host_eth_handle,
-                p1_eth_handle,
-                p2_eth_handle
-            );
+                                                                host_eth_handle,
+                                                                p1_eth_handle,
+                                                                p2_eth_handle
+                                                            );
     ESP_ERROR_CHECK(esp_netif_attach(eth_netif, ksz8863_esp_eth_new_netif_glue_switch(&sw_netif_glue_cfg)));
 
     // Register user defined event handers

@@ -1,10 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * SPDX-FileContributor: 2024-2025 Sergey Kharenko
- * SPDX-FileContributor: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2024-2025 Espressif Systems (Shanghai) CO LTD
  */
 
 #include <string.h>
@@ -37,7 +37,7 @@
  *     |        |-------------------------------------------------------------------------------------
  *     |
  *     |                Depends on RCSEN bit( @ref RCSCSR_RCSEN) of RCSCSR( @ref CH390_RCSCSR)
- *     |                - RCSEN = 0, the Head shoud always be 0x01
+ *     |                - RCSEN = 0, the Head should always be 0x01
  *     |                - RCSEN = 1, bit 7:2 of the Head is the same as that of RCSCSR;
  *     |                This will affect the determination of the validity of the packet. Therefore,
  *     |                we provide discriminant masks for both cases.
@@ -45,7 +45,6 @@
  *     |                - RCSEN = 1 ---> @ref CH390_PKT_ERR_WITH_RCSEN
  *     |----------------------------------------------------------------------------------------------
 */
-
 
 static const char *TAG = "ch390.mac";
 
@@ -87,7 +86,6 @@ typedef struct {
     uint8_t                 *rx_buffer;
     uint32_t                rx_len;
 } emac_ch390_t;
-
 
 static inline bool CH390_SPI_LOCK(eth_spi_info_t *spi)
 {
@@ -194,7 +192,6 @@ static inline esp_err_t CH390_SPI_READ(void *spi_ctx, uint32_t cmd, uint32_t add
     return ret;
 }
 
-
 /**
  * @brief write value to ch390 internal register
  */
@@ -226,7 +223,6 @@ static esp_err_t ch390_io_memory_read(emac_ch390_t *emac, uint8_t *buffer, uint3
 {
     return emac->spi.read(emac->spi.ctx, CH390_SPI_RD, CH390_MRCMD, buffer, len);
 }
-
 
 IRAM_ATTR static void ch390_isr_handler(void *arg)
 {
@@ -312,7 +308,7 @@ static esp_err_t ch390_reset(emac_ch390_t *emac)
 
     /* For CH390H/D, phy should be power on after software reset !*/
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_GPR, 0x00), err, TAG, "write GPR failed");
-    /* mac and phy register won't be accesable within at least 1ms */
+    /* mac and phy register won't be accessible within at least 1ms */
     vTaskDelay(pdMS_TO_TICKS(10));
 
     return ESP_OK;
@@ -469,7 +465,7 @@ static esp_err_t emac_ch390_write_phy_reg(esp_eth_mac_t *mac, uint32_t phy_addr,
     uint8_t epcr = 0;
     ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_EPCR, &epcr), err, TAG, "read EPCR failed");
     ESP_GOTO_ON_FALSE(!(epcr & EPCR_ERRE), ESP_ERR_INVALID_STATE, err, TAG, "phy is busy");
-    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPAR, (uint8_t)( CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPAR, (uint8_t)(CH390_PHY | phy_reg)), err, TAG, "write EPAR failed");
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPDRL, (uint8_t)(reg_value & 0xFF)), err, TAG, "write EPDRL failed");
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_EPDRH, (uint8_t)((reg_value >> 8) & 0xFF)), err, TAG, "write EPDRH failed");
     /* select PHY and select write operation */
@@ -749,7 +745,7 @@ static esp_err_t emac_ch390_init(esp_eth_mac_t *mac)
     /* reset ch390 */
     ESP_GOTO_ON_ERROR(ch390_reset(emac), err, TAG, "reset ch390 failed");
     /* verify chip id */
-    ESP_GOTO_ON_ERROR(ch390_verify_id(emac), err, TAG, "vefiry chip ID failed");
+    ESP_GOTO_ON_ERROR(ch390_verify_id(emac), err, TAG, "verify chip ID failed");
     /* default setup of internal registers */
     ESP_GOTO_ON_ERROR(ch390_setup_default(emac), err, TAG, "ch390 default setup failed");
     /* clear multicast hash table */
@@ -902,7 +898,7 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
         core_num = esp_cpu_get_core_id();
     }
     BaseType_t xReturned = xTaskCreatePinnedToCore(emac_ch390_task, "ch390_tsk", mac_config->rx_task_stack_size, emac,
-                           mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
+                                                   mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
     ESP_GOTO_ON_FALSE(xReturned == pdPASS, NULL, err, TAG, "create ch390 task failed");
 
     emac->rx_buffer = heap_caps_malloc(ETH_MAX_PACKET_SIZE, MALLOC_CAP_DMA);

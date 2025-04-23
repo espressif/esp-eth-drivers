@@ -2,7 +2,7 @@
 
 ## Overview
 
-The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for 10 Mbit/s half-duplex networking over a single pair of conductors. 
+The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for 10 Mbit/s half-duplex networking over a single pair of conductors.
 More information about the chip can be found on the product page: [LAN8670](https://www.microchip.com/en-us/product/lan8670), [LAN8671](https://www.microchip.com/en-us/product/lan8671).
 
 ## ESP-IDF Usage
@@ -46,8 +46,8 @@ PLCA configuration is done using the `esp_eth_ioctl` function with one of the fo
 | LAN867X_ETH_CMD_G_PLCA_TOT         | uint8_t* time    | Write Transmit Opportunity Timer value in BTs                                                 |
 | LAN867X_ETH_CMD_ADD_TX_OPPORTUNITY | uint8_t* node_id | Add additional transmit opportunity for chosen node                                           |
 | LAN867X_ETH_CMD_RM_TX_OPPORTUNITY  | uint8_t* node_id | Remove additional transmit opportunity for chosen node                                        |
-| LAN867X_ETH_CMD_S_MAX_BURST_COUNT  | uint8_t* maxcnt  | Set max count of additonal packets transmitted during one frame, or 0 to disable PLCA burst   |
-| LAN867X_ETH_CMD_G_MAX_BURST_COUNT  | uint8_t* maxcnt  | Write max count of additonal packets transmitted during one frame to the location via pointer |
+| LAN867X_ETH_CMD_S_MAX_BURST_COUNT  | uint8_t* maxcnt  | Set max count of additional packets transmitted during one frame, or 0 to disable PLCA burst   |
+| LAN867X_ETH_CMD_G_MAX_BURST_COUNT  | uint8_t* maxcnt  | Write max count of additional packets transmitted during one frame to the location via pointer |
 | LAN867X_ETH_CMD_S_BURST_TIMER      | uint8_t* time    | Set time during which additional packets in BTs                                               |
 | LAN867X_ETH_CMD_G_BURST_TIMER      | uint8_t* time    | Write time during which additional packets can be sent in BTs to the location via pointer     |
 | LAN768X_ETH_CMD_PLCA_RST           |                  | Perform reset of the PLCA                                                                     |

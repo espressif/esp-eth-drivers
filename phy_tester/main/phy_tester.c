@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 #include <stdio.h>
 #include "esp_log.h"
@@ -13,7 +13,6 @@
 #include "esp_vfs_fat.h"
 #include "cmd_system.h"
 #include "cmd_ethernet.h"
-
 
 void app_main(void)
 {

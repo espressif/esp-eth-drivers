@@ -1,5 +1,5 @@
 dependencies:
-  espressif/lan867x: 
+  espressif/lan867x:
     rules:
        - if: "target in [esp32, esp32p4]"
   idf:

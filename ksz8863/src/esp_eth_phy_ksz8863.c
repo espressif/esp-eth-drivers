@@ -20,7 +20,6 @@ static const char *TAG = "ksz8863_phy";
 
 /***************Vendor Specific Register***************/
 
-
 /*************************/
 
 typedef enum {

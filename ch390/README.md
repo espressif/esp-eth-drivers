@@ -40,7 +40,7 @@ eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
 // To avoid stack overflow, you could choose a larger value
 mac_config.rx_task_stack_size = 4096;
 
-// CH390 has a factory burned MAC. Therefore, configuring MAC address manually is optional.     
+// CH390 has a factory burned MAC. Therefore, configuring MAC address manually is optional.
 esp_eth_mac_t *mac = esp_eth_mac_new_ch390(&ch390_config,&mac_config);
 ```
 

@@ -88,11 +88,11 @@ $ sudo tcpdump -i enp4s0
 dropped privs to tcpdump
 tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
 listening on enp4s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
-13:39:00.358089 8c:4b:14:0a:14:00 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60: 
+13:39:00.358089 8c:4b:14:0a:14:00 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60:
 	0x0000:  0000 5468 6973 2069 7320 4553 5033 3220  ..This.is.ESP32.
 	0x0010:  4c32 2054 4150 2074 6573 7420 6d73 6720  L2.TAP.test.msg.
 	0x0020:  6672 6f6d 2050 6f72 743a 2031 0000       from.Port:.1..
-13:39:00.358089 8c:4b:14:0a:14:01 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60: 
+13:39:00.358089 8c:4b:14:0a:14:01 (oui Unknown) > Broadcast, ethertype Unknown (0x7000), length 60:
 	0x0000:  0000 5468 6973 2069 7320 4553 5033 3220  ..This.is.ESP32.
 	0x0010:  4c32 2054 4150 2074 6573 7420 6d73 6720  L2.TAP.test.msg.
 	0x0020:  6672 6f6d 2050 6f72 743a 2032 0000       from.Port:.2..

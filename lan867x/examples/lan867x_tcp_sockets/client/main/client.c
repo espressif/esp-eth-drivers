@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -66,7 +71,7 @@ void app_main(void)
     uint8_t mac_data[6];
     esp_eth_ioctl(eth_handles[0], ETH_CMD_G_MAC_ADDR, &mac_data);
     sprintf(mac_str, "%02x:%02x:%02x:%02x:%02x:%02x", mac_data[0], mac_data[1], mac_data[2], mac_data[3], mac_data[4], mac_data[5]);
-    // Initialize Berkley socket
+    // Initialize Berkeley socket
     char txbuffer[SOCKET_MAX_LENGTH] = {0};
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in serv_addr;
@@ -80,7 +85,7 @@ void app_main(void)
     while (1) {
         snprintf(txbuffer, SOCKET_MAX_LENGTH, "Transmission #%d. Hello from ESP32 (%s) via LAN867x", ++transmission_cnt, mac_str);
         int bytesSent = send(client_fd, txbuffer, SOCKET_MAX_LENGTH, 0);
-        ESP_LOGI(TAG, "Sent tranmission #%d which was %d bytes long.", transmission_cnt, bytesSent);
+        ESP_LOGI(TAG, "Sent transmission #%d which was %d bytes long.", transmission_cnt, bytesSent);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
     close(client_fd);
