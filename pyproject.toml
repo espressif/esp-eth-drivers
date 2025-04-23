@@ -8,3 +8,6 @@
     lint.isort.force-single-line   = true
     lint.isort.lines-between-types = 1
     lint.select                    = ["B", "C4", "C901", "E", "F", "I", "N", "PL", "S", "UP", "W"]
+    exclude = [
+        "test_eth_phy.py",
+    ]

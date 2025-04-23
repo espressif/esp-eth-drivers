@@ -1,0 +1,5 @@
+[MAIN]
+ignore-paths=phy_tester/.*$
+
+[format]
+max-line-length=160
