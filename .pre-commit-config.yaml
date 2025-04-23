@@ -8,9 +8,12 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace                          # Removes trailing whitespaces from lines
-        exclude: 'api\.md$'
-      - id: end-of-file-fixer                            # Ensures files end with a newline
-        exclude: 'api\.md$'
+        exclude: &whitespace_excludes |
+          (?x)^(
+            .+\.(md|rst|map|bin|drawio)|
+          )$
+      - id: end-of-file-fixer                           # Ensures files end with a newline
+        exclude: *whitespace_excludes
       - id: check-executables-have-shebangs              # Checks executables have a proper shebang
       - id: mixed-line-ending                            # Detects mixed line endings (CRLF/LF)
         args: ['-f=lf']                                  # Forces files to use LF line endings
@@ -27,7 +30,7 @@ repos:
     hooks:
       - id: pylint                                       # Runs pylint on Python code
         additional_dependencies: ['PyYAML']
-        args: ['--max-line-length=160']
+        args: ['--rcfile=.ci/.pylintrc']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.5
@@ -51,7 +54,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell # Code spell checker
-        args: ["--write-changes"]
+        args: ["--write-changes", "--config=.ci/.codespellrc"]
         additional_dependencies: [tomli]
 
   - repo: https://github.com/espressif/astyle_py.git
