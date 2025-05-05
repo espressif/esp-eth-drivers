@@ -118,7 +118,7 @@ void app_main(void)
     printf(" |                                                      |\n");
     printf(" | Type 'help' to display a list of available commands. |\n");
     printf(" |                                                      |\n");
-    printf("\n ========================================================\n");
+    printf(" ========================================================\n");
 
     esp_console_start_repl(repl);
 }
