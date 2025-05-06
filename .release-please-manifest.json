@@ -4,6 +4,6 @@
     "adin1200": "0.9.1",
     "enc28j60": "1.0.1",
     "eth_dummy_phy": "0.5.0",
-    "ethernet_init": "0.4.0",
+    "ethernet_init": "0.5.0",
     "ksz8863": "0.2.7"
 }
