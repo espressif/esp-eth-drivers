@@ -52,7 +52,7 @@ static esp_err_t ksz8863_i2c_write(uint8_t reg_addr, uint8_t *data, size_t len)
     reg_addr_and_data[0] = reg_addr;
     memcpy(reg_addr_and_data + 1, data, len);
     // When performing a soft reset, the KSZ8863 doesn't produce an ACK. Print a warning that the error is expected and ignore it.
-    if unlikely(reg_addr == KSZ8863_RESET_ADDR) {
+    if (unlikely(reg_addr == KSZ8863_RESET_ADDR)) {
         ESP_LOGW(TAG, "The following I2C error can be ignored. It is thrown by the I2C driver because KSZ8863 does not produce ACK when performing soft reset. It is expected behaviour and requires no actions on your side.");
         i2c_master_transmit(s_ksz8863_ctrl_intf->i2c_handle, reg_addr_and_data, len + 1, KSZ8863_I2C_TIMEOUT_MS);
     } else {
