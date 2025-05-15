@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -51,10 +51,14 @@ static esp_err_t ksz8863_i2c_write(uint8_t reg_addr, uint8_t *data, size_t len)
     // Create a packet containing the register and data to be transmitted
     reg_addr_and_data[0] = reg_addr;
     memcpy(reg_addr_and_data + 1, data, len);
-    // When performing a soft reset, the KSZ8863 doesn't produce an ACK. Print a warning that the error is expected and ignore it.
-    if (unlikely(reg_addr == KSZ8863_RESET_ADDR)) {
-        ESP_LOGW(TAG, "The following I2C error can be ignored. It is thrown by the I2C driver because KSZ8863 does not produce ACK when performing soft reset. It is expected behaviour and requires no actions on your side.");
-        i2c_master_transmit(s_ksz8863_ctrl_intf->i2c_handle, reg_addr_and_data, len + 1, KSZ8863_I2C_TIMEOUT_MS);
+    // When performing a soft reset, the KSZ8863 doesn't produce an ACK.
+    if unlikely(reg_addr == KSZ8863_RESET_ADDR) {
+        i2c_operation_job_t i2c_tx_no_ack_check_ops[3] = {
+            {.command = I2C_MASTER_CMD_START },
+            {.command = I2C_MASTER_CMD_WRITE, .write = {.ack_check = false, .data = reg_addr_and_data, .total_bytes = len + 1}},
+            {.command = I2C_MASTER_CMD_STOP }
+        };
+        i2c_master_execute_defined_operations(s_ksz8863_ctrl_intf->i2c_handle, i2c_tx_no_ack_check_ops, 3, KSZ8863_I2C_TIMEOUT_MS);
     } else {
         ESP_GOTO_ON_ERROR(i2c_master_transmit(s_ksz8863_ctrl_intf->i2c_handle, reg_addr_and_data, len + 1, KSZ8863_I2C_TIMEOUT_MS), err, TAG, "Error during i2c write operation");
     }
@@ -254,8 +258,8 @@ esp_err_t ksz8863_ctrl_intf_init(ksz8863_ctrl_intf_config_t *config)
     case KSZ8863_I2C_MODE:
         i2c_device_config_t dev_cfg = {
             .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .scl_speed_hz = config->i2c_dev_config->scl_speed_hz,
             .device_address = config->i2c_dev_config->dev_addr >> 1,
-                                                               .scl_speed_hz = config->i2c_dev_config->scl_speed_hz,
         };
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(config->i2c_dev_config->bus_handle, &dev_cfg, &s_ksz8863_ctrl_intf->i2c_handle), err, TAG, "Error when trying to add the I2C device");
 
