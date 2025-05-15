@@ -1,8 +1,8 @@
-version: "0.2.7"
+version: 0.2.8
 targets:
   - esp32
   - esp32p4
 description: KSZ8863 Ethernet Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ksz8863
 dependencies:
-  idf: ">=5.3"
+  idf: '>=5.3'
