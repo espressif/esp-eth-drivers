@@ -1,4 +1,4 @@
-# KSZ8863 Ethernet Driver (beta)
+# KSZ8863 Ethernet Driver
 
 ## Overview
 
