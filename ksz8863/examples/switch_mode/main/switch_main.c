@@ -33,6 +33,9 @@
 #include "esp_eth_ksz8863.h"
 #include "esp_eth_netif_glue_ksz8863.h"
 
+#include "esp_console.h"
+#include "ksz8863_cmd.h"
+
 typedef struct {
     struct eth_hdr header;
     union {
@@ -289,6 +292,13 @@ err:
     return ret;
 }
 
+static esp_err_t eth_incoming_data_handler(esp_eth_handle_t eth_handle, uint8_t *buffer, uint32_t length, void *priv)
+{
+    printf("<--- Received data on HOST eth from %02x:%02x:%02x:%02x:%02x:%02x\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
+    //ESP_LOG_BUFFER_HEXDUMP(TAG, buffer, length, 2);
+    return ESP_OK;
+}
+
 void app_main(void)
 {
     ESP_LOGW(TAG, "Switch with Tail Tagging mode...\n");
@@ -366,7 +376,10 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, &host_eth_handle));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
+    esp_eth_update_input_path(host_eth_handle, eth_incoming_data_handler, NULL);
     // start Ethernet driver state machines
+    bool trueval = true;
+    esp_eth_ioctl(host_eth_handle, ETH_CMD_S_PROMISCUOUS, &trueval);
     ESP_ERROR_CHECK(esp_eth_start(host_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
@@ -375,13 +388,29 @@ void app_main(void)
     init_done = xSemaphoreCreateBinary();
     assert(init_done);
 
+#ifndef CONFIG_EXAMPLE_KSZ8863_ENABLE_CONSOLE
     // Periodically print content of Dynamic MAC table
     xTaskCreate(print_dyn_mac, "print_dyn_mac", 4096, p1_eth_handle, 5, NULL);
     xSemaphoreTake(init_done, portMAX_DELAY);
+#else
+    // register command for viewing Dynamic MAC table
+#endif
     // Periodically send L2 test messages at each port
     esp_eth_handle_t port_eth_handles[2] = { p1_eth_handle, p2_eth_handle };
-    xTaskCreate(transmit_l2test_msgs, "tx_test_msgs", 4096, port_eth_handles, 4, NULL);
-    xSemaphoreTake(init_done, portMAX_DELAY);
+    //xTaskCreate(transmit_l2test_msgs, "tx_test_msgs", 8192, port_eth_handles, 4, NULL);
+    //xSemaphoreTake(init_done, portMAX_DELAY);
+    xSemaphoreGive(init_done);
 
     vSemaphoreDelete(init_done);
+
+    // install console REPL environment
+    esp_console_repl_t *repl = NULL;
+    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.prompt = "ksz8863>";
+    esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
+    register_ksz8863_config_commands(host_eth_handle, p1_eth_handle, p2_eth_handle);
+    // start console REPL
+    ESP_ERROR_CHECK(esp_console_start_repl(repl));
+
 }
