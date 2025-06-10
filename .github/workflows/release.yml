@@ -15,6 +15,7 @@ env:
     ksz8863
     adin1200
     lan86xx_common
+    lan865x
     lan867x
     ch390
     enc28j60

@@ -1,0 +1,10 @@
+version: 0.0.0
+description: LAN865x Ethernet MAC-PHY Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/lan865x
+dependencies:
+  idf: '>=5.2'
+  espressif/lan86xx_common:
+    require: public
+    override_path: ../lan86xx_common
+examples:
+  - path: ../common_examples/
