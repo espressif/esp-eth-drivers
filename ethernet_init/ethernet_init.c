@@ -23,14 +23,19 @@
 #include "esp_eth_phy_lan867x.h"
 #endif // CONFIG_ETHERNET_PHY_LAN867X
 
-#if CONFIG_ETHERNET_USE_CH390
+#if CONFIG_ETHERNET_SPI_USE_CH390
 #include "esp_eth_mac_ch390.h"
 #include "esp_eth_phy_ch390.h"
 #endif // CONFIG_ETHERNET_USE_CH390
 
-#if CONFIG_ETHERNET_USE_ENC28J60
+#if CONFIG_ETHERNET_SPI_USE_ENC28J60
 #include "esp_eth_enc28j60.h"
 #endif // CONFIG_ETHERNET_USE_ENC28J60
+
+#if CONFIG_ETHERNET_SPI_USE_LAN865X
+#include "esp_eth_mac_lan865x.h"
+#include "esp_eth_phy_lan865x.h"
+#endif // CONFIG_ETHERNET_PHY_LAN865X
 
 #if CONFIG_ETHERNET_SPI_NUMBER
 #define SPI_ETHERNETS_NUM           CONFIG_ETHERNET_SPI_NUMBER
@@ -46,6 +51,7 @@
 
 #define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                   \
     do {                                                                                     \
+        eth_module_config[num].dev = CONFIG_ETHERNET_SPI_DEV ##num## _ID;                   \
         eth_module_config[num].spi_cs_gpio = CONFIG_ETHERNET_SPI_CS ##num## _GPIO;           \
         eth_module_config[num].int_gpio = CONFIG_ETHERNET_SPI_INT ##num## _GPIO;             \
         eth_module_config[num].poll_period_ms = CONFIG_ETHERNET_SPI_POLLING ##num## _MS;     \
@@ -61,7 +67,18 @@
 #define CONFIG_ETHERNET_SPI_NUMBER 0
 #endif
 
+/* This enum definition must be aligned with the ETHERNET_SPI_USE_ID* definitions in Kconfig.projbuild */
+typedef enum {
+    SPI_DEV_TYPE_DM9051,
+    SPI_DEV_TYPE_KSZ8851SNL,
+    SPI_DEV_TYPE_W5500,
+    SPI_DEV_TYPE_CH390,
+    SPI_DEV_TYPE_ENC28J60,
+    SPI_DEV_TYPE_LAN865X,
+} spi_eth_dev_type_t;
+
 typedef struct {
+    spi_eth_dev_type_t dev;
     uint8_t spi_cs_gpio;
     int8_t int_gpio;
     uint32_t poll_period_ms;
@@ -304,6 +321,9 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         return ret;
     }
 
+    dev_out->mac = NULL;
+    dev_out->phy = NULL;
+
     // Init common MAC and PHY configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
@@ -322,50 +342,74 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
     };
     /* Init vendor specific MAC config to default, and create new SPI Ethernet MAC instance
        and new PHY instance based on board configuration */
-#if CONFIG_ETHERNET_USE_KSZ8851SNL
-    eth_ksz8851snl_config_t ksz8851snl_config = ETH_KSZ8851SNL_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-    ksz8851snl_config.int_gpio_num = spi_eth_module_config->int_gpio;
-    ksz8851snl_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-    dev_out->mac = esp_eth_mac_new_ksz8851snl(&ksz8851snl_config, &mac_config);
-    dev_out->phy = esp_eth_phy_new_ksz8851snl(&phy_config);
-    sprintf(dev_out->dev_info.name, "KSZ8851SNL");
-#elif CONFIG_ETHERNET_USE_DM9051
-    eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-    dm9051_config.int_gpio_num = spi_eth_module_config->int_gpio;
-    dm9051_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-    dev_out->mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
-    dev_out->phy = esp_eth_phy_new_dm9051(&phy_config);
-    sprintf(dev_out->dev_info.name, "DM9051");
-#elif CONFIG_ETHERNET_USE_W5500
-    eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-    w5500_config.int_gpio_num = spi_eth_module_config->int_gpio;
-    w5500_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-    dev_out->mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
-    dev_out->phy = esp_eth_phy_new_w5500(&phy_config);
-    sprintf(dev_out->dev_info.name, "W5500");
-#elif CONFIG_ETHERNET_USE_CH390
-    eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-    ch390_config.int_gpio_num = spi_eth_module_config->int_gpio;
-    ch390_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-    dev_out->mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
-    dev_out->phy = esp_eth_phy_new_ch390(&phy_config);
-    sprintf(dev_out->dev_info.name, "CH390");
-#elif CONFIG_ETHERNET_USE_ENC28J60
-    spi_devcfg.cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(CONFIG_ETHERNET_SPI_CLOCK_MHZ);
-    eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-    enc28j60_config.int_gpio_num = spi_eth_module_config->int_gpio;
-    dev_out->mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
+    if (spi_eth_module_config->dev == SPI_DEV_TYPE_KSZ8851SNL) {
+#if CONFIG_ETHERNET_SPI_USE_KSZ8851SNL
+        eth_ksz8851snl_config_t ksz8851snl_config = ETH_KSZ8851SNL_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        ksz8851snl_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        ksz8851snl_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+        dev_out->mac = esp_eth_mac_new_ksz8851snl(&ksz8851snl_config, &mac_config);
+        dev_out->phy = esp_eth_phy_new_ksz8851snl(&phy_config);
+        sprintf(dev_out->dev_info.name, "KSZ8851SNL");
+#endif // CONFIG_ETHERNET_SPI_USE_KSZ8851SNL
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_DM9051) {
+#if CONFIG_ETHERNET_SPI_USE_DM9051
+        eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        dm9051_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        dm9051_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+        dev_out->mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
+        dev_out->phy = esp_eth_phy_new_dm9051(&phy_config);
+        sprintf(dev_out->dev_info.name, "DM9051");
+#endif // CONFIG_ETHERNET_SPI_USE_DM9051
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_W5500) {
+#if CONFIG_ETHERNET_SPI_USE_W5500
+        eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        w5500_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        w5500_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+        dev_out->mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
+        dev_out->phy = esp_eth_phy_new_w5500(&phy_config);
+        sprintf(dev_out->dev_info.name, "W5500");
+#endif // CONFIG_ETHERNET_SPI_USE_W5500
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_CH390) {
+#if CONFIG_ETHERNET_SPI_USE_CH390
+        eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        ch390_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        ch390_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+        dev_out->mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
+        dev_out->phy = esp_eth_phy_new_ch390(&phy_config);
+        sprintf(dev_out->dev_info.name, "CH390");
+#endif // CONFIG_ETHERNET_SPI_USE_CH390
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_ENC28J60) {
+#if CONFIG_ETHERNET_SPI_USE_ENC28J60
+        spi_devcfg.cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(CONFIG_ETHERNET_SPI_CLOCK_MHZ);
+        eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        enc28j60_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        dev_out->mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
 
-    // ENC28J60 Errata #1 check
-    ESP_GOTO_ON_FALSE(dev_out->mac, NULL, err, TAG, "creation of ENC28J60 MAC instance failed");
-    ESP_GOTO_ON_FALSE(emac_enc28j60_get_chip_info(dev_out->mac) >= ENC28J60_REV_B5 || CONFIG_ETHERNET_SPI_CLOCK_MHZ >= 8,
-                      NULL, err, TAG, "SPI frequency must be at least 8 MHz for chip revision less than 5");
+        // ENC28J60 Errata #1 check
+        ESP_GOTO_ON_FALSE(dev_out->mac, NULL, err, TAG, "creation of ENC28J60 MAC instance failed");
+        ESP_GOTO_ON_FALSE(emac_enc28j60_get_chip_info(dev_out->mac) >= ENC28J60_REV_B5 || CONFIG_ETHERNET_SPI_CLOCK_MHZ >= 8,
+                          NULL, err, TAG, "SPI frequency must be at least 8 MHz for chip revision less than 5");
 
-    phy_config.autonego_timeout_ms = 0; // ENC28J60 doesn't support auto-negotiation
-    phy_config.reset_gpio_num = -1; // ENC28J60 doesn't have a pin to reset internal PHY
-    dev_out->phy = esp_eth_phy_new_enc28j60(&phy_config);
-    sprintf(dev_out->dev_info.name, "ENC28J60");
-#endif
+        phy_config.autonego_timeout_ms = 0; // ENC28J60 doesn't support auto-negotiation
+        phy_config.reset_gpio_num = -1; // ENC28J60 doesn't have a pin to reset internal PHY
+        dev_out->phy = esp_eth_phy_new_enc28j60(&phy_config);
+        sprintf(dev_out->dev_info.name, "ENC28J60");
+#endif // CONFIG_ETHERNET_SPI_USE_ENC28J60
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_LAN865X) {
+#if CONFIG_ETHERNET_SPI_USE_LAN865X
+        eth_lan865x_config_t lan865x_config = ETH_LAN865X_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        lan865x_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        lan865x_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+
+        dev_out->mac = esp_eth_mac_new_lan865x(&lan865x_config, &mac_config);
+        dev_out->phy = esp_eth_phy_new_lan865x(&phy_config);
+        sprintf(dev_out->dev_info.name, "LAN865X");
+#endif // CONFIG_ETHERNET_SPI_USE_LAN865X
+    } else {
+        ESP_LOGE(TAG, "Unsupported SPI Ethernet module type ID: %i", spi_eth_module_config->dev);
+        goto err;
+    }
+
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
     esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(dev_out->mac, dev_out->phy);
@@ -376,12 +420,6 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, ETH_CMD_S_MAC_ADDR, spi_eth_module_config->mac_addr) == ESP_OK,
                           NULL, err, TAG, "SPI Ethernet MAC address config failed");
     }
-
-#if CONFIG_ETHERNET_ENC28J60_DUPLEX_FULL
-    // It is recommended to use ENC28J60 in Full Duplex mode since multiple errata exist to the Half Duplex mode
-    eth_duplex_t duplex = ETH_DUPLEX_FULL;
-    ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
-#endif
 
     return eth_handle;
 err:
@@ -484,10 +522,19 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
         eth_instance_g[eth_cnt_g].state = DEV_STATE_INITIALIZED;
         eth_instance_g[eth_cnt_g].eth_handle = eth_handles[eth_cnt_g];
         eth_instance_g[eth_cnt_g].dev_info.type = ETH_DEV_TYPE_SPI;
-        eth_instance_g[eth_cnt_g].dev_info.pin.eth_spi_cs = CONFIG_ETHERNET_SPI_CS0_GPIO;
-        eth_instance_g[eth_cnt_g].dev_info.pin.eth_spi_int = CONFIG_ETHERNET_SPI_INT0_GPIO;
+        eth_instance_g[eth_cnt_g].dev_info.pin.eth_spi_cs = spi_eth_module_config[i].spi_cs_gpio;
+        eth_instance_g[eth_cnt_g].dev_info.pin.eth_spi_int = spi_eth_module_config[i].int_gpio;
         eth_cnt_g++;
     }
+#if CONFIG_ETHERNET_ENC28J60_DUPLEX_FULL
+    for (int i = 0; i < eth_cnt_g; i++) {
+        if (strcmp(eth_instance_g[i].dev_info.name, "ENC28J60") == 0) {
+            // It is recommended to use ENC28J60 in Full Duplex mode since multiple errata exist to the Half Duplex mode
+            eth_duplex_t duplex = ETH_DUPLEX_FULL;
+            ESP_ERROR_CHECK(esp_eth_ioctl(eth_instance_g[i].eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
+        }
+    }
+#endif // CONFIG_ETHERNET_ENC28J60_DUPLEX_FULL
 #endif // CONFIG_ETHERNET_SPI_SUPPORT
 
 #else
@@ -496,28 +543,29 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 
 #ifdef CONFIG_ETHERNET_USE_PLCA
     for (int i = 0; i < eth_cnt_g; i++) {
-        if (strcmp(eth_instance_g[i].dev_info.name, "LAN867X") == 0) {
+        if (strcmp(eth_instance_g[i].dev_info.name, "LAN867X") == 0 ||
+                strcmp(eth_instance_g[i].dev_info.name, "LAN865X") == 0) {
             uint8_t plca_id = 0; // PLCA coordinator as default
 #if CONFIG_ETHERNET_PLCA_COORDINATOR
             // Configure PLCA as coordinator
             uint8_t plca_nodes_count = CONFIG_ETHERNET_PLCA_NODE_COUNT;
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_NCNT, &plca_nodes_count),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_PLCA_NCNT, &plca_nodes_count),
                               err, TAG, "failed to set PLCA node count");
             ESP_LOGI(TAG, "PLCA node count %" PRIu8, plca_nodes_count);
 #elif CONFIG_ETHERNET_PLCA_FOLLOWER
             // Configure PLCA with node number from config
             plca_id = CONFIG_ETHERNET_PLCA_ID;
 #endif
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_ID, &plca_id),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_PLCA_ID, &plca_id),
                               err, TAG, "failed to set PLCA node ID");
 
             uint8_t plca_max_burst_count = CONFIG_ETHERNET_PLCA_BURST_COUNT;
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_MAX_BURST_COUNT, &plca_max_burst_count),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_MAX_BURST_COUNT, &plca_max_burst_count),
                               err, TAG, "failed to set PLCA max burst count");
 
 #ifdef CONFIG_ETHERNET_PLCA_BURST_TIMER
             uint8_t plca_burst_timer = CONFIG_ETHERNET_PLCA_BURST_TIMER;
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_BURST_TIMER, &plca_burst_timer),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_BURST_TIMER, &plca_burst_timer),
                               err, TAG, "failed to set PLCA max burst timer");
 #endif
 
@@ -533,7 +581,7 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
                 if (multi_id <= 0 || multi_id >= 0xFF) {
                     ESP_LOGE(TAG, "Invalid PLCA additional local ID: %li", multi_id);
                 } else {
-                    ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_ADD_TX_OPPORTUNITY, &multi_id),
+                    ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_ADD_TX_OPPORTUNITY, &multi_id),
                                       err, TAG, "failed to add additional local ID (%li)", multi_id);
                     ESP_LOGI(TAG, "PLCA additional local ID: %li", multi_id);
                 }
@@ -541,11 +589,11 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 #endif
             // it is recommended to be Transmit Opportunity Timer always configured to desired value
             uint8_t plca_tot = CONFIG_ETHERNET_PLCA_TOT;
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_PLCA_TOT, &plca_tot),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_PLCA_TOT, &plca_tot),
                               err, TAG, "failed to set PLCA Transmit Opportunity timer");
 
             bool plca_en = true;
-            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN867X_ETH_CMD_S_EN_PLCA, &plca_en),
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, LAN86XX_ETH_CMD_S_EN_PLCA, &plca_en),
                               err, TAG, "failed to enable PLCA");
             ESP_LOGI(TAG, "PLCA enabled, node ID: %" PRIu8, plca_id);
         }
