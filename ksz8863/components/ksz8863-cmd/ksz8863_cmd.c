@@ -54,110 +54,6 @@ static switch_args_t s_switch_args;
 static esp_eth_handle_t host_handle;
 static esp_eth_handle_t port_handles[2] = {NULL, NULL};
 
-/*static int cmd_switch_reset(int argc, char** argv)
-{
-    printf("argc: %d\n", argc);
-    for(int i = 0; i < argc; i++) {
-        printf("%s | ", argv[i]);
-    }
-    fflush(stdout);
-    int nerrors = arg_parse(argc, argv, (void **) &s_reset_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, s_reset_args.end, argv[0]);
-        return 1;
-    }
-    if(strcmp(s_reset_args.type->sval[0], "soft") == 0) {
-        ksz8863_sw_reset(host_handle);
-    } else if(strcmp(s_reset_args.type->sval[0], "hard") == 0) {
-        //ksz8863_hw_reset();
-    }
-    return 0;
-}
-
-static int cmd_switch_bring(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &s_start_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, s_start_args.end, argv[0]);
-        return 1;
-    }
-
-    bool new_val = false;
-    if(strcmp(s_start_args.status->sval[0], "up") == 0) {
-        new_val = true;
-    } else if(strcmp(s_start_args.status->sval[0], "down") == 0) {
-        new_val = false;
-    }
-    esp_eth_ioctl(port_handles[s_start_args.port->ival[0] - 1], KSZ8863_ETH_CMD_S_START_SWITCH, &new_val);
-    return 0;
-}
-
-static int cmd_switch_set(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &s_set_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, s_set_args.end, argv[0]);
-        return 1;
-    }
-
-    if(strcmp(s_set_args.property->sval[0], "rx") == 0) {
-        bool newval = s_set_args.value->ival[0] == 1;
-        esp_eth_ioctl(port_handles[s_set_args.port->ival[0] - 1], KSZ8863_ETH_CMD_S_RX_EN, &newval);
-    } else if(strcmp(s_set_args.property->sval[0], "tx") == 0) {
-        bool newval = s_set_args.value->ival[0] == 1;
-        esp_eth_ioctl(port_handles[s_set_args.port->ival[0] - 1], KSZ8863_ETH_CMD_S_TX_EN, &newval);
-    } else {
-        fprintf(stderr, "Invalid argument provided.\n");
-        return 1;
-    }
-    return 0;
-}
-
-void register_ksz8863_config_commands(esp_eth_handle_t h_handle, esp_eth_handle_t p1_handle, esp_eth_handle_t p2_handle)
-{
-    host_handle = h_handle;
-    port_handles[0] = p1_handle;
-    port_handles[1] = p2_handle;
-
-    s_reset_args.type = arg_str0(NULL, NULL, "<reset type>", "Specify either 'soft' or 'hard' to perform reset");
-    s_reset_args.end = arg_end(1);
-
-    s_set_args.port = arg_int0(NULL, "port", "<port_num>", "Port in which the change will be made");
-    s_set_args.property = arg_str0(NULL, NULL, "<property>", "Property to be set");
-    s_set_args.value = arg_int0(NULL, NULL, "<value>", "New value for the property");
-    s_set_args.end = arg_end(3);
-
-    s_start_args.port = arg_int0(NULL, "port", "<port_num>", "Port in which the change will be made");
-    s_start_args.status = arg_str0(NULL, NULL, "<status>", "Up to enable port and down to disable it"),
-    s_start_args.end = arg_end(1);
-
-    const esp_console_cmd_t switch_reset_cmd = {
-        .command = "swreset",
-        .help = "Perofrm either soft or hard reset of the switch",
-        .hint = NULL,
-        .func = &cmd_switch_reset,
-        .argtable = &s_reset_args
-    };
-    const esp_console_cmd_t switch_set_cmd = {
-        .command = "set",
-        .help = "Set control value for given property",
-        .hint = NULL,
-        .func = &cmd_switch_set,
-        .argtable = &s_set_args
-    };
-    const esp_console_cmd_t switch_start_cmd = {
-        .command = "bring",
-        .help = "Bring selected port up or down",
-        .hint = NULL,
-        .func = &cmd_switch_bring,
-        .argtable = &s_start_args
-    };
-
-    ESP_ERROR_CHECK(esp_console_cmd_register(&switch_reset_cmd));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&switch_set_cmd));
-    ESP_ERROR_CHECK(esp_console_cmd_register(&switch_start_cmd));
-}*/
-
 static int cmd_switch(int argc, char **argv)
 {
     int nerrors = arg_parse(argc, argv, (void **) &s_switch_args);
@@ -220,7 +116,7 @@ static int cmd_switch(int argc, char **argv)
                                                   };
             ksz8863_mac_tbl_info_t set_tbl_info = {
                 .start_entry = index,  // set index of the entry to set
-                .etries_num = 1,   // write only one entry
+                .entries_num = 1,   // write only one entry
                 .sta_tbls = &sta_mac_tbl,
             };
             esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_S_MAC_STA_TBL, &set_tbl_info);
@@ -260,7 +156,7 @@ static int cmd_switch(int argc, char **argv)
             ksz8863_sta_mac_table_t sta_mac_tbls[8];
             ksz8863_mac_tbl_info_t get_tbl_info = {
                 .start_entry = 0,  // read from the first entry
-                .etries_num = 8,   // read all 8 entries
+                .entries_num = 8,   // read all 8 entries
                 .sta_tbls = sta_mac_tbls,
             };
             esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_G_MAC_STA_TBL, &get_tbl_info);
@@ -282,20 +178,24 @@ static int cmd_switch(int argc, char **argv)
             }
 
         } else if (strcmp(parameter, "macdyntbl") == 0) {
-            ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
+            int count = atoi(s_switch_args.value->sval[0]);
+            ESP_LOGW(TAG, "count: %d", count);
+            ksz8863_dyn_mac_table_t *dyn_mac_tbls = malloc(count * sizeof(ksz8863_dyn_mac_table_t));
             ksz8863_mac_tbl_info_t get_tbl_info = {
                 .start_entry = 0,  // read from the first entry
-                .etries_num = 5,   // read 5 entries
+                .entries_num = count,   // read 5 entries
                 .dyn_tbls = dyn_mac_tbls,
             };
             esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
             ESP_LOGI(TAG, "Dynamic MAC Table content:");
             ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
-            for (int i = 0; i < (dyn_mac_tbls[0].val_entries + 1); i++) {
+            int entries_to_display = dyn_mac_tbls[0].val_entries > count ? count : dyn_mac_tbls[0].val_entries + 1;
+            for (int i = 0; i < entries_to_display; i++) {
                 ESP_LOGI(TAG, "port %" PRIu8, dyn_mac_tbls[i].src_port + 1);
                 ESP_LOG_BUFFER_HEX(TAG, dyn_mac_tbls[i].mac_addr, 6);
             }
             printf("\n");
+            free(dyn_mac_tbls);
         } else {
             printf("Invalid argument provided \"%s\"\n\n", parameter);
             return 1;

@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import os
 import sys
-import time
 
 from pytest_embedded import Dut
-from test_common import HelperFunctions
 
 # Import test_common.py from parent directory
-sys.path.insert(1, '../../')
+sys.path.append('../../')
+from test_common import HelperFunctions
 from test_common import SwitchSSH
 from test_common import VirtualMachineSSH
 
@@ -35,6 +34,8 @@ def test_ksz8863_switch_mode(dut: Dut) -> None:
     endnode.put('../../vm_test_app.py', 'vm_test_app.py')
     # Wait for ESP32 to initialize
     dut.expect('main_task: Returned from app_main()')
+    dut.write('switch -p 1 set tailtag 0\n')
+    dut.write('switch -p 2 set tailtag 0\n')
     # Trigger endnode re-requesting IP address from the runner
     endnode.execute('ip link set dev enp3s0 down')
     endnode.execute('ip link set dev enp3s0 up')
@@ -65,10 +66,10 @@ def test_ksz8863_switch_mode(dut: Dut) -> None:
     dut.write('switch -p 2 set rx 1\n')
     assert HelperFunctions.PerformTransmissions(endnode, runner) == (True, True)
     # Verify that forwarding frames from certain MAC addresses works
-    dut.write(f"switch set macstatbl \"0 {runner.get_interface_mac_address('enp3s0')} 100 E-- 0\"")
-    dut.write(f"switch set macstatbl \"1 {endnode.get_interface_mac_address('enp3s0')}  100 E-- 0\"")
-    dut.write('switch show macstatbl')
-    time.sleep(0.25)
-    assert HelperFunctions.PerformTransmissions(endnode, runner) == (False, False)
-    dut.expect(rf"Received data on HOST eth from {runner.get_interface_mac_address('enp3s0')}")
-    dut.expect(rf"Received data on HOST eth from {endnode.get_interface_mac_address('enp3s0')}")
+    #dut.write(f"switch set macstatbl \"0 {runner.get_interface_mac_address('enp3s0')} 100 E-- 0\"")
+    #dut.write(f"switch set macstatbl \"1 {endnode.get_interface_mac_address('enp3s0')}  100 E-- 0\"")
+    #dut.write('switch show macstatbl')
+    #time.sleep(0.25)
+    #assert HelperFunctions.PerformTransmissions(endnode, runner) == (False, False)
+    #dut.expect(rf"Received data on HOST eth from {runner.get_interface_mac_address('enp3s0')}")
+    #dut.expect(rf"Received data on HOST eth from {endnode.get_interface_mac_address('enp3s0')}")

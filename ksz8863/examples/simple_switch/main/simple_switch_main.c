@@ -50,7 +50,7 @@ static void print_dyn_mac(void *pvParameters)
     ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
     ksz8863_mac_tbl_info_t get_tbl_info = {
         .start_entry = 0,  // read from the first entry
-        .etries_num = 5,   // read 5 entries
+        .entries_num = 5,   // read 5 entries
         .dyn_tbls = dyn_mac_tbls,
     };
 

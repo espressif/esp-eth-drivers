@@ -29,15 +29,21 @@ class RemoteMachineSSH:
         sftpc.close()
 
     def execute(self, command):
+        logging.info(f"{self.tag}::running:\"{command}\"")
         stdin_, stdout_, stderr_ = self.sshc.exec_command(command)
-        return stdout_.read().decode('ascii').strip('\n')
+        #return stdout_.read().decode('ascii').strip('\n')
+        so = stdout_.read().decode('ascii').strip('\n')
+        se = stderr_.read().decode('ascii').strip('\n')
+        logging.info(f"{self.tag}::stdout:\"{so}\"")
+        logging.info(f"{self.tag}::stderr:\"{se}\"")
+        return so
 
     def _priv_execute_thread(self, command):
         self.process_output = self.execute(command)
+        print(f"{self.process_output}")
         self.process_running = False
 
     def execute_async(self, command):
-        logging.info(f"{self.tag}::Running {command}")
         self.process_running = True
         self.process_output = ''
         thread = threading.Thread(target=self._priv_execute_thread, args=(command,))
@@ -70,7 +76,6 @@ class VirtualMachineSSH(RemoteMachineSSH):
 
     def get_interface_mac_address(self, interface):
         find_ip_regex = re.compile(r'ether ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})')
-
         output = self.execute(f"ip -f link addr show {interface}")
         return find_ip_regex.search(output).groups()[0]
 
@@ -110,6 +115,7 @@ class HelperFunctionsClass:
     # Methods
     def PerformTransmissions(self, endnode, runner):    # noqa: N802
         endnode_ip = endnode.get_interface_ip('enp3s0')
+        #runner_ip = runner.get_interface_ip('enp3s0')
         # Attempt endnode to runner transmission
         runner.execute_async('python3 -u vm_test_app.py rx 120.140.1.1')
         endnode.execute('python3 -u vm_test_app.py tx 120.140.1.1')
@@ -121,6 +127,19 @@ class HelperFunctionsClass:
         endnode_output = endnode.wait_until_process_finish()
         r2e_success = 'Reconstructed packet' in endnode_output
         return (e2r_success, r2e_success)
+        #runner.execute_async('timeout 5 nc -ul 54321 -w0')
+        #time.sleep(0.5)
+        #endnode.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321 ')
+        #endnode.execute('echo "Transmission" > /dev/udp/120.140.1.1/54321')
+        #e2r_success = 'Transmission' in runner.wait_until_process_finish()
+
+        #endnode.execute_async('timeout 5 nc -ul 54321 -w0')
+        #time.sleep(0.5)
+        #runner.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {endnode_ip} 54321')
+        #runner.execute('echo "Transmission" > /dev/udp/120.140.1.1/54321')
+        #r2e_success = 'Transmission' in endnode.wait_until_process_finish()
+        #return (e2r_success, r2e_success)
+
 
     def __init__(self):
         pass

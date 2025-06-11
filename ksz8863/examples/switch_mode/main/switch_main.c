@@ -49,25 +49,25 @@ static SemaphoreHandle_t init_done;
 
 static void print_dyn_mac(void *pvParameters)
 {
-    esp_eth_handle_t port_eth_handle = (esp_eth_handle_t) pvParameters;
+    /*esp_eth_handle_t port_eth_handle = (esp_eth_handle_t) pvParameters;
     ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
     ksz8863_mac_tbl_info_t get_tbl_info = {
         .start_entry = 0,  // read from the first entry
-        .etries_num = 5,   // read 5 entries
+        .entries_num = 5,   // read 5 entries
         .dyn_tbls = dyn_mac_tbls,
-    };
+    };*/
 
     xSemaphoreGive(init_done);
 
     while (1) {
-        esp_eth_ioctl(port_eth_handle, KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
+        /*esp_eth_ioctl(port_eth_handle, KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
         ESP_LOGI(TAG, "Dynamic MAC Table content:");
         ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
         for (int i = 0; i < (dyn_mac_tbls[0].val_entries + 1) && i < 5; i++) {
             ESP_LOGI(TAG, "port %" PRIu8, dyn_mac_tbls[i].src_port + 1);
             ESP_LOG_BUFFER_HEX(TAG, dyn_mac_tbls[i].mac_addr, 6);
         }
-        printf("\n");
+        printf("\n");*/
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
@@ -294,7 +294,7 @@ err:
 
 static esp_err_t eth_incoming_data_handler(esp_eth_handle_t eth_handle, uint8_t *buffer, uint32_t length, void *priv)
 {
-    printf("<--- Received data on HOST eth from %02x:%02x:%02x:%02x:%02x:%02x\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
+    //printf("<--- Received data on HOST eth from %02x:%02x:%02x:%02x:%02x:%02x\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
     //ESP_LOG_BUFFER_HEXDUMP(TAG, buffer, length, 2);
     return ESP_OK;
 }

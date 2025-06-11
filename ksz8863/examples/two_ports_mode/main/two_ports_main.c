@@ -49,7 +49,7 @@ static void print_dyn_mac(void *pvParameters)
     ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
     ksz8863_mac_tbl_info_t get_tbl_info = {
         .start_entry = 0,  // read from the first entry
-        .etries_num = 5,   // read 5 entries
+        .entries_num = 5,   // read 5 entries
         .dyn_tbls = dyn_mac_tbls,
     };
 
@@ -405,7 +405,7 @@ void app_main(void)
     ksz8863_sta_mac_table_t sta_mac_tbls[3];
     ksz8863_mac_tbl_info_t get_sta_tbl_info = {
         .start_entry = 0,
-        .etries_num = 3,
+        .entries_num = 3,
         .sta_tbls = sta_mac_tbls,
     };
 

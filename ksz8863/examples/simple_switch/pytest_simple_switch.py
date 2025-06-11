@@ -4,10 +4,10 @@ import os
 import sys
 
 from pytest_embedded import Dut
-from test_common import HelperFunctions
 
 # Import test_common.py from parent directory
-sys.path.insert(1, '../../')
+sys.path.append('../../')
+from test_common import HelperFunctions
 from test_common import SwitchSSH
 from test_common import VirtualMachineSSH
 
@@ -30,17 +30,16 @@ def test_ksz8863_simple_switch(dut: Dut) -> None:
     endnode.connect(IP_ADDRESS_ENDNODE, SSH_VM_USERNAME, SSH_VM_PASSWORD)
     switch.connect(IP_ADDRESS_SWITCH, SSH_SW_USERNAME, SSH_SW_PASSWORD)
     # Upload test script to the VMs
-    runner.put('../../vm_test_app.py', '~/vm_test_app.py')
-    endnode.put('../../vm_test_app.py', '~/vm_test_app.py')
+    #runner.put('../../vm_test_app.py', '~/vm_test_app.py')
+    #endnode.put('../../vm_test_app.py', '~/vm_test_app.py')
     # Wait for ESP32 to initialize
     dut.expect('Ethernet Got IP Address')
     # Check that MAC addresses of both VMs are in the Dynamic MAC table
-    dut.expect('valid entries 3')
-    #entries_count = int(dut.expect(r"valid entries ([0-9]+)").group(1))
+    entries_count = int(dut.expect(r'valid entries ([0-9]+)').group(1))
     dynamic_mac_table = []
-    entries_count = 3
+    #entries_count = 3
     for _i in range(entries_count):
-        mac = dut.expect(r'([0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2})').group(1).decode('ascii')
+        mac = dut.expect(r'([0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2})').group(0).decode('ascii')
         dynamic_mac_table.append(mac.replace(' ', ':'))
     assert runner.get_interface_mac_address('enp3s0') in dynamic_mac_table
     assert endnode.get_interface_mac_address('enp3s0') in dynamic_mac_table
@@ -49,13 +48,13 @@ def test_ksz8863_simple_switch(dut: Dut) -> None:
     assert endnode_ip is not None
     # Attempt to transmit data
     assert HelperFunctions.PerformTransmissions(runner, endnode) == (True, True)
-    # Bring Endnode interface down and back up
+    # Bring Endnode and Runner interfaces down and back up
     switch.bring_port(3, 'down')
     dut.expect(r'Ethernet Link Down Port (\d)')
-    switch.bring_port(3, 'up')
-    dut.expect(r'Ethernet Link Up Port (\d)')
-    # Bring runner interface down and back up
     switch.bring_port(2, 'down')
     dut.expect(r'Ethernet Link Down Port (\d)')
+    assert HelperFunctions.PerformTransmissions(endnode, runner) == (False, False)
+    switch.bring_port(3, 'up')
+    dut.expect(r'Ethernet Link Up Port (\d)')
     switch.bring_port(2, 'up')
     dut.expect(r'Ethernet Link Up Port (\d)')
