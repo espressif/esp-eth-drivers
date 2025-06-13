@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /**
-* @brief Create a PHY instance of LAN867x
+* @brief Create a PHY instance of LAN865x
 *
 * @param[in] config: configuration of PHY
 *
@@ -21,7 +21,7 @@ extern "C" {
 *      - instance: create PHY instance successfully
 *      - NULL: create PHY instance failed because some error occurred
 */
-esp_eth_phy_t *esp_eth_phy_new_lan867x(const eth_phy_config_t *config);
+#define esp_eth_phy_new_lan865x(config) esp_eth_phy_new_lan86xx(config)
 
 #ifdef __cplusplus
 }

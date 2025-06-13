@@ -128,41 +128,111 @@ menu "Ethernet Configuration"
                 Set the number of SPI Ethernet modules you want to use at a time. Multiple SPI modules can be connected
                 to one SPI interface and can be separately accessed based on state of associated Chip Select (CS).
 
-        choice ETHERNET_TYPE_SPI
-            prompt "Ethernet SPI"
-            default ETHERNET_USE_W5500
+        choice ETHERNET_SPI_DEV0
+            prompt "SPI Ethernet module #1"
+            default ETHERNET_SPI_DEV0_W5500
             help
                 Select which kind of spi Ethernet will be used.
 
-            config ETHERNET_USE_DM9051
+            config ETHERNET_SPI_DEV0_DM9051
                 bool "DM9051 Module"
                 select ETH_SPI_ETHERNET_DM9051
-                help
-                    Select external SPI-Ethernet module (DM9051).
 
-            config ETHERNET_USE_KSZ8851SNL
+            config ETHERNET_SPI_DEV0_KSZ8851SNL
                 bool "KSZ8851SNL Module"
                 select ETH_SPI_ETHERNET_KSZ8851SNL
-                help
-                    Select external SPI-Ethernet module (KSZ8851SNL).
 
-            config ETHERNET_USE_W5500
+            config ETHERNET_SPI_DEV0_W5500
                 bool "W5500 Module"
                 select ETH_SPI_ETHERNET_W5500
-                help
-                    Select external SPI-Ethernet module (W5500).
 
-            config ETHERNET_USE_CH390
+            config ETHERNET_SPI_DEV0_CH390
                 bool "CH390 Module"
-                help
-                    Select external SPI-Ethernet module (CH390).
 
-            config ETHERNET_USE_ENC28J60
+            config ETHERNET_SPI_DEV0_ENC28J60
                 bool "ENC28J60 Module"
-                help
-                    Select external SPI-Ethernet module (ENC28J60).
 
+            config ETHERNET_SPI_DEV0_LAN865X
+                bool "LAN865X Module"
         endchoice
+
+        choice ETHERNET_SPI_DEV1
+            depends on ETHERNET_SPI_NUMBER > 1
+            prompt "SPI Ethernet module #2"
+            default ETHERNET_SPI_DEV1_W5500
+            help
+                Select which kind of spi Ethernet will be used.
+
+            config ETHERNET_SPI_DEV1_DM9051
+                bool "DM9051 Module"
+                select ETH_SPI_ETHERNET_DM9051
+
+            config ETHERNET_SPI_DEV1_KSZ8851SNL
+                bool "KSZ8851SNL Module"
+                select ETH_SPI_ETHERNET_KSZ8851SNL
+
+            config ETHERNET_SPI_DEV1_W5500
+                bool "W5500 Module"
+                select ETH_SPI_ETHERNET_W5500
+
+            config ETHERNET_SPI_DEV1_CH390
+                bool "CH390 Module"
+
+            config ETHERNET_SPI_DEV1_ENC28J60
+                bool "ENC28J60 Module"
+
+            config ETHERNET_SPI_DEV1_LAN865X
+                bool "LAN865X Module"
+        endchoice
+
+        config ETHERNET_SPI_USE_DM9051
+            bool
+            default y if ETHERNET_SPI_DEV0_DM9051 || ETHERNET_SPI_DEV1_DM9051
+            default n
+
+        config ETHERNET_SPI_USE_KSZ8851SNL
+            bool
+            default y if ETHERNET_SPI_DEV0_KSZ8851SNL || ETHERNET_SPI_DEV1_KSZ8851SNL
+            default n
+
+        config ETHERNET_SPI_USE_W5500
+            bool
+            default y if ETHERNET_SPI_DEV0_W5500 || ETHERNET_SPI_DEV1_W5500
+            default n
+
+        config ETHERNET_SPI_USE_CH390
+            bool
+            default y if ETHERNET_SPI_DEV0_CH390 || ETHERNET_SPI_DEV1_CH390
+            default n
+
+        config ETHERNET_SPI_USE_ENC28J60
+            bool
+            default y if ETHERNET_SPI_DEV0_ENC28J60 || ETHERNET_SPI_DEV1_ENC28J60
+            default n
+
+        config ETHERNET_SPI_USE_LAN865X
+            bool
+            default y if ETHERNET_SPI_DEV0_LAN865X || ETHERNET_SPI_DEV1_LAN865X
+            default n
+
+        config ETHERNET_SPI_DEV0_ID
+            int
+            default 0 if ETHERNET_SPI_DEV0_DM9051
+            default 1 if ETHERNET_SPI_DEV0_KSZ8851SNL
+            default 2 if ETHERNET_SPI_DEV0_W5500
+            default 3 if ETHERNET_SPI_DEV0_CH390
+            default 4 if ETHERNET_SPI_DEV0_ENC28J60
+            default 5 if ETHERNET_SPI_DEV0_LAN865X
+
+        config ETHERNET_SPI_DEV1_ID
+            depends on ETHERNET_SPI_NUMBER > 1
+            int
+            default 0 if ETHERNET_SPI_DEV1_DM9051
+            default 1 if ETHERNET_SPI_DEV1_KSZ8851SNL
+            default 2 if ETHERNET_SPI_DEV1_W5500
+            default 3 if ETHERNET_SPI_DEV1_CH390
+            default 4 if ETHERNET_SPI_DEV1_ENC28J60
+            default 5 if ETHERNET_SPI_DEV1_LAN865X
 
         config ETHERNET_SPI_HOST
             int "SPI Host Number"
@@ -351,7 +421,7 @@ menu "Ethernet Configuration"
             default 0
 
         choice ETHERNET_ENC28J60_DUPLEX_MODE
-            depends on ETHERNET_USE_ENC28J60
+            depends on ETHERNET_SPI_DEV0_ENC28J60 || ETHERNET_SPI_DEV1_ENC28J60
             prompt "Duplex Mode"
             default ETHERNET_ENC28J60_DUPLEX_HALF
             help
@@ -370,7 +440,7 @@ menu "Ethernet Configuration"
         endchoice # EXAMPLE_ENC28J60_DUPLEX_MODE
     endif # ETHERNET_SPI_SUPPORT
 
-    if ETHERNET_PHY_LAN867X
+    if ETHERNET_PHY_LAN867X || ETHERNET_SPI_DEV0_LAN865X || ETHERNET_SPI_DEV1_LAN865X
         menu "10BASE-T1S PLCA"
             config ETHERNET_USE_PLCA
                 bool "Use PLCA"
