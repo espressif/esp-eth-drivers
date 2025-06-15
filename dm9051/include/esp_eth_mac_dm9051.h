@@ -51,6 +51,14 @@ typedef struct {
 */
 esp_eth_mac_t *esp_eth_mac_new_dm9051(const eth_dm9051_config_t *dm9051_config, const eth_mac_config_t *mac_config);
 
+/**
+ * @brief List of SPI EMAC specific commands for ioctl API
+ *
+ */
+typedef enum {
+    ETH_MAC_SPI_CMD_S_EEE = ETH_CMD_CUSTOM_MAC_CMDS_OFFSET, /*!< Enable or disable Energy Efficient Ethernet */
+} eth_mac_spi_io_cmd_t;
+
 #ifdef __cplusplus
 }
 #endif
