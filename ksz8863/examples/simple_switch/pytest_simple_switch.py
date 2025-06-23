@@ -47,13 +47,13 @@ def test_ksz8863_simple_switch(dut: Dut) -> None:
     endnode_ip = endnode.get_interface_ip('enp3s0')
     assert endnode_ip is not None
     # Attempt to transmit data
-    assert HelperFunctions.PerformTransmissions(runner, endnode) == (True, True)
+    assert HelperFunctions.PerformTransmissionTest(runner, endnode) == (True, True)
     # Bring Endnode and Runner interfaces down and back up
     switch.bring_port(3, 'down')
     dut.expect(r'Ethernet Link Down Port (\d)')
     switch.bring_port(2, 'down')
     dut.expect(r'Ethernet Link Down Port (\d)')
-    assert HelperFunctions.PerformTransmissions(endnode, runner) == (False, False)
+    assert HelperFunctions.PerformTransmissionTest(endnode, runner) == (False, False)
     switch.bring_port(3, 'up')
     dut.expect(r'Ethernet Link Up Port (\d)')
     switch.bring_port(2, 'up')

@@ -14,34 +14,6 @@
 
 static const char *TAG = "ksz8863_test_apps";
 
-/*typedef struct {
-    struct arg_str *action;
-    struct arg_str *mode;
-    struct arg_end *end;
-} switch_init_args_t;
-
-typedef struct {
-    struct arg_str *type;
-    struct arg_end *end;
-} switch_reset_args_t;
-
-typedef struct {
-    struct arg_int *port;
-    struct arg_str *status;
-    struct arg_end *end;
-} switch_start_args_t;
-
-typedef struct {
-    struct arg_int *port;
-    struct arg_str *property;
-    struct arg_int *value;
-    struct arg_end *end;
-} switch_set_args_t;
-
-static switch_init_args_t s_init_args;
-static switch_reset_args_t s_reset_args;
-static switch_set_args_t s_set_args;
-static switch_start_args_t s_start_args;*/
 typedef struct {
     struct arg_int *port;
     struct arg_rex *action;

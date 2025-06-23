@@ -113,19 +113,19 @@ class SwitchSSH(RemoteMachineSSH):
 
 class HelperFunctionsClass:
     # Methods
-    def PerformTransmissions(self, endnode, runner):    # noqa: N802
+    def PerformTransmissionTest(self, endnode, runner):    # noqa: N802
         endnode_ip = endnode.get_interface_ip('enp3s0')
         #runner_ip = runner.get_interface_ip('enp3s0')
         # Attempt endnode to runner transmission
         runner.execute_async('python3 -u vm_test_app.py rx 120.140.1.1')
         endnode.execute('python3 -u vm_test_app.py tx 120.140.1.1')
         runner_output = runner.wait_until_process_finish()
-        e2r_success = 'Reconstructed packet' in runner_output
+        e2r_success = 'Transmission' in runner_output
         # Attempt runner to endnode transmission
         endnode.execute_async(f"python3 -u vm_test_app.py rx {endnode_ip}")
         runner.execute(f"python3 -u vm_test_app.py tx {endnode_ip}")
         endnode_output = endnode.wait_until_process_finish()
-        r2e_success = 'Reconstructed packet' in endnode_output
+        r2e_success = 'Transmission' in endnode_output
         return (e2r_success, r2e_success)
         #runner.execute_async('timeout 5 nc -ul 54321 -w0')
         #time.sleep(0.5)
@@ -139,7 +139,6 @@ class HelperFunctionsClass:
         #runner.execute('echo "Transmission" > /dev/udp/120.140.1.1/54321')
         #r2e_success = 'Transmission' in endnode.wait_until_process_finish()
         #return (e2r_success, r2e_success)
-
 
     def __init__(self):
         pass
