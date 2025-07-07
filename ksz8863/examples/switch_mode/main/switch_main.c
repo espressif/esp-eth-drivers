@@ -130,15 +130,15 @@ static void transmit_l2test_msgs(void *pvParameters)
         goto err;
     }
 
-    uint16_t eth_type_filter = 0x7000;
-    /*if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
+    uint16_t eth_type_filter = 0x0800;
+    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
         ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
         goto err;
     }
     if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
         ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
         goto err;
-    }*/
+    }
 
     test_vfs_eth_tap_msg_t test_msg_p1 = {
         .header = {
@@ -568,9 +568,9 @@ void app_main(void)
 #endif
     // Periodically send L2 test messages at each port
     esp_eth_handle_t port_eth_handles[3] = { p1_eth_handle, p2_eth_handle, host_eth_handle };
-    //xTaskCreate(transmit_l2test_msgs, "tx_test_msgs", 8192, port_eth_handles, 4, NULL);
-    //xSemaphoreTake(init_done, portMAX_DELAY);
-    xTaskCreate(echo_l2tap_task, "echo_l2tap_task", 8192, &host_eth_handle, 4, NULL);
+    xTaskCreate(transmit_l2test_msgs, "tx_test_msgs", 8192, port_eth_handles, 4, NULL);
+    xSemaphoreTake(init_done, portMAX_DELAY);
+    //xTaskCreate(echo_l2tap_task, "echo_l2tap_task", 8192, &host_eth_handle, 4, NULL);
     xSemaphoreGive(init_done);
 
     vSemaphoreDelete(init_done);
