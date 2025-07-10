@@ -151,11 +151,10 @@ static int cmd_switch(int argc, char **argv)
 
         } else if (strcmp(parameter, "macdyntbl") == 0) {
             int count = atoi(s_switch_args.value->sval[0]);
-            ESP_LOGW(TAG, "count: %d", count);
             ksz8863_dyn_mac_table_t *dyn_mac_tbls = malloc(count * sizeof(ksz8863_dyn_mac_table_t));
             ksz8863_mac_tbl_info_t get_tbl_info = {
                 .start_entry = 0,  // read from the first entry
-                .entries_num = count,   // read 5 entries
+                .entries_num = count,   // read the entries
                 .dyn_tbls = dyn_mac_tbls,
             };
             esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);

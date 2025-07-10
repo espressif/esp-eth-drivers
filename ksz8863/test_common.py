@@ -31,12 +31,7 @@ class RemoteMachineSSH:
     def execute(self, command):
         logging.info(f"{self.tag}::running:\"{command}\"")
         stdin_, stdout_, stderr_ = self.sshc.exec_command(command)
-        #return stdout_.read().decode('ascii').strip('\n')
-        so = stdout_.read().decode('ascii').strip('\n')
-        se = stderr_.read().decode('ascii').strip('\n')
-        logging.info(f"{self.tag}::stdout:\"{so}\"")
-        logging.info(f"{self.tag}::stderr:\"{se}\"")
-        return so
+        return stdout_.read().decode('ascii').strip('\n')
 
     def _priv_execute_thread(self, command):
         self.process_output = self.execute(command)
@@ -105,40 +100,38 @@ class SwitchSSH(RemoteMachineSSH):
         else:
             logging.error(f"{self.tag}: Attempting to set incorrect state \"{state}\" for port #{port}. Nothing will be done for this command.")
             return
-        out = self.execute(f"/usr/bin/tswconf debug phy set {str(port - 1)} 0 {code}")
-        logging.info(f"output: {out}")
+        self.execute(f"/usr/bin/tswconf debug phy set {str(port - 1)} 0 {code}")
 
     def __init__(self, tag='Switch'):
         super().__init__(tag)
 
 class HelperFunctionsClass:
     # Methods
-    def PerformTransmissionTest(self, endnode, runner):    # noqa: N802
+    def PerformTransmissionTest(self, runner, endnode):    # noqa: N802
         endnode_ip = endnode.get_interface_ip('enp3s0')
-        #runner_ip = runner.get_interface_ip('enp3s0')
-        # Attempt endnode to runner transmission
-        runner.execute_async('python3 -u vm_test_app.py rx 120.140.1.1')
-        endnode.execute('python3 -u vm_test_app.py tx 120.140.1.1')
-        runner_output = runner.wait_until_process_finish()
-        e2r_success = 'Transmission' in runner_output
+        runner_ip = runner.get_interface_ip('enp3s0')
         # Attempt runner to endnode transmission
         endnode.execute_async(f"python3 -u vm_test_app.py rx {endnode_ip}")
         runner.execute(f"python3 -u vm_test_app.py tx {endnode_ip}")
         endnode_output = endnode.wait_until_process_finish()
         r2e_success = 'Transmission' in endnode_output
-        return (e2r_success, r2e_success)
-        #runner.execute_async('timeout 5 nc -ul 54321 -w0')
-        #time.sleep(0.5)
-        #endnode.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321 ')
-        #endnode.execute('echo "Transmission" > /dev/udp/120.140.1.1/54321')
-        #e2r_success = 'Transmission' in runner.wait_until_process_finish()
+        # Attempt endnode to runner transmission
+        runner.execute_async(f'python3 -u vm_test_app.py rx {runner_ip}')
+        endnode.execute(f'python3 -u vm_test_app.py tx {runner_ip}')
+        runner_output = runner.wait_until_process_finish()
+        e2r_success = 'Transmission' in runner_output
 
         #endnode.execute_async('timeout 5 nc -ul 54321 -w0')
-        #time.sleep(0.5)
-        #runner.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {endnode_ip} 54321')
-        #runner.execute('echo "Transmission" > /dev/udp/120.140.1.1/54321')
-        #r2e_success = 'Transmission' in endnode.wait_until_process_finish()
-        #return (e2r_success, r2e_success)
+        #runner.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321')
+        #endnode_output = endnode.wait_until_process_finish()
+        #r2e_success = 'Transmission' in endnode_output
+
+        #runner.execute_async('timeout 5 nc -ul 54321 -w0')
+        #endnode.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321')
+        #runner_output = runner.wait_until_process_finish()
+        #e2r_success = 'Transmission' in runner_output
+
+        return (r2e_success, e2r_success)
 
     def __init__(self):
         pass

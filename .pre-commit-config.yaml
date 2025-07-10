@@ -36,7 +36,7 @@ repos:
     rev: v0.11.5
     hooks:
       - id: ruff                                         # Runs ruff linter (replaces flake8)
-        args: ['--fix', '--exit-non-zero-on-fix', '--per-file-ignores=**/pytest_*.py:S101']
+        args: ['--fix', '--exit-non-zero-on-fix']
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0

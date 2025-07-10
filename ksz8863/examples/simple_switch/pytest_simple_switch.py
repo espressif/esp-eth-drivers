@@ -37,22 +37,42 @@ def prepare_vms_and_ksz8863():
     # Upload test script to the VMs
     runner.put('../../vm_test_app.py', 'vm_test_app.py')
     endnode.put('../../vm_test_app.py', 'vm_test_app.py')
+    # Ensure that ports are brought up on the switch
+    switch.bring_port(2, 'up')
+    switch.bring_port(3, 'up')
 
 def test_ksz8863_simple_switch_macdyntbl(dut: Dut) -> None:
+    # Wait for ESP32 to initialize
+    dut.expect('Ethernet Got IP Address')
+
     # Check that MAC addresses of both VMs are in the Dynamic MAC table
     runner_mac = runner.get_interface_mac_address('enp3s0')
     endnode_mac = endnode.get_interface_mac_address('enp3s0')
 
-    entries_count = int(dut.expect(r'valid entries ([3-9]+)').group(1))
+    # We may need several tries while we wait for the dynamic mac table to populate
+    # The MAC addresses are only added when some data comes through thr switch, so we may
+    # need to wait a little for all devices to be added. I've used 5 here because first one
+    # will always be the device of Port 3 (Host), next one could be the MAC address belonging to
+    # the switch ports the device is connected to, and in the worst case if both the runner and
+    # the endnode are the last to connect they will be number 3 and 4 correspondingly.
+    minimum_populated_dynamic_mac_table_size = 4
+    entries_count = 0
+    while entries_count < minimum_populated_dynamic_mac_table_size:
+        dut.write('\n')
+        dut.expect('ksz8863>')
+        dut.write('switch show macdyntbl 6\n')
+        entries_count = int(dut.expect(r'valid entries ([0-9]+)').group(1))
+        time.sleep(1)
+
     dynamic_mac_table = []
     for _i in range(entries_count):
         mac = dut.expect(r'([0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2} [0-9a-f]{2})').group(0).decode('ascii')
         dynamic_mac_table.append(mac.replace(' ', ':'))
     logging.info(dynamic_mac_table)
     if runner_mac not in dynamic_mac_table:
-        raise RuntimeError('Runner\'s MAC address was not found in the Dynamic MAC Table, this likely means that the runer is not connected to the device')
+        raise RuntimeError('Runner\'s MAC address was not found in the Dynamic MAC Table, this likely means that the runner is not connected to the device')
     if endnode_mac not in dynamic_mac_table:
-        raise RuntimeError('Endnode\'s MAC address was not found in the Dynamic MAC Table, this likely means that the runer is not connected to the device')
+        raise RuntimeError('Endnode\'s MAC address was not found in the Dynamic MAC Table, this likely means that the runner is not connected to the device')
 
 def test_ksz8863_simple_switch_link(dut: Dut) -> None:
     # Wait for ESP32 to initialize
@@ -76,6 +96,9 @@ def test_ksz8863_simple_switch_link(dut: Dut) -> None:
 
 @pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
+    # Wait for ESP32 to initialize
+    dut.expect('Ethernet Got IP Address')
+
     # Attempt to transmit data with different TX/RX configurations
     # Important note:
     # TX enable means that the PORT ITSELF will transmit the data, so disabling TX on Port 1 will prevent device from RECEIVING data and
@@ -105,6 +128,9 @@ def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
 
 
 def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
+    # Wait for ESP32 to initialize
+    dut.expect('Ethernet Got IP Address')
+
     # Check that MAC addresses of both VMs are in the Dynamic MAC table
     runner_mac = runner.get_interface_mac_address('enp3s0')
     endnode_mac = endnode.get_interface_mac_address('enp3s0')

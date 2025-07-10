@@ -319,7 +319,6 @@ static esp_err_t pmac_ksz8863_get_mac_tbl(pmac_ksz8863_t *pmac, ksz8863_indir_ac
 {
     esp_err_t ret = ESP_OK;
     for (int i = 0; i < tbls_info->entries_num; i++) {
-        ESP_LOGI(TAG, "i: %d", i);
         ESP_GOTO_ON_ERROR(ksz8863_indirect_read(tbl, tbls_info->start_entry + i,
                                                 tbl == KSZ8863_STA_MAC_TABLE ? (void *)&tbls_info->sta_tbls[i] : (void *)&tbls_info->dyn_tbls[i],
                                                 tbl == KSZ8863_STA_MAC_TABLE ? sizeof(ksz8863_sta_mac_table_t) : sizeof(ksz8863_dyn_mac_table_t)),
@@ -386,7 +385,9 @@ static esp_err_t pmac_ksz8863_custom_ioctl(esp_eth_mac_t *mac, int cmd, void *da
     case KSZ8863_ETH_CMD_S_TX_EN:
         ESP_GOTO_ON_FALSE(data, ESP_ERR_INVALID_ARG, err, TAG, "port tx enable can't be NULL");
         ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, 0, KSZ8863_PCR2_BASE_ADDR + pmac->port_reg_offset, &(pcr2.val)), err, TAG, "read PC2 failed");
+        printf("PCR2: %08lx\n", pcr2.val);
         pcr2.tx_en = *(bool *)data;
+        printf("PCR2: %08lx\n", pcr2.val);
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, 0, KSZ8863_PCR2_BASE_ADDR + pmac->port_reg_offset, pcr2.val), err, TAG, "write PC2 failed");
         break;
     case KSZ8863_ETH_CMD_G_TX_EN:

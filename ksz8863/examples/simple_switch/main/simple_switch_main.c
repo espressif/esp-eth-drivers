@@ -45,50 +45,14 @@ typedef struct {
 } test_vfs_eth_tap_msg_t;
 
 static const char *TAG = "simple_switch_example";
-static SemaphoreHandle_t init_done;
 static SemaphoreHandle_t ip_obtained;
-
-static void print_dyn_mac(void *pvParameters)
-{
-    esp_eth_handle_t port_eth_handle = (esp_eth_handle_t) pvParameters;
-    ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
-    ksz8863_mac_tbl_info_t get_tbl_info = {
-        .start_entry = 0,  // read from the first entry
-        .entries_num = 5,   // read 5 entries
-        .dyn_tbls = dyn_mac_tbls,
-    };
-
-    xSemaphoreGive(init_done);
-
-    while (1) {
-        esp_eth_ioctl(port_eth_handle, KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
-        ESP_LOGI(TAG, "Dynamic MAC Table content:");
-        ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
-        for (int i = 0; i < (dyn_mac_tbls[0].val_entries + 1) && i < 5; i++) {
-            ESP_LOGI(TAG, "port %" PRIu8, dyn_mac_tbls[i].src_port + 1);
-            ESP_LOG_BUFFER_HEX(TAG, dyn_mac_tbls[i].mac_addr, 6);
-        }
-        printf("\n");
-        vTaskDelay(pdMS_TO_TICKS(5000));
-    }
-}
 
 static void transmit_l2test_msg(void *pvParameters)
 {
     int ret;
-    int eth_tap_fd = *((int *) pvParameters);
+    int eth_tap_fd_ph = ((int *) pvParameters)[0];
 
     uint16_t eth_type_filter = 0x7000;
-    // Set Ethernet interface on which to get raw frames
-    /*if ((ret = ioctl(eth_tap_fd, L2TAP_S_INTF_DEVICE, "ETH_DEF")) == -1) {
-        ESP_LOGE(TAG, "Unable to bound L2 TAP with Ethernet device: errno %i", errno);
-        goto err;
-    }
-
-    if ((ret = ioctl(eth_tap_fd, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }*/
 
     esp_eth_handle_t host_eth_handle = esp_netif_get_io_driver(esp_netif_get_handle_from_ifkey("ETH_DEF"));
 
@@ -113,11 +77,48 @@ static void transmit_l2test_msg(void *pvParameters)
         }
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
-    /*err:
-        if (eth_tap_fd != -1) {
-            close(eth_tap_fd);
+}
+
+static void listen_incoming_packets_l2tap(void *pvParameters)
+{
+    int ret, len;
+    int eth_tap_fd_ph = ((int *) pvParameters)[0];
+    int eth_tap_fd_p1 = ((int *) pvParameters)[1];
+    int eth_tap_fd_p2 = ((int *) pvParameters)[2];
+
+    uint16_t eth_type_filter = 0x0800;
+    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
+        ESP_LOGE(TAG, "Unable to configure PH L2 TAP Ethernet type receive filter: errno %i", errno);
+        goto err;
+    }
+    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
+        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
+        goto err;
+    }
+    if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
+        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
+        goto err;
+    }
+
+    uint8_t rx_buffer[128];
+    test_vfs_eth_tap_msg_t *rcvmsg = (test_vfs_eth_tap_msg_t *) rx_buffer;
+    while (1) {
+        if ((len = read(eth_tap_fd_ph, rx_buffer, 128)) > 0) {
+            ESP_LOGI(TAG, "<-- [Host](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
+                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
         }
-        vTaskDelete(NULL);*/
+        if ((len = read(eth_tap_fd_p1, rx_buffer, 128)) > 0) {
+            ESP_LOGI(TAG, "<-- [Port 1](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
+                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
+        }
+        if ((len = read(eth_tap_fd_p2, rx_buffer, 128)) > 0) {
+            ESP_LOGI(TAG, "<-- [Port 2](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
+                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
+        }
+        vTaskDelay(pdMS_TO_TICKS(250));
+    }
+err:
+    vTaskDelete(NULL);
 }
 
 /** Event handler for Ethernet events */
@@ -249,48 +250,6 @@ err:
     return ret;
 }
 
-static void listen_incoming_packets_l2tap(void *pvParameters)
-{
-    int ret, len;
-    int eth_tap_fd_ph = ((int *) pvParameters)[0];
-    int eth_tap_fd_p1 = ((int *) pvParameters)[1];
-    int eth_tap_fd_p2 = ((int *) pvParameters)[2];
-
-    uint16_t eth_type_filter = 0x0800;
-    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure PH L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-
-    uint8_t rx_buffer[128];
-    test_vfs_eth_tap_msg_t *rcvmsg = (test_vfs_eth_tap_msg_t *) rx_buffer;
-    while (1) {
-        if ((len = read(eth_tap_fd_ph, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Host](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
-        }
-        if ((len = read(eth_tap_fd_p1, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Port 1](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
-        }
-        if ((len = read(eth_tap_fd_p2, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Port 2](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
-        }
-        vTaskDelay(pdMS_TO_TICKS(250));
-    }
-err:
-    vTaskDelete(NULL);
-}
-
 static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_handle_t p1_eth_handle, esp_eth_handle_t p2_eth_handle)
 {
     int ret;
@@ -333,10 +292,10 @@ static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_ha
     }
 
     // start tasks
-    //xTaskCreate(transmit_l2test_msg, "transmit_l2test_msg", 8192, &eth_tap_fd_ph, 4, NULL);
-
     int l2tap_handles[3] = {eth_tap_fd_ph, eth_tap_fd_p1, eth_tap_fd_p2};
-    xTaskCreate(listen_incoming_packets_l2tap, "listen_incoming_packets_l2tap", 8192, (void *) l2tap_handles, 4, NULL);
+    TaskHandle_t task_l2tap_transmit_test_msgs, task_l2tap_listen_incoming;
+    xTaskCreate(transmit_l2test_msg, "transmit_l2test_msg", 8192, l2tap_handles, 4, &task_l2tap_transmit_test_msgs);
+    xTaskCreate(listen_incoming_packets_l2tap, "listen_incoming_packets_l2tap", 8192, (void *) l2tap_handles, 4, &task_l2tap_listen_incoming);
     return;
 err:
     if (eth_tap_fd_p1 != -1) {
@@ -349,6 +308,8 @@ err:
         close(eth_tap_fd_ph);
     }
     // delete tasks
+    vTaskDelete(task_l2tap_transmit_test_msgs);
+    vTaskDelete(task_l2tap_listen_incoming);
 }
 
 void app_main(void)
@@ -414,44 +375,19 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, &host_eth_handle));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
+    // Sync semaphore is needed since main task local variables are used during initialization in other tasks
+    ip_obtained = xSemaphoreCreateBinary();
+    assert(ip_obtained);
+
     // start Ethernet driver state machines
     ESP_ERROR_CHECK(esp_eth_start(host_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
 
-    // Add rerouting of broadcasts to Static Mac Table
-    /*ksz8863_sta_mac_table_t sta_mac_tbl = { .mac_addr[0] = 0xff,
-                                            .mac_addr[1] = 0xff,
-                                            .mac_addr[2] = 0xff,
-                                            .mac_addr[3] = 0xff,
-                                            .mac_addr[4] = 0xff,
-                                            .mac_addr[5] = 0xff,
-                                            .fwd_ports = 0b111,
-                                            .entry_val = 1,
-                                            .override = 0,
-                                            .use_fid = 0,
-                                            .fid = 0
-                                                  };
-    ksz8863_mac_tbl_info_t set_tbl_info = {
-        .start_entry = 0,  // set index of the entry to set
-        .entries_num = 1,   // write only one entry
-        .sta_tbls = &sta_mac_tbl,
-    };
-    esp_eth_ioctl(p1_eth_handle, KSZ8863_ETH_CMD_S_MAC_STA_TBL, &set_tbl_info);*/
-    // Sync semaphore is needed since main task local variables are used during initialization in other tasks
-    init_done = xSemaphoreCreateBinary();
-    assert(init_done);
-    ip_obtained = xSemaphoreCreateBinary();
-    assert(ip_obtained);
-
-    // Periodically print content of Dynamic MAC table
-    xTaskCreate(print_dyn_mac, "print_dyn_mac", 4096, p1_eth_handle, 5, NULL);
-    xSemaphoreTake(init_done, portMAX_DELAY);
     // Start l2tap test message transmitter task and l2tap listener task
     xSemaphoreTake(ip_obtained, portMAX_DELAY);
     start_l2tap_related_tasks(host_eth_handle, p1_eth_handle, p2_eth_handle);
-
-    vSemaphoreDelete(init_done);
+    vSemaphoreDelete(ip_obtained);
 
     // install console REPL environment
     esp_console_repl_t *repl = NULL;
