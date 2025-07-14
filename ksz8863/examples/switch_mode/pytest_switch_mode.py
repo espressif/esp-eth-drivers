@@ -3,13 +3,13 @@
 import logging
 import os
 import sys
-import time
+
+import pytest
 
 from pytest_embedded import Dut
 
 # Import test_common.py from parent directory
 sys.path.append('../../')
-from test_common import HelperFunctions
 from test_common import SwitchSSH
 from test_common import VirtualMachineSSH
 
@@ -26,28 +26,8 @@ runner = VirtualMachineSSH('Runner')
 endnode = VirtualMachineSSH('Endnode')
 switch = SwitchSSH('Switch')
 
-def perform_broadcast_test(dut, endnode, runner):
-    # Broadcast from the Endnode
-    dut.write('hosteth -u rx')
-    runner.execute_async('python3 -u vm_test_app.py rx ""')
-    endnode.execute('python3 -u vm_test_app.py bcast')
-    runner_output = runner.wait_until_process_finish()
-    e2r_bcast_success = 'Broadcast' in runner_output
-    e2h_bcast_success = True
-    # Broadcast from the Runner
-    dut.write('hosteth -u rx')
-    endnode.execute_async('python3 -u vm_test_app.py rx ""')
-    runner.execute('python3 -u vm_test_app.py bcast')
-    endnode_output = endnode.wait_until_process_finish()
-    r2e_bcast_success = 'Broadcast' in endnode_output
-    r2h_bcast_success = True
-    # Broadcast from Host Port on ESP32
-    h2e_bcast_success = True
-    h2r_bcast_success = True
-
-    return ([e2r_bcast_success, e2h_bcast_success], [r2e_bcast_success, r2h_bcast_success], [h2e_bcast_success, h2r_bcast_success])
-
-def test_ksz8863_switch_mode(dut: Dut) -> None:
+@pytest.fixture(scope='session', autouse=True)
+def prepare_vms_and_ksz8863():
     # Connect to virtual machines
     runner.connect(IP_ADDRESS_RUNNER, SSH_VM_USERNAME, SSH_VM_PASSWORD)
     endnode.connect(IP_ADDRESS_ENDNODE, SSH_VM_USERNAME, SSH_VM_PASSWORD)
@@ -55,92 +35,28 @@ def test_ksz8863_switch_mode(dut: Dut) -> None:
     # Upload test script to the VMs
     runner.put('../../vm_test_app.py', 'vm_test_app.py')
     endnode.put('../../vm_test_app.py', 'vm_test_app.py')
+    # Ensure that ports are brought up on the switch
+    switch.bring_port(2, 'up')
+    switch.bring_port(3, 'up')
+
+# We can't be sure that the broadcast packet will be in any random sequence of packets
+# 20 makes it being received very likely, but for the better measure the test is marked as flaky
+@pytest.mark.flaky(reruns=3, reruns_delay=5)
+def test_ksz8863_managed_switch_tailtag(dut: Dut) -> None:
     # Wait for ESP32 to initialize
-    dut.expect('main_task: Returned from app_main()')
-    dut.write('switch -p 1 set tailtag 0\n')
-    dut.write('switch -p 2 set tailtag 0\n')
-    # Trigger endnode re-requesting IP address from the runner
-    endnode.execute('sudo -n ip link set dev enp3s0 down')
-    endnode.execute('sudo -n ip link set dev enp3s0 up')
-    # Verify that disabling TX or RX produces expected results
-    # | Case # | Port 1 | Port 2 | ENDNODE -> RUNNER | RUNNER -> ENDNODE |
-    # |   1    |   --   |   --   |        Fails      |       Fails       |
-    # |   2    |   TX   |   RX   |       Succeeds    |       Fails       |
-    # |   3    |   RX   |   TX   |        Fails      |      Succeeds     |
-    # |   4    |  TX RX |  TX RX |       Succeeds    |      Succeeds     |
-    dut.write('switch -p 1 set tx 0\n')
-    dut.write('switch -p 1 set rx 0\n')
-    dut.write('switch -p 2 set tx 0\n')
-    dut.write('switch -p 2 set rx 0\n')
-    assert HelperFunctions.PerformTransmissionTest(endnode, runner) == (False, False)
-    dut.write('switch -p 1 set tx 1\n')
-    dut.write('switch -p 1 set rx 0\n')
-    dut.write('switch -p 2 set tx 0\n')
-    dut.write('switch -p 2 set rx 1\n')
-    assert HelperFunctions.PerformTransmissionTest(endnode, runner) == (True, False)
-    dut.write('switch -p 1 set tx 0\n')
-    dut.write('switch -p 1 set rx 1\n')
-    dut.write('switch -p 2 set tx 1\n')
-    dut.write('switch -p 2 set rx 0\n')
-    assert HelperFunctions.PerformTransmissionTest(endnode, runner) == (False, True)
-    dut.write('switch -p 1 set tx 1\n')
-    dut.write('switch -p 1 set rx 1\n')
-    dut.write('switch -p 2 set tx 1\n')
-    dut.write('switch -p 2 set rx 1\n')
-    assert HelperFunctions.PerformTransmissionTest(endnode, runner) == (True, True)
-    # Verify that forwarding frames from certain MAC addresses works
-    # First we check that each device can broadcast and receives all other's broadcasts
-    #assert perform_broadcast_test(dut, endnode, runner) == (True, True, True)
-    # Verify that modifying Static MAC Table reroutes packets
-    # The syntax of Static MAC Table entry
-    #          "2 00:11:22:33:44:55 101 EOF 0"
-    # Entry # --|         |         ||| ||| |-- Filter ID
-    # MAC ----------------|         ||| |||
-    # Forward to Host (0xx/1xx) ----||| |||---- Set the flag to use filter ID
-    # Forward to Port 1 (x0x/x1x) ---|| ||----- Set the flag to override port's TX disable/RX disable settings
-    # Forward to Port 2 (xx0/xx1) ----| |------ Set the flag to indicate the entry is valid
-    #
-    # | Case # | Ruleset                 | Endnode Broadcast | Runner Broadcast | ESP Broadcast |
-    # |   1    | Default configuration   |      Succeeds     |     Succeeds     |    Succeeds   |
-    # |   2    | Runner's MAC 100 E-- 0  |      Succeeds     |     Succeeds     |    Succeeds   |
-    # |   3    | Runner's MAC 100 E-- 0  |      Succeeds     |     Succeeds     |    Succeeds   |
-    # |        | Endnode's MAC 100 E-- 0 |
-    # |   4    | Endnode's MAC 100 E-- 0 |      Succeeds     |     Succeeds     |    Succeeds   |
+    dut.expect('Ethernet Got IP Address')
+    runner_out = runner.execute('tcpdump -A -i enp3s0 -c 20')
+    endnode_out = endnode.execute('tcpdump -A -i enp3s0 -c 20')
+    if 'This is ESP32 L2 TAP test msg for Port 1' not in runner_out:
+        logging.error(runner_out)
+        raise RuntimeError('Runner has not received a broadcast from device\'s port 1')
+    if 'This is ESP32 L2 TAP test msg for Port 2' in runner_out:
+        logging.error(runner_out)
+        raise RuntimeError('Runner has received a broadcast from device\'s port 2 which was not meant for it')
 
-    #dut.write(f"switch set macstatbl \"0 {runner.get_interface_mac_address('enp3s0')} 000 E-- 0\"")
-    #dut.write('switch show macstatbl')
-    #time.sleep(0.5)
-    #logging.warning(perform_broadcast_test(dut, endnode, runner))
-
-    #dut.write(f"switch set macstatbl \"1 {endnode.get_interface_mac_address('enp3s0')} 000 E-- 0\"")
-    dut.write("switch set macstatbl \"0 ff:ff:ff:ff:ff:ff 000 E-- 0\"")
-    time.sleep(0.5)
-    dut.write('switch show macstatbl')
-    logging.warning(perform_broadcast_test(dut, runner, endnode))
-    dut.write("switch set macstatbl \"0 ff:ff:ff:ff:ff:ff 100 E-- 0\"")
-    time.sleep(0.5)
-    dut.write('switch show macstatbl')
-    logging.warning(perform_broadcast_test(dut, runner, endnode))
-    dut.write("switch set macstatbl \"0 ff:ff:ff:ff:ff:ff 010 E-- 0\"")
-    time.sleep(0.5)
-    dut.write('switch show macstatbl')
-    logging.warning(perform_broadcast_test(dut, runner, endnode))
-    dut.write("switch set macstatbl \"0 ff:ff:ff:ff:ff:ff 001 E-- 0\"")
-    time.sleep(0.5)
-    dut.write('switch show macstatbl')
-    logging.warning(perform_broadcast_test(dut, runner, endnode))
-    dut.write("switch set macstatbl \"0 ff:ff:ff:ff:ff:ff 111 E-- 0\"")
-    time.sleep(0.5)
-    dut.write('switch show macstatbl')
-    logging.warning(perform_broadcast_test(dut, runner, endnode))
-
-    #logging.warning(perform_broadcast_test(dut, endnode, runner))
-
-    #dut.write(f"switch set macstatbl \"0 {runner.get_interface_mac_address('enp3s0')} 100 --- 0\"")
-    #dut.write('switch show macstatbl')
-    #dut.write(f"switch set macstatbl \"1 {endnode.get_interface_mac_address('enp3s0')}  100 E-- 0\"")
-    #dut.write('switch show macstatbl')
-    #time.sleep(0.25)
-    #assert HelperFunctions.PerformTransmissions(endnode, runner) == (False, False)
-    #dut.expect(rf"Received data on HOST eth from {runner.get_interface_mac_address('enp3s0')}")
-    #dut.expect(rf"Received data on HOST eth from {endnode.get_interface_mac_address('enp3s0')}")
+    if 'This is ESP32 L2 TAP test msg for Port 2' not in endnode_out:
+        logging.error(endnode_out)
+        raise RuntimeError('Endnode has not received a broadcast from device\'s port 2')
+    if 'This is ESP32 L2 TAP test msg for Port 1' in endnode_out:
+        logging.error(runner_out)
+        raise RuntimeError('Endnode has received a broadcast from device\'s port 1 which was not meant for it')
