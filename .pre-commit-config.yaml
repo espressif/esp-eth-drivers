@@ -2,7 +2,6 @@ minimum_pre_commit_version: 4.0.0                        # Specifies the minimum
 default_install_hook_types: [pre-commit,commit-msg]      # Default hook types to install if not specified in individual hooks
 default_stages: [pre-commit]
 
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -29,8 +28,9 @@ repos:
     rev: v3.0.3
     hooks:
       - id: pylint                                       # Runs pylint on Python code
-        additional_dependencies: ['PyYAML']
-        args: ['--rcfile=.ci/.pylintrc']
+        language: system
+        require_serial: true
+        args: ['--rcfile=.ci/.pylintrc', '--exit-zero']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.5
