@@ -1,19 +1,78 @@
-name: Release Please
+name: Release and Upload Components
 
 on:
+  # For pull requests: perform upload with "--dry-run" argument,
+  # i.e. validate that the component passes all checks for being uploaded.
+  pull_request:
+
+  # For pushes to master: run release-please first, then upload components to the registry.
   push:
     branches:
       - master
 
+env:
+  UPLOAD_COMPONENTS: |
+    ksz8863
+    adin1200
+    lan867x
+    ch390
+    enc28j60
+    ethernet_init
+    eth_dummy_phy
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Only run on push to master, not on pull requests
+    if: github.event_name == 'push' && github.ref_name == 'master'
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
     permissions:
       pull-requests: write
       contents: write
       issues: write
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           skip-github-pull-request: true
+
+  upload_components_dry_run:
+    runs-on: ubuntu-latest
+    # Only run on pull requests for dry run
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - run: |
+          echo "Checking components (dry run)"
+      - name: Upload components to the component registry
+        uses: espressif/upload-components-ci-action@v2
+        with:
+          components: ${{ env.UPLOAD_COMPONENTS }}
+          namespace: "espressif"
+          api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
+          dry_run: true
+
+  upload_components_release:
+    runs-on: ubuntu-latest
+    # Only run on push to master when release-please actually creates a release
+    if: github.event_name == 'push' && github.ref_name == 'master' && needs.release-please.outputs.releases_created == 'true'
+    needs: [release-please]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - run: |
+          echo "Uploading components after successful release"
+          echo "Released paths: ${{ needs.release-please.outputs.paths_released }}"
+      - name: Upload components to the component registry
+        uses: espressif/upload-components-ci-action@v2
+        with:
+          components: ${{ join(fromJSON(needs.release-please.outputs.paths_released), '\n') }}
+          namespace: "espressif"
+          api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
+          dry_run: ${{ github.repository_owner != 'espressif' }}
