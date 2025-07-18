@@ -1,4 +1,4 @@
-version: 0.0.0
+version: 0.1.0
 description: LAN865x Ethernet MAC-PHY Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/lan865x
 dependencies:
