@@ -147,11 +147,4 @@ menu "Example Configuration"
             Set the GPIO number used to reset the chip.
             Set to -1 to disable chip hardware reset.
 
-    config EXAMPLE_KSZ8863_ENABLE_CONSOLE
-        bool "Enable console controls"
-        default n
-        help
-            Enable console controls for KSZ8863 switch
-            This will disable automatically printing Dynamic MAC table
-            It will still be possible to display it using console commands
 endmenu

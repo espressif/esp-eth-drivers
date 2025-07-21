@@ -47,78 +47,99 @@ typedef struct {
 static const char *TAG = "simple_switch_example";
 static SemaphoreHandle_t ip_obtained;
 
-static void transmit_l2test_msg(void *pvParameters)
+static void example_l2tap_send_recv(void *pvParameters)
 {
-    int ret;
-    int eth_tap_fd_ph = ((int *) pvParameters)[0];
-
-    uint16_t eth_type_filter = 0x7000;
-
+    int len, ret;
+    int eth_tap_fd_ph_tx = ((int *) pvParameters)[0];
+    int eth_tap_fd_ph_rx = ((int *) pvParameters)[1];
     esp_eth_handle_t host_eth_handle = esp_netif_get_io_driver(esp_netif_get_handle_from_ifkey("ETH_DEF"));
+    uint16_t eth_type_filter_tx = 0x7000;
+    uint16_t eth_type_filter_rx = 0x0800;
 
+    // Prepare the message we will broadcast
     test_vfs_eth_tap_msg_t test_msg = {
         .header = {
             .src.addr = {0},
             .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
-            .type = ntohs(eth_type_filter),
+            .type = ntohs(eth_type_filter_tx),
         },
         .str = "This is ESP32 L2 TAP test msg"
     };
-
     // Set source MAC address in test message
     if ((ret = esp_eth_ioctl(host_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg.header.src.addr)) == -1) {
         ESP_LOGE(TAG, "get MAC addr error");
     }
 
-    while (1) {
-        ret = write(eth_tap_fd, &test_msg, sizeof(test_msg));
-        if (ret == -1) {
-            ESP_LOGE(TAG, "L2 TAP write error, errno: %i\n", errno);
-        }
-        vTaskDelay(pdMS_TO_TICKS(2000));
+    // Set filter to 0x0800 (IPv4 packet) for receive file descriptor, and 0x7000 (formatless) for transmission
+    if ((ret = ioctl(eth_tap_fd_ph_tx, L2TAP_S_RCV_FILTER, &eth_type_filter_tx)) == -1) {
+        ESP_LOGE(TAG, "Unable to configure HOST L2 TAP Ethernet type receive filter: errno %i", errno);
     }
-}
-
-static void listen_incoming_packets_l2tap(void *pvParameters)
-{
-    int ret, len;
-    int eth_tap_fd_ph = ((int *) pvParameters)[0];
-    int eth_tap_fd_p1 = ((int *) pvParameters)[1];
-    int eth_tap_fd_p2 = ((int *) pvParameters)[2];
-
-    uint16_t eth_type_filter = 0x0800;
-    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure PH L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
+    if ((ret = ioctl(eth_tap_fd_ph_rx, L2TAP_S_RCV_FILTER, &eth_type_filter_rx)) == -1) {
+        ESP_LOGE(TAG, "Unable to configure HOST L2 TAP Ethernet type receive filter: errno %i", errno);
     }
 
     uint8_t rx_buffer[128];
     test_vfs_eth_tap_msg_t *rcvmsg = (test_vfs_eth_tap_msg_t *) rx_buffer;
     while (1) {
-        if ((len = read(eth_tap_fd_ph, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Host](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
+        // Read everything we have received in the last two seconds packet by packet
+        do {
+            if ((len = read(eth_tap_fd_ph_rx, rx_buffer, 128)) > 0) {
+                ESP_LOGI(TAG, "Host has received %d bytes from %02x:%02x:%02x:%02x:%02x:%02x", len, rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1],
+                         rcvmsg->header.src.addr[2], rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5]);
+            }
+        } while (len > 0);
+
+        ret = write(eth_tap_fd_ph_tx, &test_msg, sizeof(test_msg));
+        if (ret == -1) {
+            ESP_LOGE(TAG, "L2 TAP write error, errno: %i\n", errno);
         }
-        if ((len = read(eth_tap_fd_p1, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Port 1](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
-        }
-        if ((len = read(eth_tap_fd_p2, rx_buffer, 128)) > 0) {
-            ESP_LOGI(TAG, "<-- [Port 2](from %02x:%02x:%02x:%02x:%02x:%02x) %s", rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1], rcvmsg->header.src.addr[2],
-                     rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5], rcvmsg->str);
-        }
-        vTaskDelay(pdMS_TO_TICKS(250));
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
+}
+
+static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_handle_t p1_eth_handle, esp_eth_handle_t p2_eth_handle)
+{
+    int ret;
+    int eth_tap_fd_ph_tx = -1;
+    int eth_tap_fd_ph_rx = -1;
+
+    esp_vfs_l2tap_intf_register(NULL);
+
+    // We need multiple descriptors because we want to use different filters for transmitting and receiving data
+    eth_tap_fd_ph_tx = open("/dev/net/tap", O_NONBLOCK);
+    if (eth_tap_fd_ph_tx < 0) {
+        ESP_LOGE(TAG, "Unable to open L2 TAP interface: errno %i", errno);
+        goto err;
+    }
+    eth_tap_fd_ph_rx = open("/dev/net/tap", O_NONBLOCK);
+    if (eth_tap_fd_ph_rx < 0) {
+        ESP_LOGE(TAG, "Unable to open L2 TAP interface: errno %i", errno);
+        goto err;
+    }
+
+    // Set Ethernet interface on which to get raw frames
+    // Notice the difference to "Two ports mode example", the L2 TAP needs to be bounded to Ethernet interface directly using
+    // `L2TAP_S_DEVICE_DRV_HNDL` since there is not ESP-NETIF associated with this Ethernet interface
+    if ((ret = ioctl(eth_tap_fd_ph_tx, L2TAP_S_DEVICE_DRV_HNDL, ph_eth_handle)) == -1) {
+        ESP_LOGE(TAG, "Unable to bind Host ethernet device to the l2tap file descriptor: errno %i", errno);
+        goto err;
+    }
+    if ((ret = ioctl(eth_tap_fd_ph_rx, L2TAP_S_DEVICE_DRV_HNDL, ph_eth_handle)) == -1) {
+        ESP_LOGE(TAG, "Unable to bind Host ethernet device to the l2tap file descriptor: errno %i", errno);
+        goto err;
+    }
+    // start the task
+    int eth_tap_fds[2] = {eth_tap_fd_ph_tx, eth_tap_fd_ph_rx};
+    xTaskCreate(example_l2tap_send_recv, "transmit_l2test_msg", 8192, eth_tap_fds, 4, NULL);
+    return;
 err:
-    vTaskDelete(NULL);
+    if (eth_tap_fd_ph_tx != -1) {
+        close(eth_tap_fd_ph_tx);
+    }
+    if (eth_tap_fd_ph_rx != -1) {
+        close(eth_tap_fd_ph_rx);
+    }
 }
 
 /** Event handler for Ethernet events */
@@ -250,68 +271,6 @@ err:
     return ret;
 }
 
-static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_handle_t p1_eth_handle, esp_eth_handle_t p2_eth_handle)
-{
-    int ret;
-    int eth_tap_fd_p1 = -1;
-    int eth_tap_fd_p2 = -1;
-    int eth_tap_fd_ph = -1;
-
-    esp_vfs_l2tap_intf_register(NULL);
-
-    eth_tap_fd_p1 = open("/dev/net/tap", O_NONBLOCK);
-    if (eth_tap_fd_p1 < 0) {
-        ESP_LOGE(TAG, "Unable to open P1 L2 TAP interface: errno %i", errno);
-        goto err;
-    }
-    eth_tap_fd_p2 = open("/dev/net/tap", O_NONBLOCK);
-    if (eth_tap_fd_p2 < 0) {
-        ESP_LOGE(TAG, "Unable to open P2 L2 TAP interface: errno %i", errno);
-        goto err;
-    }
-    eth_tap_fd_ph = open("/dev/net/tap", O_NONBLOCK);
-    if (eth_tap_fd_p2 < 0) {
-        ESP_LOGE(TAG, "Unable to open HOST L2 TAP interface: errno %i", errno);
-        goto err;
-    }
-
-    // Set Ethernet interface on which to get raw frames
-    // Notice the difference to "Two ports mode example", the L2 TAP needs to be bounded to Ethernet interface directly using
-    // `L2TAP_S_DEVICE_DRV_HNDL` since there is not ESP-NETIF associated with this Ethernet interface
-    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_DEVICE_DRV_HNDL, ph_eth_handle)) == -1) {
-        ESP_LOGE(TAG, "Unable to bound PH L2 TAP with Ethernet device: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_DEVICE_DRV_HNDL, p1_eth_handle)) == -1) {
-        ESP_LOGE(TAG, "Unable to bound P1 L2 TAP with Ethernet device: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_DEVICE_DRV_HNDL, p2_eth_handle)) == -1) {
-        ESP_LOGE(TAG, "Unable to bound P2 L2 TAP with Ethernet device: errno %i", errno);
-        goto err;
-    }
-
-    // start tasks
-    int l2tap_handles[3] = {eth_tap_fd_ph, eth_tap_fd_p1, eth_tap_fd_p2};
-    TaskHandle_t task_l2tap_transmit_test_msgs, task_l2tap_listen_incoming;
-    xTaskCreate(transmit_l2test_msg, "transmit_l2test_msg", 8192, l2tap_handles, 4, &task_l2tap_transmit_test_msgs);
-    xTaskCreate(listen_incoming_packets_l2tap, "listen_incoming_packets_l2tap", 8192, (void *) l2tap_handles, 4, &task_l2tap_listen_incoming);
-    return;
-err:
-    if (eth_tap_fd_p1 != -1) {
-        close(eth_tap_fd_p1);
-    }
-    if (eth_tap_fd_p2 != -1) {
-        close(eth_tap_fd_p2);
-    }
-    if (eth_tap_fd_ph != -1) {
-        close(eth_tap_fd_ph);
-    }
-    // delete tasks
-    vTaskDelete(task_l2tap_transmit_test_msgs);
-    vTaskDelete(task_l2tap_listen_incoming);
-}
-
 void app_main(void)
 {
     ESP_LOGW(TAG, "Simple Switch mode Example...\n");
@@ -375,7 +334,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, &host_eth_handle));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
-    // Sync semaphore is needed since main task local variables are used during initialization in other tasks
+    // We need to wait for IP to be obtained because starting l2tap tasks may impede normal function of DHCP client
     ip_obtained = xSemaphoreCreateBinary();
     assert(ip_obtained);
 

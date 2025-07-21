@@ -35,8 +35,8 @@ def prepare_vms_and_ksz8863():
     endnode.connect(IP_ADDRESS_ENDNODE, SSH_VM_USERNAME, SSH_VM_PASSWORD)
     switch.connect(IP_ADDRESS_SWITCH, SSH_SW_USERNAME, SSH_SW_PASSWORD)
     # Upload test script to the VMs
-    runner.put('../../vm_test_app.py', 'vm_test_app.py')
-    endnode.put('../../vm_test_app.py', 'vm_test_app.py')
+    #runner.put('../../vm_test_app.py', 'vm_test_app.py')
+    #endnode.put('../../vm_test_app.py', 'vm_test_app.py')
     # Ensure that ports are brought up on the switch
     switch.bring_port(2, 'up')
     switch.bring_port(3, 'up')
@@ -127,7 +127,7 @@ def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
     dut.write('switch -p 2 set rx 1\n')
 
 
-def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
+def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None: #noqa: C901
     # Wait for ESP32 to initialize
     dut.expect('Ethernet Got IP Address')
 
@@ -136,15 +136,15 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
     endnode_mac = endnode.get_interface_mac_address('enp3s0')
     # Check that broadcasts go through the way we expect them to
     macstatbl_test_conditions: list[dict[str, str | tuple[bool, bool]]] = [
-        # Forwarding rule (Port 3, Port 2, Port 1)     Endnode ESP received data                Runner ESP received data
-        {'forwarding': '000', 'runner_bcast_results': (False, False), 'endnode_bcast_results': (False, False)},
-        {'forwarding': '001', 'runner_bcast_results': (False, False), 'endnode_bcast_results': (True, False)},
-        {'forwarding': '010', 'runner_bcast_results': (True, False), 'endnode_bcast_results': (False, False)},
-        {'forwarding': '011', 'runner_bcast_results': (True, False), 'endnode_bcast_results': (True, False)},
-        {'forwarding': '100', 'runner_bcast_results': (False, True), 'endnode_bcast_results': (False, True)},
-        {'forwarding': '101', 'runner_bcast_results': (False, True), 'endnode_bcast_results': (True, True)},
-        {'forwarding': '110', 'runner_bcast_results': (True, True),   'endnode_bcast_results': (False, True)},
-        {'forwarding': '111', 'runner_bcast_results': (True, True),   'endnode_bcast_results': (True, True)},
+        # Forwarding rule (Port 3, Port 2, Port 1)     Endnode,ESP has received                 Runner,ESP has received              Runner,Endnode has received
+        {'forwarding': '000', 'runner_bcast_results': (False, False), 'endnode_bcast_results': (False, False), 'esp_bcast_results': (False, False)},
+        {'forwarding': '001', 'runner_bcast_results': (False, False), 'endnode_bcast_results': (True, False),  'esp_bcast_results': (True, False)},
+        {'forwarding': '010', 'runner_bcast_results': (True, False),  'endnode_bcast_results': (False, False), 'esp_bcast_results': (False, True)},
+        {'forwarding': '011', 'runner_bcast_results': (True, False),  'endnode_bcast_results': (True, False),  'esp_bcast_results': (True, True)},
+        {'forwarding': '100', 'runner_bcast_results': (False, True),  'endnode_bcast_results': (False, True),  'esp_bcast_results': (False, False)},
+        {'forwarding': '101', 'runner_bcast_results': (False, True),  'endnode_bcast_results': (True, True),   'esp_bcast_results': (True, False)},
+        {'forwarding': '110', 'runner_bcast_results': (True, True),   'endnode_bcast_results': (False, True),  'esp_bcast_results': (False, True)},
+        {'forwarding': '111', 'runner_bcast_results': (True, True),   'endnode_bcast_results': (True, True),   'esp_bcast_results': (True, True)},
     ]
 
     for condition in macstatbl_test_conditions:
@@ -152,12 +152,12 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
         dut.write('\n')
         dut.expect('ksz8863>')
         dut.write(f'switch set macstatbl \"{mac_sta_tbl_entry}\"\n')
-        time.sleep(0.5)
+        time.sleep(1)
         # Perform transmissions
         endnode.execute_async('python3 -u vm_test_app.py rx ""')
         runner.execute_async('python3 -u vm_test_app.py bcast')
         if condition['runner_bcast_results'][1]:    # If step 1 (runner bcast) expects ESP to receive
-            bcast_origin_mac = dut.expect(r'<-- \[Host\]\(from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})\)').group(1).decode()
+            bcast_origin_mac = dut.expect(r'Host has received \d+ bytes from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})').group(1).decode() # noqa: E501
             if bcast_origin_mac != runner_mac:
                 raise RuntimeError('The host has not received a broadcast packet from the runner')
         # Ensure that the endnode has finished listening and that the runner has stopped transmitting
@@ -165,7 +165,7 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
         runner.wait_until_process_finish()
         if condition['runner_bcast_results'][0]:    # If step 1 (runner bcast) expects endnode to receive
             if 'Broadcast' not in endnode_output:
-                raise RuntimeError(f'The endnode has not received a broadcast packet from the runner (current forawrding rule: {condition['forwarding']})')
+                raise RuntimeError(f'The endnode has not received a broadcast packet from the runner (current forwarding rule: {condition['forwarding']})')
 
         dut.write('\n')
         dut.expect('ksz8863>')
@@ -174,7 +174,7 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
         runner.execute_async('python3 -u vm_test_app.py rx ""')
         endnode.execute_async('python3 -u vm_test_app.py bcast')
         if condition['endnode_bcast_results'][1]:   # If step 2 (endnode bcast) expects ESP to receive
-            bcast_origin_mac = dut.expect(r'<-- \[Host\]\(from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})\)').group(1).decode()
+            bcast_origin_mac = dut.expect(r'Host has received \d+ bytes from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})').group(1).decode() # noqa: E501
             if bcast_origin_mac != endnode_mac:
                 raise RuntimeError('The host has not received a broadcast packet from the endnode')
         # Ensure that the runner has finished listening and that the endnode has stopped transmitting
@@ -183,3 +183,13 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None:
         if condition['endnode_bcast_results'][0]:   # If step 2 (endnode bcast) expects the runner to receive
             if 'Broadcast' not in runner_output:
                 raise RuntimeError('The runner has not received a broadcast packet from the endnode')
+
+        # ESP broadcast
+        runner.execute_async('timeout 3 tcpdump -A -i enp3s0')
+        endnode.execute_async('timeout 3 tcpdump -A -i enp3s0')
+        runner_output = runner.wait_until_process_finish()
+        endnode_output = endnode.wait_until_process_finish()
+        if condition['esp_bcast_results'][0] and 'L2.TAP.test.msg' not in runner_output:    # If step 3 (ESP bcast) expects runner to receive
+            raise RuntimeError('The runner has not received a broadcast packet from the ESP')
+        if condition['esp_bcast_results'][1] and 'L2.TAP.test.msg' not in endnode_output:   # If step 3 (ESP bcast) expects runner to receive
+            raise RuntimeError('The runner has not received a broadcast packet from the ESP')

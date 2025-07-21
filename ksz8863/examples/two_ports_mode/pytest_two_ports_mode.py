@@ -47,8 +47,8 @@ def test_ksz8863_two_ports_link(dut: Dut) -> None:
 
 def test_ksz8863_two_ports_test_messages() -> None:
     # Wait until we get an L2 test messages which the example periodically transmits
-    runner_out = runner.execute('tcpdump -A -i enp3s0 -c 3')
-    endnode_out = endnode.execute('tcpdump -A -i enp3s0 -c 3')
+    runner_out = runner.execute('timeout 3 tcpdump -A -i enp3s0')
+    endnode_out = endnode.execute('timeout 3 tcpdump -A -i enp3s0')
     if 'This is ESP32 L2 TAP test msg from Port: 1' not in runner_out:
         raise RuntimeError('Runner did not receive a test message from the device')
     if 'This is ESP32 L2 TAP test msg from Port: 2' not in endnode_out:

@@ -143,7 +143,7 @@ static void transmit_l2test_msgs(void *pvParameters)
         if (ret == -1) {
             ESP_LOGE(TAG, "P2 L2 TAP write error, errno: %i\n", errno);
         }
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 err:
     if (eth_tap_fd_p1 != -1) {
