@@ -42,19 +42,19 @@ static int cmd_switch(int argc, char **argv)
     if (strcmp(action, "set") == 0) {
         // set parameters such as tx/rx status
         if (strcmp(parameter, "rx") == 0) {
-            bool new_value = atoi(s_switch_args.value->sval[0]) == 1;
+            bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
             esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_RX_EN, &new_value);
         } else if (strcmp(parameter, "tx") == 0) {
-            bool new_value = atoi(s_switch_args.value->sval[0]) == 1;
+            bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
             esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_TX_EN, &new_value);
         } else if (strcmp(parameter, "tailtag") == 0) {
-            bool new_value = atoi(s_switch_args.value->sval[0]) == 1;
+            bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
             esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_TAIL_TAG, &new_value);
         } else if (strcmp(parameter, "learning") == 0) {
-            bool new_value = atoi(s_switch_args.value->sval[0]) == 0;
+            bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 0;
             esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_LEARN_DIS, &new_value);
         } else if (strcmp(parameter, "enabled") == 0) {
-            bool new_value = atoi(s_switch_args.value->sval[0]) == 1;
+            bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
             esp_eth_ioctl(host_handle, KSZ8863_ETH_CMD_S_START_SWITCH, &new_value);
         } else if (strcmp(parameter, "macstatbl") == 0) {
             int index;
@@ -150,7 +150,7 @@ static int cmd_switch(int argc, char **argv)
             }
 
         } else if (strcmp(parameter, "macdyntbl") == 0) {
-            int count = atoi(s_switch_args.value->sval[0]);
+            int count = strtol(s_switch_args.value->sval[0], NULL, 10);
             ksz8863_dyn_mac_table_t *dyn_mac_tbls = malloc(count * sizeof(ksz8863_dyn_mac_table_t));
             ksz8863_mac_tbl_info_t get_tbl_info = {
                 .start_entry = 0,  // read from the first entry

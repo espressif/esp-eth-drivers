@@ -35,8 +35,8 @@ def prepare_vms_and_ksz8863():
     endnode.connect(IP_ADDRESS_ENDNODE, SSH_VM_USERNAME, SSH_VM_PASSWORD)
     switch.connect(IP_ADDRESS_SWITCH, SSH_SW_USERNAME, SSH_SW_PASSWORD)
     # Upload test script to the VMs
-    #runner.put('../../vm_test_app.py', 'vm_test_app.py')
-    #endnode.put('../../vm_test_app.py', 'vm_test_app.py')
+    runner.put('../../vm_test_app.py', 'vm_test_app.py')
+    endnode.put('../../vm_test_app.py', 'vm_test_app.py')
     # Ensure that ports are brought up on the switch
     switch.bring_port(2, 'up')
     switch.bring_port(3, 'up')
@@ -126,7 +126,6 @@ def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
     dut.write('switch -p 2 set tx 1\n')
     dut.write('switch -p 2 set rx 1\n')
 
-
 def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None: #noqa: C901
     # Wait for ESP32 to initialize
     dut.expect('Ethernet Got IP Address')
@@ -152,44 +151,38 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None: #noqa: C901
         dut.write('\n')
         dut.expect('ksz8863>')
         dut.write(f'switch set macstatbl \"{mac_sta_tbl_entry}\"\n')
-        time.sleep(1)
-        # Perform transmissions
+        time.sleep(0.5)
+
+        # Runner broadcasting
         endnode.execute_async('python3 -u vm_test_app.py rx ""')
         runner.execute_async('python3 -u vm_test_app.py bcast')
-        if condition['runner_bcast_results'][1]:    # If step 1 (runner bcast) expects ESP to receive
-            bcast_origin_mac = dut.expect(r'Host has received \d+ bytes from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})').group(1).decode() # noqa: E501
-            if bcast_origin_mac != runner_mac:
-                raise RuntimeError('The host has not received a broadcast packet from the runner')
-        # Ensure that the endnode has finished listening and that the runner has stopped transmitting
-        endnode_output = endnode.wait_until_process_finish()
         runner.wait_until_process_finish()
-        if condition['runner_bcast_results'][0]:    # If step 1 (runner bcast) expects endnode to receive
-            if 'Broadcast' not in endnode_output:
-                raise RuntimeError(f'The endnode has not received a broadcast packet from the runner (current forwarding rule: {condition['forwarding']})')
+        endnode_received_from_runner = 'Broadcast' in endnode.wait_until_process_finish()
+        # By Python standard 'and' and 'or' are evaluated lazily
+        # dut.expect will only be evaluated if condition['runner_bcast_results'][1] is True
+        # dut.expect will also terminate the test if it fails
+        esp_received_from_runner = condition['runner_bcast_results'][1] and (dut.expect(rf'Host has received \d+ bytes from {runner_mac}') is not None)
+        rbcast_result = (endnode_received_from_runner, esp_received_from_runner)
+        if rbcast_result != condition['runner_bcast_results']:
+            raise RuntimeError(f'Results of runner broadcast did not match expected. Expected {condition['runner_bcast_results']}, got {rbcast_result}')
 
-        dut.write('\n')
-        dut.expect('ksz8863>')
-
-        # Endnode broadcast
+        # Endnode broadcasting
         runner.execute_async('python3 -u vm_test_app.py rx ""')
         endnode.execute_async('python3 -u vm_test_app.py bcast')
-        if condition['endnode_bcast_results'][1]:   # If step 2 (endnode bcast) expects ESP to receive
-            bcast_origin_mac = dut.expect(r'Host has received \d+ bytes from ([0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2})').group(1).decode() # noqa: E501
-            if bcast_origin_mac != endnode_mac:
-                raise RuntimeError('The host has not received a broadcast packet from the endnode')
-        # Ensure that the runner has finished listening and that the endnode has stopped transmitting
-        runner_output = runner.wait_until_process_finish()
         endnode.wait_until_process_finish()
-        if condition['endnode_bcast_results'][0]:   # If step 2 (endnode bcast) expects the runner to receive
-            if 'Broadcast' not in runner_output:
-                raise RuntimeError('The runner has not received a broadcast packet from the endnode')
+        runner_received_from_endnode = 'Broadcast' in runner.wait_until_process_finish()
+        esp_received_from_endnode = condition['endnode_bcast_results'][1] and (dut.expect(rf'Host has received \d+ bytes from {endnode_mac}') is not None)
+        ebcast_result = (runner_received_from_endnode, esp_received_from_endnode)
+        if ebcast_result != condition['endnode_bcast_results']:
+            raise RuntimeError(f'Results of endnode broadcast did not match expected. Was expecting {condition['endnode_bcast_results']}, got {ebcast_result}')
 
-        # ESP broadcast
-        runner.execute_async('timeout 3 tcpdump -A -i enp3s0')
-        endnode.execute_async('timeout 3 tcpdump -A -i enp3s0')
+        # ESP Broadcasting
+        runner.execute_async('timeout 5 tcpdump -A -i enp3s0')
+        endnode.execute_async('timeout 5 tcpdump -A -i enp3s0')
         runner_output = runner.wait_until_process_finish()
         endnode_output = endnode.wait_until_process_finish()
-        if condition['esp_bcast_results'][0] and 'L2.TAP.test.msg' not in runner_output:    # If step 3 (ESP bcast) expects runner to receive
-            raise RuntimeError('The runner has not received a broadcast packet from the ESP')
-        if condition['esp_bcast_results'][1] and 'L2.TAP.test.msg' not in endnode_output:   # If step 3 (ESP bcast) expects runner to receive
-            raise RuntimeError('The runner has not received a broadcast packet from the ESP')
+        endnode_received_from_esp = 'L2.TAP.test.msg' in endnode_output
+        runner_received_from_esp = 'L2.TAP.test.msg' in runner_output
+        hbcast_result = (runner_received_from_esp, endnode_received_from_esp)
+        if hbcast_result != condition['esp_bcast_results']:
+            raise RuntimeError(f'Results of ESP broadcast did not match expected. Was expecting {condition['esp_bcast_results']}, got {hbcast_result}')

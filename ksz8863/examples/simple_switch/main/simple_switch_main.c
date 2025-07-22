@@ -82,12 +82,14 @@ static void example_l2tap_send_recv(void *pvParameters)
     test_vfs_eth_tap_msg_t *rcvmsg = (test_vfs_eth_tap_msg_t *) rx_buffer;
     while (1) {
         // Read everything we have received in the last two seconds packet by packet
+        int count = 5;
         do {
             if ((len = read(eth_tap_fd_ph_rx, rx_buffer, 128)) > 0) {
                 ESP_LOGI(TAG, "Host has received %d bytes from %02x:%02x:%02x:%02x:%02x:%02x", len, rcvmsg->header.src.addr[0], rcvmsg->header.src.addr[1],
                          rcvmsg->header.src.addr[2], rcvmsg->header.src.addr[3], rcvmsg->header.src.addr[4], rcvmsg->header.src.addr[5]);
             }
-        } while (len > 0);
+            count--;
+        } while (len > 0 && count > 0);
 
         ret = write(eth_tap_fd_ph_tx, &test_msg, sizeof(test_msg));
         if (ret == -1) {
