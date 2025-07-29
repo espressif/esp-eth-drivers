@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        idf_ver: ["latest"]
+        idf_ver: ["release-v5.4", "release-v5.5", "latest"]
         example: ["simple"]
         idf_target: ["esp32"]
     runs-on: ubuntu-24.04

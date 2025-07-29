@@ -1050,9 +1050,11 @@ esp_eth_mac_t *esp_eth_mac_new_lan865x(const eth_lan865x_config_t *lan865x_confi
     emac->parent.read_phy_reg = emac_lan865x_read_phy_reg;
     emac->parent.set_addr = emac_lan865x_set_addr;
     emac->parent.get_addr = emac_lan865x_get_addr;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
     emac->parent.add_mac_filter = emac_lan865x_add_mac_filter;
     emac->parent.rm_mac_filter = emac_lan865x_rm_mac_filter;
     emac->parent.set_all_multicast = emac_lan865x_set_all_multicast;
+#endif
     emac->parent.set_speed = emac_lan865x_set_speed;
     emac->parent.set_duplex = emac_lan865x_set_duplex;
     emac->parent.set_link = emac_lan865x_set_link;
