@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        idf_ver: ["latest"]
+        idf_ver: ["release-v5.4", "release-v5.5", "latest"]
         example: ["ksz8863/examples/simple_switch",
                   "ksz8863/examples/switch_mode",
                   "ksz8863/examples/two_ports_mode",
