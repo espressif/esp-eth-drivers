@@ -1,4 +1,4 @@
-name: Build
+name: Build Dummy PHY Examples
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         idf_ver: ["release-v5.4", "release-v5.5", "latest"]
         example: ["simple"]
@@ -28,4 +29,4 @@ jobs:
           . ${IDF_PATH}/export.sh
           pip install idf-build-apps
           cd $GITHUB_WORKSPACE/esp_eth_drivers/eth_dummy_phy/examples/${{ matrix.example }}
-          idf-build-apps build -p . --target ${{ matrix.idf_target }} --build-dir build_@t_@w --config 'sdkconfig.defaults.*='
+          idf-build-apps build -p . --target ${{ matrix.idf_target }} --build-dir build_@t_@w --config-rules 'sdkconfig.defaults.*=' --check-warnings

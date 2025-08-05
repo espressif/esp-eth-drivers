@@ -1,4 +1,4 @@
-name: Build
+name: Build KSZ8863 Examples
 
 on:
   push:
@@ -9,8 +9,9 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        idf_ver: ["release-v5.4", "release-v5.5", "latest"]
+        idf_ver: ["release-v5.3", "release-v5.4", "release-v5.5", "latest"]
         example: ["ksz8863/examples/simple_switch",
                   "ksz8863/examples/switch_mode",
                   "ksz8863/examples/two_ports_mode",
@@ -30,5 +31,6 @@ jobs:
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
+          pip install idf-build-apps
           cd $GITHUB_WORKSPACE/esp_eth_drivers/${{ matrix.example }}
-          idf.py build
+          idf-build-apps build -p . --target ${{ matrix.idf_target }} --build-dir build_@t_@w --check-warnings
