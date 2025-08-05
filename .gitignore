@@ -85,3 +85,4 @@ docs/html
 
 # clang config (for LSP)
 .clangd
+**/.cache
