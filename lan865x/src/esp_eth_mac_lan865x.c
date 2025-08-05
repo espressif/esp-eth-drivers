@@ -674,6 +674,7 @@ err:
     return ret;
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 static esp_err_t lan865x_hash_filter_modify(emac_lan865x_t *emac, uint8_t *addr, bool add)
 {
     esp_err_t ret = ESP_OK;
@@ -738,6 +739,7 @@ static esp_err_t emac_lan865x_rm_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
     ESP_RETURN_ON_ERROR(lan865x_hash_filter_modify(emac, addr, false), TAG, "modify multicast table failed");
     return ret;
 }
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 
 static esp_err_t emac_lan865x_set_link(esp_eth_mac_t *mac, eth_link_t link)
 {
@@ -802,6 +804,7 @@ err:
     return ret;
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 static esp_err_t emac_lan865x_set_all_multicast(esp_eth_mac_t *mac, bool enable)
 {
     esp_err_t ret = ESP_OK;
@@ -821,6 +824,7 @@ static esp_err_t emac_lan865x_set_all_multicast(esp_eth_mac_t *mac, bool enable)
 err:
     return ret;
 }
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 
 static esp_err_t emac_lan865x_enable_flow_ctrl(esp_eth_mac_t *mac, bool enable)
 {
