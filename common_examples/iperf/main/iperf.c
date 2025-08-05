@@ -13,9 +13,10 @@
 #include "iperf_cmd.h"
 #include "sdkconfig.h"
 
+#if CONFIG_EXAMPLE_ACT_AS_DHCP_SERVER
+
 static const char *TAG = "iperf_example";
 
-#if CONFIG_EXAMPLE_ACT_AS_DHCP_SERVER
 static void start_dhcp_server_after_connection(void *arg, esp_event_base_t base, int32_t id, void *event_data)
 {
     esp_netif_t *eth_netif = esp_netif_next_unsafe(NULL);

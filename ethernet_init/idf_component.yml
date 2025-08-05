@@ -7,7 +7,7 @@ dependencies:
       - if: target in [esp32, esp32p4]
     override_path: ../lan867x/
   espressif/lan865x:
-    version: '*'
+    version: '^0.1.1'
     override_path: ../lan865x/
   espressif/ch390:
     version: '*'

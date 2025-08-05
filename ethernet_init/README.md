@@ -10,12 +10,14 @@ Supported devices are:
 * LAN87xx
 * DP83848
 * KSZ80xx
+* LAN867x (10BASE-T1S)
 * SPI Ethernet:
-    * DM9051 Module
-    * KSZ8851SNL Module
-    * W5500 Module
-    * ENC28J60 Module
-    * CH390 Module
+    * DM9051 MAC-PHY Module
+    * KSZ8851SNL MAC-PHY Module
+    * W5500 MAC-PHY Module
+    * ENC28J60 MAC-PHY Module
+    * CH390 MAC-PHY Module
+    * LAN865x MAC-PHY Module (10BASE-T1S)
 
 > ⚠️ **Warning**: When selecting `Generic 802.3 PHY`, basic functionality should always work for PHY compliant with IEEE 802.3. However, some specific features might be limited. A typical example is loopback functionality, where certain PHYs may require setting a specific speed mode to operate correctly.
 
