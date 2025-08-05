@@ -26,11 +26,11 @@
 #if CONFIG_ETHERNET_SPI_USE_CH390
 #include "esp_eth_mac_ch390.h"
 #include "esp_eth_phy_ch390.h"
-#endif // CONFIG_ETHERNET_USE_CH390
+#endif // CONFIG_ETHERNET_SPI_USE_CH390
 
 #if CONFIG_ETHERNET_SPI_USE_ENC28J60
 #include "esp_eth_enc28j60.h"
-#endif // CONFIG_ETHERNET_USE_ENC28J60
+#endif // CONFIG_ETHERNET_SPI_USE_ENC28J60
 
 #if CONFIG_ETHERNET_SPI_USE_LAN865X
 #include "esp_eth_mac_lan865x.h"
