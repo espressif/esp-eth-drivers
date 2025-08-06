@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.8...ksz8863@v0.2.9) (2025-08-06)
+
+
+### Bug Fixes
+
+* **ksz8863:** fixed previous corrupted component upload ([972933c](https://github.com/espressif/esp-eth-drivers/commit/972933c0c907415fef26d3a1e5cda321b62834f7))
+
 ## [0.2.8](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.7...ksz8863@v0.2.8) (2025-05-28)
 
 
