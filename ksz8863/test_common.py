@@ -107,31 +107,24 @@ class SwitchSSH(RemoteMachineSSH):
 
 class HelperFunctionsClass:
     # Methods
-    def PerformTransmissionTest(self, runner, endnode):    # noqa: N802
+    def PerformTransmissionTest(self, runner, endnode): #noqa: N802
         endnode_ip = endnode.get_interface_ip('enp3s0')
         runner_ip = runner.get_interface_ip('enp3s0')
         # Attempt runner to endnode transmission
-        endnode.execute_async(f"python3 -u vm_test_app.py rx {endnode_ip}")
-        runner.execute(f"python3 -u vm_test_app.py tx {endnode_ip}")
+        endnode.execute_async('timeout 5 socat - udp-listen:12345')
+        runner.execute(f'for i in {{1..5}}; do echo "Transmission"; sleep 0.75; done | socat - udp:{endnode_ip}:12345,sp=12345')
         endnode_output = endnode.wait_until_process_finish()
         r2e_success = 'Transmission' in endnode_output
-        # Attempt endnode to runner transmission
-        runner.execute_async(f'python3 -u vm_test_app.py rx {runner_ip}')
-        endnode.execute(f'python3 -u vm_test_app.py tx {runner_ip}')
+
+        runner.execute_async('timeout 5 socat - udp-listen:12345')
+        endnode.execute(f'for i in {{1..5}}; do echo "Transmission"; sleep 0.75; done | socat - udp:{runner_ip}:12345,sp=12345')
         runner_output = runner.wait_until_process_finish()
         e2r_success = 'Transmission' in runner_output
 
-        #endnode.execute_async('timeout 5 nc -ul 54321 -w0')
-        #runner.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321')
-        #endnode_output = endnode.wait_until_process_finish()
-        #r2e_success = 'Transmission' in endnode_output
-
-        #runner.execute_async('timeout 5 nc -ul 54321 -w0')
-        #endnode.execute(f'yes "Transmission" | head -n 5 | cat - <(echo -ne "\\x03") | nc -q 0 -i 1 -w 5 -u {runner_ip} 54321')
-        #runner_output = runner.wait_until_process_finish()
-        #e2r_success = 'Transmission' in runner_output
-
         return (r2e_success, e2r_success)
+
+    def PerformBroadcastAsync(self, vm): #noqa: N802
+        vm.execute_async('for i in {1..5}; do echo "Broadcast"; sleep 0.75; done | socat - udp-datagram:120.140.1.255:12345,broadcast,sp=12345')
 
     def __init__(self):
         pass
