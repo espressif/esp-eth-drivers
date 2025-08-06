@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v0.6.0...ethernet_init@v0.6.1) (2025-08-06)
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed lan865x build issues on older IDFs ([8334c3e](https://github.com/espressif/esp-eth-drivers/commit/8334c3e9cc87618ddc49d0f6c00ef20f7e945ce9))
+
 ## [0.6.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v0.5.0...ethernet_init@v0.6.0) (2025-07-18)
 
 
