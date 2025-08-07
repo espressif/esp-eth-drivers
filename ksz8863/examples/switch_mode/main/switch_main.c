@@ -30,8 +30,14 @@
 #include "errno.h"
 #include "arpa/inet.h" // for ntohs, etc.
 
+#include "lwip/sockets.h"
+
 #include "esp_eth_ksz8863.h"
 #include "esp_eth_netif_glue_ksz8863.h"
+
+#include "argtable3/argtable3.h"
+#include "esp_console.h"
+#include "ksz8863_cmd.h"
 
 typedef struct {
     struct eth_hdr header;
@@ -42,44 +48,76 @@ typedef struct {
 } test_vfs_eth_tap_msg_t;
 
 static const char *TAG = "switch_example";
-static SemaphoreHandle_t init_done;
+static SemaphoreHandle_t ip_obtained;
 
-static void print_dyn_mac(void *pvParameters)
+static void transmit_l2test_msg(void *pvParameters)
 {
-    esp_eth_handle_t port_eth_handle = (esp_eth_handle_t) pvParameters;
-    ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
-    ksz8863_mac_tbl_info_t get_tbl_info = {
-        .start_entry = 0,  // read from the first entry
-        .etries_num = 5,   // read 5 entries
-        .dyn_tbls = dyn_mac_tbls,
+    int ret;
+    int eth_tap_fd_ph = ((int *) pvParameters)[0];
+    int eth_tap_fd_p1 = ((int *) pvParameters)[1];
+    int eth_tap_fd_p2 = ((int *) pvParameters)[2];
+
+    uint16_t eth_type_filter = 0x7000;
+
+    esp_eth_handle_t host_eth_handle = esp_netif_get_io_driver(esp_netif_get_handle_from_ifkey("ETH_DEF"));
+
+    test_vfs_eth_tap_msg_t test_msg_ph = {
+        .header = {
+            .src.addr = {0},
+            .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
+            .type = ntohs(eth_type_filter),
+        },
+        .str = "This is ESP32 L2 TAP test msg"
+    };
+    test_vfs_eth_tap_msg_t test_msg_p1 = {
+        .header = {
+            .src.addr = {0},
+            .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
+            .type = ntohs(eth_type_filter),
+        },
+        .str = "This is ESP32 L2 TAP test msg for Port 1"
+    };
+    test_vfs_eth_tap_msg_t test_msg_p2 = {
+        .header = {
+            .src.addr = {0},
+            .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
+            .type = ntohs(eth_type_filter),
+        },
+        .str = "This is ESP32 L2 TAP test msg for Port 2"
     };
 
-    xSemaphoreGive(init_done);
+    // Set source MAC address in test message
+    esp_eth_ioctl(host_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg_ph.header.src.addr);
+    esp_eth_ioctl(host_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg_p1.header.src.addr);
+    esp_eth_ioctl(host_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg_p2.header.src.addr);
 
     while (1) {
-        esp_eth_ioctl(port_eth_handle, KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
-        ESP_LOGI(TAG, "Dynamic MAC Table content:");
-        ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
-        for (int i = 0; i < (dyn_mac_tbls[0].val_entries + 1) && i < 5; i++) {
-            ESP_LOGI(TAG, "port %" PRIu8, dyn_mac_tbls[i].src_port + 1);
-            ESP_LOG_BUFFER_HEX(TAG, dyn_mac_tbls[i].mac_addr, 6);
+        ret = write(eth_tap_fd_ph, &test_msg_ph, sizeof(test_msg_ph));
+        if (ret == -1) {
+            ESP_LOGE(TAG, "L2 TAP (P3) write error, errno: %i\n", errno);
         }
-        printf("\n");
-        vTaskDelay(pdMS_TO_TICKS(5000));
+
+        ret = write(eth_tap_fd_p1, &test_msg_p1, sizeof(test_msg_p1));
+        if (ret == -1) {
+            ESP_LOGE(TAG, "L2 TAP (P1) write error, errno: %i\n", errno);
+        }
+
+        ret = write(eth_tap_fd_p2, &test_msg_p2, sizeof(test_msg_p2));
+        if (ret == -1) {
+            ESP_LOGE(TAG, "L2 TAP (P2) write error, errno: %i\n", errno);
+        }
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
-static void transmit_l2test_msgs(void *pvParameters)
+static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_handle_t p1_eth_handle, esp_eth_handle_t p2_eth_handle)
 {
-    esp_eth_handle_t *port_eth_handles = (esp_eth_handle_t *)pvParameters;
-    esp_eth_handle_t p1_eth_handle = port_eth_handles[0];
-    esp_eth_handle_t p2_eth_handle = port_eth_handles[1];
     int ret;
     int eth_tap_fd_p1 = -1;
     int eth_tap_fd_p2 = -1;
+    int eth_tap_fd_ph = -1;
 
     esp_vfs_l2tap_intf_register(NULL);
-
     eth_tap_fd_p1 = open("/dev/net/tap", O_NONBLOCK);
     if (eth_tap_fd_p1 < 0) {
         ESP_LOGE(TAG, "Unable to open P1 L2 TAP interface: errno %i", errno);
@@ -90,10 +128,18 @@ static void transmit_l2test_msgs(void *pvParameters)
         ESP_LOGE(TAG, "Unable to open P2 L2 TAP interface: errno %i", errno);
         goto err;
     }
-
+    eth_tap_fd_ph = open("/dev/net/tap", O_NONBLOCK);
+    if (eth_tap_fd_ph < 0) {
+        ESP_LOGE(TAG, "Unable to open HOST L2 TAP interface: errno %i", errno);
+        goto err;
+    }
     // Set Ethernet interface on which to get raw frames
     // Notice the difference to "Two ports mode example", the L2 TAP needs to be bounded to Ethernet interface directly using
     // `L2TAP_S_DEVICE_DRV_HNDL` since there is not ESP-NETIF associated with this Ethernet interface
+    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_DEVICE_DRV_HNDL, ph_eth_handle)) == -1) {
+        ESP_LOGE(TAG, "Unable to bound PH L2 TAP with Ethernet device: errno %i", errno);
+        goto err;
+    }
     if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_DEVICE_DRV_HNDL, p1_eth_handle)) == -1) {
         ESP_LOGE(TAG, "Unable to bound P1 L2 TAP with Ethernet device: errno %i", errno);
         goto err;
@@ -102,56 +148,10 @@ static void transmit_l2test_msgs(void *pvParameters)
         ESP_LOGE(TAG, "Unable to bound P2 L2 TAP with Ethernet device: errno %i", errno);
         goto err;
     }
-
-    uint16_t eth_type_filter = 0x7000;
-    if ((ret = ioctl(eth_tap_fd_p1, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P1 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-    if ((ret = ioctl(eth_tap_fd_p2, L2TAP_S_RCV_FILTER, &eth_type_filter)) == -1) {
-        ESP_LOGE(TAG, "Unable to configure P2 L2 TAP Ethernet type receive filter: errno %i", errno);
-        goto err;
-    }
-
-    test_vfs_eth_tap_msg_t test_msg_p1 = {
-        .header = {
-            .src.addr = {0},
-            .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
-            .type = ntohs(eth_type_filter),
-        },
-        .str = "This is ESP32 L2 TAP test msg from Port: 1"
-    };
-
-    test_vfs_eth_tap_msg_t test_msg_p2 = {
-        .header = {
-            .src.addr = {0},
-            .dest.addr = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, // broadcast
-            .type = ntohs(eth_type_filter),
-        },
-        .str = "This is ESP32 L2 TAP test msg from Port: 2"
-    };
-
-    // Set source MAC address in test message
-    if ((ret = esp_eth_ioctl(p1_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg_p1.header.src.addr)) == -1) {
-        ESP_LOGE(TAG, "get P1 MAC addr error");
-    }
-    if ((ret = esp_eth_ioctl(p2_eth_handle, ETH_CMD_G_MAC_ADDR, test_msg_p2.header.src.addr)) == -1) {
-        ESP_LOGE(TAG, "get P2 MAC addr error");
-    }
-
-    xSemaphoreGive(init_done);
-
-    while (1) {
-        ret = write(eth_tap_fd_p1, &test_msg_p1, sizeof(test_msg_p1));
-        if (ret == -1) {
-            ESP_LOGE(TAG, "P1 L2 TAP write error, errno: %i\n", errno);
-        }
-        ret = write(eth_tap_fd_p2, &test_msg_p2, sizeof(test_msg_p2));
-        if (ret == -1) {
-            ESP_LOGE(TAG, "P2 L2 TAP write error, errno: %i\n", errno);
-        }
-        vTaskDelay(pdMS_TO_TICKS(2000));
-    }
+    // start tasks
+    int l2tap_handles[3] = {eth_tap_fd_ph, eth_tap_fd_p1, eth_tap_fd_p2};
+    xTaskCreate(transmit_l2test_msg, "transmit_l2test_msg", 8192, (void *) l2tap_handles, 4, NULL);
+    return;
 err:
     if (eth_tap_fd_p1 != -1) {
         close(eth_tap_fd_p1);
@@ -159,7 +159,10 @@ err:
     if (eth_tap_fd_p2 != -1) {
         close(eth_tap_fd_p2);
     }
-    vTaskDelete(NULL);
+    if (eth_tap_fd_ph != -1) {
+        close(eth_tap_fd_ph);
+    }
+    // delete tasks
 }
 
 /** Event handler for Ethernet events */
@@ -218,6 +221,8 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
+
+    xSemaphoreGive(ip_obtained);
 }
 
 // board specific initialization routine, user to update per specific needs
@@ -348,8 +353,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, ETH_CMD_S_MAC_ADDR, host_mac_addr));
     ESP_ERROR_CHECK(esp_eth_ioctl(p2_eth_handle, ETH_CMD_S_MAC_ADDR, host_mac_addr));
 
-    bool enable = true;
     // Tail Tagging needs to be enabled of course
+    bool enable = true;
     ESP_ERROR_CHECK(esp_eth_ioctl(p1_eth_handle, KSZ8863_ETH_CMD_S_TAIL_TAG, &enable));
 
     // Create new default instance of esp-netif which is associated with IP stack
@@ -371,17 +376,23 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
 
-    // Sync semaphore is needed since main task local variables are used during initialization in other tasks
-    init_done = xSemaphoreCreateBinary();
-    assert(init_done);
+    // We need to wait for IP to be obtained because starting l2tap tasks may impede normal function of DHCP client
+    ip_obtained = xSemaphoreCreateBinary();
+    assert(ip_obtained);
 
-    // Periodically print content of Dynamic MAC table
-    xTaskCreate(print_dyn_mac, "print_dyn_mac", 4096, p1_eth_handle, 5, NULL);
-    xSemaphoreTake(init_done, portMAX_DELAY);
-    // Periodically send L2 test messages at each port
-    esp_eth_handle_t port_eth_handles[2] = { p1_eth_handle, p2_eth_handle };
-    xTaskCreate(transmit_l2test_msgs, "tx_test_msgs", 4096, port_eth_handles, 4, NULL);
-    xSemaphoreTake(init_done, portMAX_DELAY);
+    // Start l2tap test message transmitter task and l2tap listener task
+    xSemaphoreTake(ip_obtained, portMAX_DELAY);
+    start_l2tap_related_tasks(host_eth_handle, p1_eth_handle, p2_eth_handle);
+    vSemaphoreDelete(ip_obtained);
 
-    vSemaphoreDelete(init_done);
+    // install console REPL environment
+    esp_console_repl_t *repl = NULL;
+    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+    repl_config.prompt = "ksz8863>";
+    esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
+    register_ksz8863_config_commands(host_eth_handle, p1_eth_handle, p2_eth_handle);
+    // start console REPL
+    ESP_ERROR_CHECK(esp_console_start_repl(repl));
+
 }
