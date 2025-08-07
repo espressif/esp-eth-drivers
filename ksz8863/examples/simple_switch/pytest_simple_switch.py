@@ -75,19 +75,49 @@ def test_ksz8863_simple_switch_link(dut: Dut) -> None:
 
     # Bring Endnode and Runner interfaces down and back up
     switch.bring_port(3, 'down')
-    dut.expect(r'Ethernet Link Down Port (\\d)')
+    dut.expect(r'Ethernet Link Down Port ([0-9])')
     switch.bring_port(2, 'down')
-    dut.expect(r'Ethernet Link Down Port (\\d)')
-
-    ports_down_transmission_test = HelperFunctions.PerformTransmissionTest(runner, endnode)
+    dut.expect(r'Ethernet Link Down Port ([0-9])')
 
     switch.bring_port(3, 'up')
-    dut.expect(r'Ethernet Link Up Port (\\d)')
+    dut.expect(r'Ethernet Link Up Port ([0-9])')
     switch.bring_port(2, 'up')
-    dut.expect(r'Ethernet Link Up Port (\\d)')
+    dut.expect(r'Ethernet Link Up Port ([0-9])')
 
-    if ports_down_transmission_test != (False, False):
-        raise RuntimeError('Some data came through even though both ports were supposed to be down')
+    # Check that when we pull switch ports up or down the transmissions get received as expected
+    link_test_conditions: list = [
+        {'switch_link_ports': {'port 2': 'down', 'port 3': 'down'}, 'runner_should_receive': False, 'endnode_should_receive': False},
+        {'switch_link_ports': {'port 2': 'up', 'port 3': 'down'},   'runner_should_receive': True, 'endnode_should_receive': False},
+        {'switch_link_ports': {'port 2': 'down', 'port 3': 'up'},   'runner_should_receive': False, 'endnode_should_receive': True},
+        {'switch_link_ports': {'port 2': 'up', 'port 3': 'up'},     'runner_should_receive': True, 'endnode_should_receive': True},
+    ]
+    for condition in link_test_conditions:
+        switch.bring_port(2, condition['switch_link_ports']['port 2'])
+        switch.bring_port(3, condition['switch_link_ports']['port 3'])
+
+        runner_out = runner.execute('timeout 5 tcpdump -A -i enp3s0')
+        if condition['runner_should_receive'] and 'This is ESP32 L2 TAP test msg' not in runner_out:
+            switch.bring_port(2, 'up')
+            switch.bring_port(3, 'up')
+            raise RuntimeError('Runner should have received a test message, but did not.' +
+                               f'Switch port 2 is {condition['switch_link_ports']['port 2']}, port 3 is {condition['switch_link_ports']['port 3']}')
+        elif not condition['runner_should_receive'] and 'This is ESP32 L2 TAP test msg' in runner_out:
+            switch.bring_port(2, 'up')
+            switch.bring_port(3, 'up')
+            raise RuntimeError('Runner should not have received a test message, but did.' +
+                               f'Switch port 2 is {condition['switch_link_ports']['port 2']}, port 3 is {condition['switch_link_ports']['port 3']}')
+
+        endnode_out = runner.execute('timeout 5 tcpdump -A -i enp3s0')
+        if condition['runner_should_receive'] and 'This is ESP32 L2 TAP test msg' not in endnode_out:
+            switch.bring_port(2, 'up')
+            switch.bring_port(3, 'up')
+            raise RuntimeError('Endnode should have received a test message, but did not.' +
+                               f'Switch port 2 is {condition['switch_link_ports']['port 2']}, port 3 is {condition['switch_link_ports']['port 3']}')
+        elif not condition['runner_should_receive'] and 'This is ESP32 L2 TAP test msg' in endnode_out:
+            switch.bring_port(2, 'up')
+            switch.bring_port(3, 'up')
+            raise RuntimeError('Endnode should not have received a test message, but did.' +
+                               f'Switch port 2 is {condition['switch_link_ports']['port 2']}, port 3 is {condition['switch_link_ports']['port 3']}')
 
 @pytest.mark.flaky(reruns=3, reruns_delay=5)
 def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
@@ -112,7 +142,7 @@ def test_ksz8863_simple_switch_txrx(dut: Dut) -> None:
         dut.write(f'switch -p 2 set tx {'1' if condition['port2']['tx_en'] else '0'}\n')
         dut.write(f'switch -p 2 set rx {'1' if condition['port2']['rx_en'] else '0'}\n')
 
-        result = HelperFunctions.PerformTransmissionTest(runner, endnode)
+        result = HelperFunctions.perform_transmission_test(runner, endnode)
         if result != condition['expected_result']:
             raise RuntimeError(f'The resulting Success/Failure pattern {result} did not match the expected {condition['expected_result']}')
     # Enable RX and TX back on
@@ -150,7 +180,7 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None: #noqa: C901
 
         # Runner broadcasting
         endnode.execute_async('timeout 5 socat - udp-recvfrom:12345,broadcast,fork')
-        HelperFunctions.PerformBroadcastAsync(runner)
+        HelperFunctions.perform_broadcast_async(runner)
         runner.wait_until_process_finish()
         endnode_received_from_runner = 'Broadcast' in endnode.wait_until_process_finish()
         # By Python standard 'and' and 'or' are evaluated lazily
@@ -163,7 +193,7 @@ def test_ksz8863_simple_switch_macstatbl(dut: Dut) -> None: #noqa: C901
 
         # Endnode broadcasting
         runner.execute_async('timeout 5 socat - udp-recvfrom:12345,broadcast,fork')
-        HelperFunctions.PerformBroadcastAsync(endnode)
+        HelperFunctions.perform_broadcast_async(endnode)
         endnode.wait_until_process_finish()
         runner_received_from_endnode = 'Broadcast' in runner.wait_until_process_finish()
         esp_received_from_endnode = condition['endnode_bcast_results'][1] and (dut.expect(rf'Host has received \d+ bytes from {endnode_mac}') is not None)

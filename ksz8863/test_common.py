@@ -107,7 +107,7 @@ class SwitchSSH(RemoteMachineSSH):
 
 class HelperFunctionsClass:
     # Methods
-    def PerformTransmissionTest(self, runner, endnode): #noqa: N802
+    def perform_transmission_test(self, runner, endnode):
         endnode_ip = endnode.get_interface_ip('enp3s0')
         runner_ip = runner.get_interface_ip('enp3s0')
         # Attempt runner to endnode transmission
@@ -123,7 +123,7 @@ class HelperFunctionsClass:
 
         return (r2e_success, e2r_success)
 
-    def PerformBroadcastAsync(self, vm): #noqa: N802
+    def perform_broadcast_async(self, vm):
         vm.execute_async('for i in {1..5}; do echo "Broadcast"; sleep 0.75; done | socat - udp-datagram:120.140.1.255:12345,broadcast,sp=12345')
 
     def __init__(self):

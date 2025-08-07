@@ -47,16 +47,6 @@ typedef struct {
     };
 } test_vfs_eth_tap_msg_t;
 
-typedef struct {
-    struct arg_rex *action;
-    struct arg_lit *is_udp;
-    struct arg_str *target;
-    struct arg_int *port;
-    struct arg_str *payload;
-    struct arg_end *end;
-} hosteth_args_t;
-static hosteth_args_t s_hosteth_args;
-
 static const char *TAG = "switch_example";
 static SemaphoreHandle_t ip_obtained;
 

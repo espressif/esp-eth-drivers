@@ -34,10 +34,9 @@ static int cmd_switch(int argc, char **argv)
         return 1;
     }
 
-    int port = s_switch_args.port->ival[0];
-    char *action = s_switch_args.action->sval[0];
-    char *parameter = s_switch_args.parameter->sval[0];
-    char *value = s_switch_args.value->sval[0];
+    const int port = s_switch_args.port->ival[0];
+    const char *action = s_switch_args.action->sval[0];
+    const char *parameter = s_switch_args.parameter->sval[0];
 
     if (strcmp(action, "set") == 0) {
         // set parameters such as tx/rx status
