@@ -15,8 +15,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync approved PRs to internal codebase
-        uses: espressif/sync-pr-to-gitlab@v1
+      - name: Checkout sync-pr-to-gitlab action code
+        uses: actions/checkout@v4
+        with:
+          repository: kostaond/sync-pr-to-gitlab
+          ref: feat/more_generic_beh
+          path: .github/actions/sync-pr-to-gitlab
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install action dependencies (if any)
+        run: |
+          cd .github/actions/sync-pr-to-gitlab
+          if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
+          cd -
+
+      - name: Sync approved PRs to internal codebase (with repo override)
+        run: |
+          python3 .github/actions/sync-pr-to-gitlab/sync_pr_to_gitlab/github_pr_to_internal_pr.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLAB_URL: ${{ secrets.GITLAB_URL }}
