@@ -1,3 +1,5 @@
+# FILE: .github/workflows/pr_approved.yml
+
 name: Sync approved PRs to internal codebase
 on:
   pull_request_target:
@@ -12,8 +14,9 @@ jobs:
         (github.event.label.name == 'PR-Sync-Update')
     steps:
       - uses: actions/checkout@v4
+
       - name: Sync approved PRs to internal codebase
-        uses: espressif/github-actions/github_pr_to_internal_pr@master
+        uses: espressif/sync-pr-to-gitlab@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLAB_URL: ${{ secrets.GITLAB_URL }}
@@ -21,3 +24,4 @@ jobs:
           GIT_CONFIG_NAME: ${{ secrets.GIT_CONFIG_NAME }}
           GIT_CONFIG_EMAIL: ${{ secrets.GIT_CONFIG_EMAIL }}
           JIRA_PROJECT: IDFGH
+          GITLAB_NAMESPACE: ondrej.kosta
