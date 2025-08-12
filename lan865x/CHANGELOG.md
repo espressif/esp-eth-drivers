@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.1...lan865x@v0.1.2) (2025-08-12)
+
+
+### Bug Fixes
+
+* **lan865x:** fixed warning caused by 'MAC filter add/rm' on older IDFs ([d051f41](https://github.com/espressif/esp-eth-drivers/commit/d051f411c0e252883a834af78a34346d3567858f))
+
 ## [0.1.1](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.0...lan865x@v0.1.1) (2025-08-04)
 
 
