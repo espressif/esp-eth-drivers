@@ -23,8 +23,8 @@ typedef struct {
 } switch_args_t;
 
 static switch_args_t s_switch_args;
-static esp_eth_handle_t host_handle;
-static esp_eth_handle_t port_handles[2] = {NULL, NULL};
+static esp_eth_handle_t s_host_handle;
+static esp_eth_handle_t s_port_handles[2] = {NULL, NULL};
 
 static int cmd_switch(int argc, char **argv)
 {
@@ -38,23 +38,28 @@ static int cmd_switch(int argc, char **argv)
     const char *action = s_switch_args.action->sval[0];
     const char *parameter = s_switch_args.parameter->sval[0];
 
+    if (port >= 1 && port <= 2) {
+        fprintf(stderr, "Error: Unexpected value of --port: %d. Expected either 1 or 2.\n", port);
+        return -1;
+    }
+
     if (strcmp(action, "set") == 0) {
         // set parameters such as tx/rx status
         if (strcmp(parameter, "rx") == 0) {
             bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_RX_EN, &new_value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_S_RX_EN, &new_value);
         } else if (strcmp(parameter, "tx") == 0) {
             bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_TX_EN, &new_value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_S_TX_EN, &new_value);
         } else if (strcmp(parameter, "tailtag") == 0) {
             bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_TAIL_TAG, &new_value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_S_TAIL_TAG, &new_value);
         } else if (strcmp(parameter, "learning") == 0) {
             bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 0;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_S_LEARN_DIS, &new_value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_S_LEARN_DIS, &new_value);
         } else if (strcmp(parameter, "enabled") == 0) {
             bool new_value = strtol(s_switch_args.value->sval[0], NULL, 10) == 1;
-            esp_eth_ioctl(host_handle, KSZ8863_ETH_CMD_S_START_SWITCH, &new_value);
+            esp_eth_ioctl(s_host_handle, KSZ8863_ETH_CMD_S_START_SWITCH, &new_value);
         } else if (strcmp(parameter, "macstatbl") == 0) {
             int index;
             uint8_t mac[ETH_ADDR_LEN];
@@ -94,12 +99,12 @@ static int cmd_switch(int argc, char **argv)
                 .entries_num = 1,   // write only one entry
                 .sta_tbls = &sta_mac_tbl,
             };
-            esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_S_MAC_STA_TBL, &set_tbl_info);
+            esp_eth_ioctl(s_port_handles[0], KSZ8863_ETH_CMD_S_MAC_STA_TBL, &set_tbl_info);
         }
     } else if (strcmp(action, "reset") == 0) {
         // perform either hard or soft reset of the switch
         if (strcmp(parameter, "soft") == 0) {
-            ksz8863_sw_reset(host_handle);
+            ksz8863_sw_reset(s_host_handle);
         } else if (strcmp(parameter, "hard") == 0) {
             ESP_LOGW(TAG, "WIP feature");
         } else {
@@ -109,23 +114,23 @@ static int cmd_switch(int argc, char **argv)
     } else if (strcmp(action, "show") == 0) {
         if (strcmp(parameter, "rx") == 0) {
             bool value;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_G_RX_EN, &value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_G_RX_EN, &value);
             printf("Port %d rx - %s\n", port, value ? "ON" : "OFF");
         } else if (strcmp(parameter, "tx") == 0) {
             bool value;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_G_TX_EN, &value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_G_TX_EN, &value);
             printf("Port %d tx - %s\n", port, value ? "ON" : "OFF");
         } else if (strcmp(parameter, "tailtag") == 0) {
             bool value;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_G_TAIL_TAG, &value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_G_TAIL_TAG, &value);
             printf("Port %d tail tag - %s\n", port, value ? "ON" : "OFF");
         } else if (strcmp(parameter, "learning") == 0) {
             bool value;
-            esp_eth_ioctl(port_handles[port - 1], KSZ8863_ETH_CMD_G_LEARN_DIS, &value);
+            esp_eth_ioctl(s_port_handles[port - 1], KSZ8863_ETH_CMD_G_LEARN_DIS, &value);
             printf("Port %d learning - %s\n", port, !value ? "ON" : "OFF");
         } else if (strcmp(parameter, "enabled") == 0) {
             bool value;
-            esp_eth_ioctl(host_handle, KSZ8863_ETH_CMD_G_START_SWITCH, &value);
+            esp_eth_ioctl(s_host_handle, KSZ8863_ETH_CMD_G_START_SWITCH, &value);
             printf("Port %d is %s\n", port, value ? "enabled" : "disabled");
         } else if (strcmp(parameter, "macstatbl") == 0) {
             ksz8863_sta_mac_table_t sta_mac_tbls[8];
@@ -134,7 +139,7 @@ static int cmd_switch(int argc, char **argv)
                 .entries_num = 8,   // read all 8 entries
                 .sta_tbls = sta_mac_tbls,
             };
-            esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_G_MAC_STA_TBL, &get_tbl_info);
+            esp_eth_ioctl(s_port_handles[0], KSZ8863_ETH_CMD_G_MAC_STA_TBL, &get_tbl_info);
             ESP_LOGI(TAG, "Static MAC Table content:");
             for (int i = 0; i < 8; i++) {
                 ESP_LOGI(TAG, "%d: %02x:%02x:%02x:%02x:%02x:%02x %c%c%c %c%c%c FID: %d", i + 1,   sta_mac_tbls[i].mac_addr[0],
@@ -160,7 +165,7 @@ static int cmd_switch(int argc, char **argv)
                 .entries_num = count,   // read the entries
                 .dyn_tbls = dyn_mac_tbls,
             };
-            esp_eth_ioctl(port_handles[0], KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
+            esp_eth_ioctl(s_port_handles[0], KSZ8863_ETH_CMD_G_MAC_DYN_TBL, &get_tbl_info);
             ESP_LOGI(TAG, "Dynamic MAC Table content:");
             ESP_LOGI(TAG, "valid entries %" PRIu16, dyn_mac_tbls[0].val_entries + 1);
             int entries_to_display = dyn_mac_tbls[0].val_entries > count ? count : dyn_mac_tbls[0].val_entries + 1;
@@ -183,9 +188,9 @@ static int cmd_switch(int argc, char **argv)
 
 void register_ksz8863_config_commands(esp_eth_handle_t h_handle, esp_eth_handle_t p1_handle, esp_eth_handle_t p2_handle)
 {
-    host_handle = h_handle;
-    port_handles[0] = p1_handle;
-    port_handles[1] = p2_handle;
+    s_host_handle = h_handle;
+    s_port_handles[0] = p1_handle;
+    s_port_handles[1] = p2_handle;
 
     s_switch_args.port = arg_int0("p", "port", "<int 1-2>", "Port for which the parameter will be set");
     s_switch_args.action = arg_rex1(NULL, NULL, "(reset|set|show)", "<str>", 0, "reset/set show");

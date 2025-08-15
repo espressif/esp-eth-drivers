@@ -48,7 +48,6 @@ typedef struct {
 } test_vfs_eth_tap_msg_t;
 
 static const char *TAG = "switch_example";
-static SemaphoreHandle_t ip_obtained;
 
 static void transmit_l2test_msg(void *pvParameters)
 {
@@ -134,7 +133,6 @@ err:
     if (eth_tap_fd_p2 != -1) {
         close(eth_tap_fd_p2);
     }
-    // delete tasks
 }
 
 /** Event handler for Ethernet events */
@@ -193,8 +191,6 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
-
-    xSemaphoreGive(ip_obtained);
 }
 
 // board specific initialization routine, user to update per specific needs
@@ -348,14 +344,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
 
-    // We need to wait for IP to be obtained because starting l2tap tasks may impede normal function of DHCP client
-    ip_obtained = xSemaphoreCreateBinary();
-    assert(ip_obtained);
-
     // Start l2tap test message transmitter task and l2tap listener task
-    xSemaphoreTake(ip_obtained, portMAX_DELAY);
     start_l2tap_related_tasks(host_eth_handle, p1_eth_handle, p2_eth_handle);
-    vSemaphoreDelete(ip_obtained);
 
     // install console REPL environment
     esp_console_repl_t *repl = NULL;

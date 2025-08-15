@@ -45,12 +45,11 @@ typedef struct {
 } test_vfs_eth_tap_msg_t;
 
 static const char *TAG = "simple_switch_example";
-static SemaphoreHandle_t ip_obtained;
 
 static void example_l2tap_send_recv(void *pvParameters)
 {
     int len, ret;
-    int eth_tap_fd_ph = ((int *) pvParameters)[0];
+    int eth_tap_fd_ph = *((int *) pvParameters);
     esp_eth_handle_t host_eth_handle = esp_netif_get_io_driver(esp_netif_get_handle_from_ifkey("ETH_DEF"));
     uint16_t eth_type_filter = 0x7000;
 
@@ -98,25 +97,22 @@ static void example_l2tap_send_recv(void *pvParameters)
 static void start_l2tap_related_tasks(esp_eth_handle_t ph_eth_handle, esp_eth_handle_t p1_eth_handle, esp_eth_handle_t p2_eth_handle)
 {
     int ret;
-    //int eth_tap_fd_ph_tx = -1;
     int eth_tap_fd_ph = -1;
 
     esp_vfs_l2tap_intf_register(NULL);
 
-    // We need multiple descriptors because we want to use different filters for transmitting and receiving data
     eth_tap_fd_ph = open("/dev/net/tap", O_NONBLOCK);
     if (eth_tap_fd_ph < 0) {
         ESP_LOGE(TAG, "Unable to open L2 TAP interface: errno %i", errno);
         goto err;
     }
 
-    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_DEVICE_DRV_HNDL, ph_eth_handle)) == -1) {
+    if ((ret = ioctl(eth_tap_fd_ph, L2TAP_S_INTF_DEVICE, "ETH_DEF")) == -1) {
         ESP_LOGE(TAG, "Unable to bind Host ethernet device to the l2tap file descriptor: errno %i", errno);
         goto err;
     }
     // start the task
-    int eth_tap_fds[2] = {eth_tap_fd_ph};
-    xTaskCreate(example_l2tap_send_recv, "transmit_l2test_msg", 8192, eth_tap_fds, 4, NULL);
+    xTaskCreate(example_l2tap_send_recv, "transmit_l2test_msg", 8192, &eth_tap_fd_ph, 4, NULL);
     return;
 err:
     if (eth_tap_fd_ph != -1) {
@@ -180,8 +176,6 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
-
-    xSemaphoreGive(ip_obtained);
 }
 
 // board specific initialization routine, user to update per specific needs
@@ -316,19 +310,13 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, &host_eth_handle));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
-    // We need to wait for IP to be obtained because starting l2tap tasks may impede normal function of DHCP client
-    ip_obtained = xSemaphoreCreateBinary();
-    assert(ip_obtained);
-
     // start Ethernet driver state machines
     ESP_ERROR_CHECK(esp_eth_start(host_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p1_eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(p2_eth_handle));
 
     // Start l2tap test message transmitter task and l2tap listener task
-    xSemaphoreTake(ip_obtained, portMAX_DELAY);
     start_l2tap_related_tasks(host_eth_handle, p1_eth_handle, p2_eth_handle);
-    vSemaphoreDelete(ip_obtained);
 
     // install console REPL environment
     esp_console_repl_t *repl = NULL;
