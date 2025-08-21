@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -49,7 +49,7 @@ static void print_dyn_mac(void *pvParameters)
     ksz8863_dyn_mac_table_t dyn_mac_tbls[5];
     ksz8863_mac_tbl_info_t get_tbl_info = {
         .start_entry = 0,  // read from the first entry
-        .etries_num = 5,   // read 5 entries
+        .entries_num = 5,   // read 5 entries
         .dyn_tbls = dyn_mac_tbls,
     };
 
@@ -143,7 +143,7 @@ static void transmit_l2test_msgs(void *pvParameters)
         if (ret == -1) {
             ESP_LOGE(TAG, "P2 L2 TAP write error, errno: %i\n", errno);
         }
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 err:
     if (eth_tap_fd_p1 != -1) {
@@ -405,7 +405,7 @@ void app_main(void)
     ksz8863_sta_mac_table_t sta_mac_tbls[3];
     ksz8863_mac_tbl_info_t get_sta_tbl_info = {
         .start_entry = 0,
-        .etries_num = 3,
+        .entries_num = 3,
         .sta_tbls = sta_mac_tbls,
     };
 

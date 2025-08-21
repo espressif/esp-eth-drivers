@@ -25,7 +25,7 @@ endif()
 
 idf_component_register(SRCS "${srcs}"
                        INCLUDE_DIRS "${include}"
-                       REQUIRES "esp_event" # For using "ESP_EVENT_DECLARE_BASE" in header file
+                       REQUIRES "esp_event esp_driver_i2c" # For using "ESP_EVENT_DECLARE_BASE" in header file
                        PRIV_REQUIRES "${priv_requires}")
 
 idf_component_optional_requires(PRIVATE esp_netif)
