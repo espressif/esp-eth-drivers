@@ -385,7 +385,9 @@ static esp_err_t pmac_ksz8863_custom_ioctl(esp_eth_mac_t *mac, int cmd, void *da
     case KSZ8863_ETH_CMD_S_TX_EN:
         ESP_GOTO_ON_FALSE(data, ESP_ERR_INVALID_ARG, err, TAG, "port tx enable can't be NULL");
         ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, 0, KSZ8863_PCR2_BASE_ADDR + pmac->port_reg_offset, &(pcr2.val)), err, TAG, "read PC2 failed");
+        printf("PCR2: %08lx\n", pcr2.val);
         pcr2.tx_en = *(bool *)data;
+        printf("PCR2: %08lx\n", pcr2.val);
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, 0, KSZ8863_PCR2_BASE_ADDR + pmac->port_reg_offset, pcr2.val), err, TAG, "write PC2 failed");
         break;
     case KSZ8863_ETH_CMD_G_TX_EN:

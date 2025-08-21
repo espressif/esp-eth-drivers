@@ -146,4 +146,5 @@ menu "Example Configuration"
         help
             Set the GPIO number used to reset the chip.
             Set to -1 to disable chip hardware reset.
+
 endmenu
