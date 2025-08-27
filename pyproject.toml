@@ -1,4 +1,8 @@
 [tool]
+    [tool.setuptools]
+    # The repository contains no python modules
+    py-modules = []
+
     [tool.ruff]
     extend-exclude                 = []
     format.docstring-code-format   = true
@@ -11,3 +15,8 @@
     exclude = [
         "test_eth_phy.py",
     ]
+
+    [tool.codespell]
+    skip = "build,*.drawio"
+    ignore-words-list = "emac"
+    write-changes = true

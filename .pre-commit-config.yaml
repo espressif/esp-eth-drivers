@@ -2,7 +2,6 @@ minimum_pre_commit_version: 4.0.0                        # Specifies the minimum
 default_install_hook_types: [pre-commit,commit-msg]      # Default hook types to install if not specified in individual hooks
 default_stages: [pre-commit]
 
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -24,13 +23,6 @@ repos:
     hooks:
       - id: check-copyright
         args: ['--config', '.ci/check_copyright_config.yaml']
-
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v3.0.3
-    hooks:
-      - id: pylint                                       # Runs pylint on Python code
-        additional_dependencies: ['PyYAML']
-        args: ['--rcfile=.ci/.pylintrc']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.5
@@ -54,7 +46,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell # Code spell checker
-        args: ["--write-changes", "--config=.ci/.codespellrc"]
+        args: ["--write-changes"]
         additional_dependencies: [tomli]
 
   - repo: https://github.com/espressif/astyle_py.git
