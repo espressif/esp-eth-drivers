@@ -1,5 +1,3 @@
-# TEST TEST TEST
-
 # KSZ8863 Ethernet Driver (beta)
 
 ## Overview
