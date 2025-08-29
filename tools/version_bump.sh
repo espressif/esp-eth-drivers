@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPO=espressif/esp-eth-drivers
+REPO=kostaond/esp-eth-drivers
 
 if [ -z "${GITHUB_TOKEN:-}" ]; then
   echo "Error: Please export your GitHub token to the GITHUB_TOKEN environment variable first." >&2
