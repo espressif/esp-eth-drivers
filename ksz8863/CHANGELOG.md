@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/kostaond/esp-eth-drivers/compare/ksz8863@v0.2.9...ksz8863@v0.3.0) (2025-08-29)
+
+
+### Features
+
+* **ksz8863:** this is a test of release process ([ea48b66](https://github.com/kostaond/esp-eth-drivers/commit/ea48b663ef4145f7af14722713509c002ecbd19c))
+* **ksz8863:** this is a test of release process ([9d04c98](https://github.com/kostaond/esp-eth-drivers/commit/9d04c98f0bd2afd6aa4ec983e8972214e20c1a40))
+* **ksz8863:** this is a test, removed test from readme ([05d8df9](https://github.com/kostaond/esp-eth-drivers/commit/05d8df934705bd606160c43d28e8e9bfeda6c3f0))
+* **ksz8863:** this is a test, removed test from readme ([8a69f1e](https://github.com/kostaond/esp-eth-drivers/commit/8a69f1e0a95f1a47ea119c10ebe25a0259816d8e))
+
 ## [0.2.9](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.8...ksz8863@v0.2.9) (2025-08-06)
 
 
