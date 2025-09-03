@@ -9,7 +9,7 @@ push_master_to_github:
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
   when: on_success
-  image: $CI_DOCKER_REGISTRY/esp32-ci-env
+  image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
   variables:
     GIT_DEPTH: 0
   script:
@@ -32,7 +32,7 @@ set_branch_protection:
   rules:
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_COMMIT_MESSAGE =~ /^chore\(master\):/
   when: on_success
-  image: $CI_DOCKER_REGISTRY/esp32-ci-env
+  image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
   variables:
     GIT_DEPTH: 0
     GITLAB_URL: $CI_SERVER_URL
