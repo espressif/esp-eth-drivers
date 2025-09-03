@@ -1,0 +1,40 @@
+# Gitlab CI Build Action
+
+workflow:
+  # Note: No need to run build and test on master branch since we use FastForward merge strategy and so each merge request
+  # is tested and then merged into master branch.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.generate_build_child_pipeline:
+  stage: build
+  needs: [] # to run in parallel with pre_check
+  tags:
+    - build
+  script:
+    - pip install -U idf-ci
+    - .ci/idf_ci_fix.sh  # TODO remove
+    - idf-build-apps dump-manifest-sha --manifest-files $(find . -name ".build-test-rules.yml" | xargs) --output .manifest_sh
+    - idf-ci gitlab build-child-pipeline
+  artifacts:
+    paths:
+      - "build_child_pipeline.yml"
+    expire_in: 1 week
+    when: always
+
+generate_build_child_pipeline:
+  extends:
+    - .generate_build_child_pipeline
+  image: espressif/idf:latest
+
+build-child-pipeline:
+  stage: .post
+  needs:
+    - generate_build_child_pipeline
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  trigger:
+    include:
+      - artifact: build_child_pipeline.yml
+        job: generate_build_child_pipeline
+    strategy: depend

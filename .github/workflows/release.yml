@@ -25,6 +25,8 @@ env:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Only run on push to master, not on pull requests
+    if: github.event_name == 'push' && github.ref_name == 'master'
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       paths_released: ${{ steps.release.outputs.paths_released }}

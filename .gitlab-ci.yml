@@ -1,0 +1,15 @@
+# Main Gitlab CI configuration for esp-eth-drivers
+# This file orchestrates all CI/CD pipelines
+
+# Define stages
+stages:
+  - pre_check
+  - build
+  - test
+  - deploy
+
+# Include CI jobs
+include:
+  # - local: '.gitlab/ci/pre-check.yml'
+  # - local: '.gitlab/ci/build.yml'
+  - local: '.gitlab/ci/deploy.yml'
