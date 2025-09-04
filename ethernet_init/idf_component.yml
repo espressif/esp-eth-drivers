@@ -21,4 +21,4 @@ description: >-
   This component initializes Ethernet driver based on Espressif IoT Development
   Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 0.6.1
+version: 0.6.2
