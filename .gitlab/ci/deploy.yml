@@ -6,8 +6,6 @@ push_master_to_github:
   stage: deploy
   tags:
     - github_sync
-  rules:
-    - if: $CI_COMMIT_REF_NAME == "master"
   when: on_success
   image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
   variables:
@@ -20,7 +18,7 @@ push_master_to_github:
     - chmod 600 ~/.ssh/id_rsa
     - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
     - git remote add github git@github.com:espressif/esp-eth-drivers.git
-    - echo "git push github ${CI_COMMIT_SHA}:refs/heads/${CI_COMMIT_REF_NAME}" # TODO just for testing
+    - git push github ${CI_COMMIT_SHA}:refs/heads/${CI_COMMIT_REF_NAME}
 
 # Since we use FF merge strategy, we needed to lock Gitlab master branch during the release
 # to ensure that SHA of the release commit from Gitlab matches with the SHA of release PR.
@@ -30,13 +28,13 @@ set_branch_protection:
   tags:
     - github_sync
   rules:
-    - if: $CI_COMMIT_REF_NAME == "master" && $CI_COMMIT_MESSAGE =~ /^chore\(master\):/
+    - if: $CI_COMMIT_MESSAGE =~ /^chore\(master\):/
   when: on_success
   image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
   variables:
     GIT_DEPTH: 0
-    GITLAB_URL: $CI_SERVER_URL
-    GITLAB_TOKEN: $GITLAB_TOKEN # TODO define in GL
+    GITLAB_URL: https://${GITLAB_HTTPS_SERVER}
+    GITLAB_TOKEN: $GITLAB_TOKEN
   script:
-    # Developers can merge
+    # Set so developers can merge
     - python3 tools/protect_branch.py --push-level 0 --merge-level 30
