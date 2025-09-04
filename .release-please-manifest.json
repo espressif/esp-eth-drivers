@@ -6,6 +6,6 @@
     "eth_dummy_phy": "0.5.0",
     "ethernet_init": "0.6.1",
     "ksz8863": "0.3.0",
-    "lan86xx_common": "1.0.0",
+    "lan86xx_common": "1.0.1",
     "lan865x": "0.1.2"
 }
