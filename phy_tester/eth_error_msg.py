@@ -123,7 +123,7 @@ class EthFailMsg:
         cls.print_yellow('=================================================================================')
 
     @classmethod
-    def print_rj45_fail_msg(cls, is_rx: bool, is_tx: bool) -> None:  # pylint: disable=unused-argument  # (place holder for future use)
+    def print_rj45_fail_msg(cls, is_rx: bool, is_tx: bool) -> None:  # (place holder for future use)
         """
         Print the error message for the path between PHY and RJ45.
         """

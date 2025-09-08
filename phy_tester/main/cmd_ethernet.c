@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -100,16 +100,6 @@ static struct {
     struct arg_int *verbosity;
     struct arg_end *end;
 } verbosity_args;
-
-// TODO
-static esp_err_t check_eth_state(void)
-{
-    if (s_eth_handles == NULL) {
-        ESP_LOGW(TAG, "Ethernet init failed, command is not available");
-        return ESP_ERR_INVALID_STATE;
-    }
-    return ESP_OK;
-}
 
 static esp_err_t check_phy_reg_addr_valid(int addr)
 {

@@ -1,0 +1,6 @@
+# Build test rules for PHY tester
+# This file is used by idf-build-apps to determine which examples to build and test
+
+phy_tester:
+    enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]

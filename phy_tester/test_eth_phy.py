@@ -151,12 +151,12 @@ class EthTestIntf:
             try:
                 logging.info('sending test frame')
                 so.send(raw(eth_frame))
-            except Exception as e:  # pylint: disable=broad-except  # noqa
+            except Exception as e:  # noqa
                 raise e
 
             try:
                 rx_eth_frame = Ether(so.recv(1522))
-            except Exception as e:  # pylint: disable=broad-except  # noqa
+            except Exception as e:  # noqa
                 logging.error('recv: %s', e)
                 return False
             if rx_eth_frame.load != eth_frame.load:
@@ -255,7 +255,7 @@ def _test_farend_loopback(dut: Dut, eth_if: EthTestIntf, mac: str) -> str:
         # it could be caused by PHY does not support far-end loopback
         try:
             dut.expect_exact('far-end loopback is not supported by selected PHY', timeout=1)
-        except:  # pylint: disable=bare-except  # noqa
+        except:  # noqa
             pass  # far-end loopback is supported, do nothing
         else:
             logging.warning('DUT PHY does not support far-end loopback!')
@@ -288,7 +288,7 @@ def _test_nearend_loopback(dut: Dut, count: int) -> str:
     try:
         dut.expect_exact('Link Up')
         dut.expect_exact(f'TXed frames: {count}, looped frames: {count}, RX errors: 0', timeout=10)
-    except:  # pylint: disable=bare-except  # noqa
+    except:  # noqa
         logging.error('near-end loop back failed')
         ret = 'FAIL'
     return ret
@@ -434,9 +434,9 @@ def draw_result(near_tx_color: str,
     print('.                          RMII                             Tr.                         .')
     print('.  +------------------+            +---------------+                  +-----------+     .     +---------------+')
     print('.  |              +---|            |               |        8|8       |           |     .     |               |')
-    print(f'.  |          {esp_rx}| M |{rmii_rx}-----Rx-----{NORM}|{near_rx}{phy_rx_path}{far_rx}|{far_rx_color}-------{NORM} 8|8 {far_rx_color}------{NORM}|           |     .     |               |')  # pylint: disable=line-too-long  # noqa
-    print(f'.  |   ESP32  {loop_esp}   | A |            |   {near_loop}  PHY  {far_loop}   |                  |    RJ45   |{pc_conn}==========={NORM}|    Test PC    |')  # pylint: disable=line-too-long  # noqa
-    print(f'.  |          {esp_tx}| C |{rmii_tx}-----Tx-----{NORM}|{near_tx}{phy_tx_path}{far_tx}|{far_tx_color}-------{NORM} 8|8 {far_tx_color}------{NORM}|           |     .     |               |')  # pylint: disable=line-too-long  # noqa
+    print(f'.  |          {esp_rx}| M |{rmii_rx}-----Rx-----{NORM}|{near_rx}{phy_rx_path}{far_rx}|{far_rx_color}-------{NORM} 8|8 {far_rx_color}------{NORM}|           |     .     |               |')  # noqa
+    print(f'.  |   ESP32  {loop_esp}   | A |            |   {near_loop}  PHY  {far_loop}   |                  |    RJ45   |{pc_conn}==========={NORM}|    Test PC    |')  # noqa
+    print(f'.  |          {esp_tx}| C |{rmii_tx}-----Tx-----{NORM}|{near_tx}{phy_tx_path}{far_tx}|{far_tx_color}-------{NORM} 8|8 {far_tx_color}------{NORM}|           |     .     |               |')  # noqa
     print('.  |              +---|            |               |        8|8       |           |     .     |               |')
     print('.  +------------------+            +---------------+                  +-----------+     .     +---------------+')
     print('.                                                                                       .')

@@ -53,7 +53,7 @@ def handle_client_connection(conn: socket.socket, address: tuple[str, int], logg
         except ConnectionAbortedError:
             logger.info('Connection closed by client')
             break
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:
             logger.error('Error handling client: %s', str(e))
             break
 
@@ -81,7 +81,7 @@ def run_server(ip: str, port: int, logger: logging.Logger) -> None:
 
     except KeyboardInterrupt:
         logger.info('Server shutting down')
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         logger.error('Server error: %s', str(e))
     finally:
         server_sock.close()

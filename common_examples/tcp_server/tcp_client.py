@@ -52,7 +52,7 @@ def run_client(ip: str, port: int, period_ms: int, count: int, logger: logging.L
     except TimeoutError:
         logger.error('Couldn\'t establish connection due to timeout')
         sys.exit(1)
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         logger.error('Connection error: %s', str(e))
         sys.exit(1)
 
@@ -77,7 +77,7 @@ def run_client(ip: str, port: int, period_ms: int, count: int, logger: logging.L
             time.sleep(period_ms * 0.001)
     except KeyboardInterrupt:
         logger.info('Client shutting down')
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         logger.error('Client error: %s', str(e))
     finally:
         sock.close()

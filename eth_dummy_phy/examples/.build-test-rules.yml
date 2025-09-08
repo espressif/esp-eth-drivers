@@ -1,0 +1,8 @@
+# Build test rules for ETH Dummy PHY examples
+# This file is used by idf-build-apps to determine which examples to build and test
+
+eth_dummy_phy/examples/simple:
+  enable:
+    - if: IDF_TARGET in ["esp32"]
+      temporary: true
+      reason: example is currently tailored for esp32 due to RMII CLK source/sink and GPIO0 boot strap pin collision

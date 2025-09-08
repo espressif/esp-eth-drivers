@@ -1,0 +1,20 @@
+# Build test rules for KSZ8863 examples
+# This file is used by idf-build-apps to determine which examples to build and test
+
+ksz8863/examples/simple_switch:
+  enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]
+      temporary: true
+      reason: not supported yet
+
+ksz8863/examples/switch_mode:
+  enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]
+      temporary: true
+      reason: not supported yet
+
+ksz8863/examples/two_ports_mode:
+  enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]
+      temporary: true
+      reason: not supported yet
