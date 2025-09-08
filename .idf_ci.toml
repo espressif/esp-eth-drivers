@@ -1,0 +1,9 @@
+[gitlab.artifacts]
+build_job_filepatterns = [
+    "**/build*/config/sdkconfig.json",
+    "**/build*/*.bin",
+    "**/build*/flasher_args.json",
+    "**/build*/config/sdkconfig.json",
+    "**/build*/bootloader/*.bin",
+    "**/build*/partition_table/*.bin",
+]

@@ -1,0 +1,32 @@
+push_master_to_github:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+  tags:
+    - github_sync
+  when: on_success
+  image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - git remote add github https://${GH_PUSH_TOKEN}@github.com/espressif/esp-eth-drivers.git
+    - git push github ${CI_COMMIT_SHA}:refs/heads/${CI_COMMIT_REF_NAME}
+
+# Since we use FF merge strategy, we needed to lock Gitlab master branch during the release
+# to ensure that SHA of the release commit from Gitlab matches with the SHA of release PR.
+# Now is time to unlock it.
+set_branch_protection:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" && $CI_COMMIT_MESSAGE =~ /^chore\(master\):/
+  tags:
+    - github_sync
+  when: on_success
+  image: "${CI_DOCKER_REGISTRY}/esp-env-v6.0:2"
+  variables:
+    GIT_DEPTH: 0
+    GITLAB_URL: https://${CI_SERVER_FQDN}
+    GITLAB_TOKEN: $GITLAB_TOKEN
+  script:
+    # Set so developers can merge
+    - python3 tools/protect_branch.py --push-level 0 --merge-level 30

@@ -35,39 +35,23 @@ Welcome to the **Additional Ethernet Drivers** project! We appreciate your inter
   - Submit your PR and collaborate with the maintainers through the review process. Please be patient — multiple review rounds and adjustments may be required.
   - For quicker merging, focus your contribution on a single feature or topic. Larger or multi-topic contributions may take longer to review.
 
+## Merging the Pull Request (PR)
+
+The content of the PR is not directly merged on Github but it is synchronized to Espressif's internal mirror repository using [GitHub PR to Gitlab MR Sync](https://github.com/espressif/sync-pr-to-gitlab) Github action. Additional internal review may be performed and the changes are tested on target using internal runners.
+
+## Git History Strategy
+
+Linear git commit history is used in this repository. To keep the history clean, squash your commits from the development phase into the smallest amount of logical units prior submitting the PR. For example, if you update a single component, you use single commit. If you update multiple components and with logically unrelated features, you can use separate commit for each component. Avoid using the following patterns:
+```
+commit 1: feat(ksz8863): added a new cool feature
+commit 2: fix(ksz8863): fixed a bug introduced in commit 1
+```
+
 ## Release Process
 
 We use [Release Please](https://github.com/googleapis/release-please/tree/main) to automate the release process. It automatically generates the changelog by parsing the Git history (hence the requirement for Conventional Commit messages), bumps component versions, and creates GitHub releases and tags.
 
-To release a new version of a component, the component maintainer must:
-
-1. Ensure the build and tests pass on the latest commit.
-2. Export their GitHub token to the `GITHUB_TOKEN` environment variable.
-
-    ```sh
-    export GITHUB_TOKEN=your_github_token
-    ```
-
-3. Bump the version using the provided script:
-
-    ```sh
-    ./tools/version_bump.sh
-    ```
-    or if you want to version bump just single component, navigate to the component's folder and run:
-    ```sh
-    ../tools/version_bump.sh
-    ```
-
-> [!NOTE]
-> When run from the repository root, the script will bump the version of **all** components with pending changes.
-> To bump only a specific component, run the script from that component’s directory.
-
-> [!NOTE]
-> You can perform a dry run by passing the `--dry-run` argument:
->
-> ```bash
-> ./tools/version_bump.sh --dry-run
-> ```
-
-4. A version bump PR will be created automatically.
-5. Wait for approval from the repository maintainer.
+**How it works:**
+1. **Automatic version bump PRs**: They are contiguously created and updated with each releasable version commit automatically by Release Please action.
+2. **Component is ready for release**: Once component is ready to be released, the bump PR is merged by repository maintainer using the same process as described in [Merging the Pull Request section](#merging-the-pull-request-pr). Since linear history, which may require rebase, is used, internal repository `master` branch is temporarily locked during the merge process to bump commits SHAs match and so release step work correctly. DO NOT rebase during this step!
+3. **Github release and tag**: Release Please action automatically creates Github Release and adds version tag to the bump PR commit.

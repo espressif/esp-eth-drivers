@@ -1,6 +1,6 @@
 {
-    "bootstrap-sha": "ce809a36dbb3cd5b27bc7c7b35b3b6ace7aa6673",
     "include-component-in-tag": true,
+    "separate-pull-requests": true,
     "include-v-in-tag": true,
     "tag-separator": "@",
     "extra-files": [

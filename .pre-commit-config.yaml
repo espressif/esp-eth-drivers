@@ -25,13 +25,6 @@ repos:
       - id: check-copyright
         args: ['--config', '.ci/check_copyright_config.yaml']
 
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v3.0.3
-    hooks:
-      - id: pylint                                       # Runs pylint on Python code
-        additional_dependencies: ['PyYAML']
-        args: ['--rcfile=.ci/.pylintrc']
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.5
     hooks:
@@ -42,7 +35,7 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy                                         # Runs mypy for Python type checking
-        additional_dependencies: ['PyYAML', 'types-PyYAML']
+        additional_dependencies: ['PyYAML', 'types-PyYAML', 'types-requests']
 
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.10.0

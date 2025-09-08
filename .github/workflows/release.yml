@@ -39,7 +39,6 @@ jobs:
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          skip-github-pull-request: true
 
   upload_components_dry_run:
     runs-on: ubuntu-latest
@@ -78,3 +77,34 @@ jobs:
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
           dry_run: ${{ github.repository_owner != 'espressif' }}
+
+  update_mirror_tags:
+    runs-on: ubuntu-latest
+    # Only run on push to master when release-please actually creates a release
+    if: github.event_name == 'push' && github.ref_name == 'master' && needs.release-please.outputs.releases_created == 'true'
+    needs: [release-please]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'false'
+      - name: Sync tags to Gitlab
+        run: |
+          echo "Syncing tags to Gitlab"
+
+          # Configure git for GitLab
+          git config --global user.name "${{ secrets.GIT_CONFIG_NAME }}"
+          git config --global user.email "${{ secrets.GIT_CONFIG_EMAIL }}"
+
+          # Remove https:// from GITLAB_URL
+          GITLAB_URL=$(echo "${{ secrets.GITLAB_URL }}" | sed 's|https://||')
+
+          # Add GitLab remote
+          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@${GITLAB_URL}/${{ github.repository_owner }}/esp-eth-drivers.git
+
+          # Fetch all tags from current repository
+          git fetch --tags
+
+          # Push all tags to GitLab
+          git push gitlab --tags
+
+          echo "Tags successfully synced to GitLab"
