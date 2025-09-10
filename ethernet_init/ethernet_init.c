@@ -15,9 +15,9 @@
 #include "driver/gpio.h"
 #include "esp_idf_version.h"
 #include "sdkconfig.h"
-#if CONFIG_ETH_USE_SPI_ETHERNET
+#if CONFIG_ETHERNET_SPI_SUPPORT
 #include "driver/spi_master.h"
-#endif // CONFIG_ETH_USE_SPI_ETHERNET
+#endif // CONFIG_ETHERNET_SPI_SUPPORT
 
 #if CONFIG_ETHERNET_PHY_LAN867X
 #include "esp_eth_phy_lan867x.h"
@@ -195,21 +195,55 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
 
     // Init vendor specific MAC config to default
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
+
     // Update vendor specific MAC config based on board configuration
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0)
     esp32_emac_config.smi_gpio.mdc_num = CONFIG_ETHERNET_MDC_GPIO;
     esp32_emac_config.smi_gpio.mdio_num = CONFIG_ETHERNET_MDIO_GPIO;
-#else
-    esp32_emac_config.smi_mdc_gpio_num = CONFIG_ETHERNET_MDC_GPIO;
-    esp32_emac_config.smi_mdio_gpio_num = CONFIG_ETHERNET_MDIO_GPIO;
+
+#if CONFIG_ETHERNET_PHY_INTERFACE_RMII
+    // Configure RMII based on Kconfig when non-default configuration selected
+    esp32_emac_config.interface = EMAC_DATA_INTERFACE_RMII;
+
+    // Configure RMII clock mode and GPIO
+#if CONFIG_ETHERNET_RMII_CLK_INPUT
+    esp32_emac_config.clock_config.rmii.clock_mode = EMAC_CLK_EXT_IN;
+#else // CONFIG_ETHERNET_RMII_CLK_OUTPUT
+    esp32_emac_config.clock_config.rmii.clock_mode = EMAC_CLK_OUT;
+#endif
+    esp32_emac_config.clock_config.rmii.clock_gpio = CONFIG_ETHERNET_RMII_CLK_GPIO;
+
+#if CONFIG_ETHERNET_RMII_CLK_EXT_LOOPBACK_EN
+    esp32_emac_config.clock_config.rmii.clock_loopback_gpio = CONFIG_ETHERNET_RMII_CLK_EXT_LOOPBACK_IN_GPIO;
 #endif
 
-#if CONFIG_ETHERNET_SPI_SUPPORT
-    // The DMA is shared resource between EMAC and the SPI. Therefore, adjust
-    // EMAC DMA burst length when SPI Ethernet is used along with EMAC.
-    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_4;
-#endif // CONFIG_ETHERNET_SPI_SUPPORT
+#if SOC_EMAC_USE_MULTI_IO_MUX
+    // Configure RMII datapane GPIOs
+    esp32_emac_config.emac_dataif_gpio.rmii.tx_en_num = CONFIG_ETHERNET_RMII_TX_EN_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rmii.txd0_num = CONFIG_ETHERNET_RMII_TXD0_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rmii.txd1_num = CONFIG_ETHERNET_RMII_TXD1_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rmii.crs_dv_num = CONFIG_ETHERNET_RMII_CRS_DV_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rmii.rxd0_num = CONFIG_ETHERNET_RMII_RXD0_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rmii.rxd1_num = CONFIG_ETHERNET_RMII_RXD1_GPIO;
+#endif // SOC_EMAC_USE_MULTI_IO_MUX
+#endif // CONFIG_ETHERNET_PHY_INTERFACE_RMII
 
+#if CONFIG_ETHERNET_DMA_BURST_LEN_1
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_1;
+#elif CONFIG_ETHERNET_DMA_BURST_LEN_2
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_2;
+#elif CONFIG_ETHERNET_DMA_BURST_LEN_4
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_4;
+#elif CONFIG_ETHERNET_DMA_BURST_LEN_8
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_8;
+#elif CONFIG_ETHERNET_DMA_BURST_LEN_16
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_16;
+#elif CONFIG_ETHERNET_DMA_BURST_LEN_32
+    esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_32;
+#endif // CONFIG_ETHERNET_DMA_BURST_LEN_1
+
+#if CONFIG_ETHERNET_SPI_SUPPORT && !(CONFIG_ETHERNET_DMA_BURST_LEN_1 || CONFIG_ETHERNET_DMA_BURST_LEN_2 || CONFIG_ETHERNET_DMA_BURST_LEN_4 || CONFIG_ETHERNET_DMA_BURST_LEN_8)
+#warning "SPI Ethernet is used along with internal EMAC, consider lowering EMAC DMA burst length to 1, 2, 4 or 8 beats"
+#endif
     // Create new ESP32 Ethernet MAC instance
     dev_out->mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
 
