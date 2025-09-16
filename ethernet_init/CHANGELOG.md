@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v0.6.1...ethernet_init@v0.7.0) (2025-09-16)
+
+
+### Features
+
+* **ethernet_init:** extended EMAC kconfig by detailed RMII GPIO configuration ([d314dd0](https://github.com/espressif/esp-eth-drivers/commit/d314dd059dc5ac12f2e30b44919ff06d2aec3c65))
+
 ## [0.6.1](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v0.6.0...ethernet_init@v0.6.1) (2025-08-06)
 
 
