@@ -21,6 +21,14 @@ env:
     enc28j60
     ethernet_init
     eth_dummy_phy
+    dm9051
+    dp83848
+    ip101
+    ksz80xx
+    ksz8851snl
+    lan87xx
+    rtl8201
+    w5500
 
 jobs:
   release-please:

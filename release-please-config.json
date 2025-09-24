@@ -80,8 +80,7 @@
         },
         "rtl8201": {
           "component": "rtl8201",
-          "release-type": "go",
-          "release-as": "1.0.0"
+          "release-type": "go"
         },
         "w5500": {
           "component": "w5500",
