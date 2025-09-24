@@ -1,7 +1,7 @@
-version: "1.0.0"
+version: 1.0.0
 description: W5500 Ethernet Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/w5500
 dependencies:
-  idf: ">=6.0"
+  idf: '>=6.0'
 examples:
   - path: ../common_examples/
