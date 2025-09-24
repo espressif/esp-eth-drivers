@@ -16,7 +16,13 @@ from pytest_embedded_idf.utils import idf_parametrize
     'config',
     [
         pytest.param('ip101', marks=[pytest.mark.eth_ip101]),
+        pytest.param('dp83848', marks=[pytest.mark.eth_dp83848]),
+        pytest.param('ksz8041', marks=[pytest.mark.eth_ksz8041]),
+        pytest.param('lan8720', marks=[pytest.mark.eth_lan8720]),
+        pytest.param('rtl8201', marks=[pytest.mark.eth_rtl8201]),
         pytest.param('dm9051', marks=[pytest.mark.eth_dm9051]),
+        pytest.param('ksz8851snl', marks=[pytest.mark.eth_ksz8851snl]),
+        pytest.param('w5500', marks=[pytest.mark.eth_w5500]),
     ],
     indirect=True,
 )

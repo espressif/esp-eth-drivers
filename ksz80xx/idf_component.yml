@@ -1,0 +1,8 @@
+version: "1.0.0"
+targets:
+  - esp32
+  - esp32p4
+description: KSZ80xx Ethernet PHY Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/ksz80xx
+dependencies:
+  idf: ">=6.0"

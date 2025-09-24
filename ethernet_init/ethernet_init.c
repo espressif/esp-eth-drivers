@@ -37,6 +37,43 @@
 #include "esp_eth_phy_lan865x.h"
 #endif // CONFIG_ETHERNET_PHY_LAN865X
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#if CONFIG_ETHERNET_SPI_USE_DM9051
+#include "esp_eth_mac_dm9051.h"
+#include "esp_eth_phy_dm9051.h"
+#endif // CONFIG_ETHERNET_SPI_USE_DM9051
+
+#if CONFIG_ETHERNET_SPI_USE_KSZ8851SNL
+#include "esp_eth_mac_ksz8851snl.h"
+#include "esp_eth_phy_ksz8851snl.h"
+#endif // CONFIG_ETHERNET_SPI_USE_KSZ8851SNL
+
+#if CONFIG_ETHERNET_SPI_USE_W5500
+#include "esp_eth_mac_w5500.h"
+#include "esp_eth_phy_w5500.h"
+#endif // CONFIG_ETHERNET_SPI_USE_W5500
+
+#if CONFIG_ETHERNET_PHY_IP101
+#include "esp_eth_phy_ip101.h"
+#endif // CONFIG_ETHERNET_PHY_IP101
+
+#if CONFIG_ETHERNET_PHY_LAN87XX
+#include "esp_eth_phy_lan87xx.h"
+#endif // CONFIG_ETHERNET_PHY_LAN87XX
+
+#if CONFIG_ETHERNET_PHY_DP83848
+#include "esp_eth_phy_dp83848.h"
+#endif // CONFIG_ETHERNET_PHY_DP83848
+
+#if CONFIG_ETHERNET_PHY_RTL8201
+#include "esp_eth_phy_rtl8201.h"
+#endif // CONFIG_ETHERNET_PHY_RTL8201
+
+#if CONFIG_ETHERNET_PHY_KSZ80XX
+#include "esp_eth_phy_ksz80xx.h"
+#endif // CONFIG_ETHERNET_PHY_KSZ80XX
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+
 #if CONFIG_ETHERNET_SPI_NUMBER
 #define SPI_ETHERNETS_NUM           CONFIG_ETHERNET_SPI_NUMBER
 #else

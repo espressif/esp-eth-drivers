@@ -25,3 +25,10 @@ DEFAULT:
   # SPDX-FileContributor: year[-year] Espressif Systems
   # are replaced with this template prefixed with the correct comment notation (# or // or *) and SPDX- notation
   espressif_copyright: '{years} Espressif Systems (Shanghai) CO LTD'
+
+ksz8851snl:
+  include:
+    - 'ksz8851snl/'
+  allowed_licenses:
+    - MIT
+    - Apache-2.0

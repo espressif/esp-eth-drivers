@@ -19,6 +19,16 @@
           "component": "ch390",
           "release-type": "go"
         },
+        "dm9051": {
+          "component": "dm9051",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "dp83848": {
+          "component": "dp83848",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
         "enc28j60": {
           "component": "enc28j60",
           "release-type": "go"
@@ -29,23 +39,54 @@
         },
         "ethernet_init": {
           "component": "ethernet_init",
-          "release-type": "go"
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "ip101": {
+          "component": "ip101",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "ksz80xx": {
+          "component": "ksz80xx",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "ksz8851snl": {
+          "component": "ksz8851snl",
+          "release-type": "go",
+          "release-as": "1.0.0"
         },
         "ksz8863": {
           "component": "ksz8863",
           "release-type": "go"
         },
-        "lan86xx_common": {
-          "component": "lan86xx_common",
+        "lan865x": {
+          "component": "lan865x",
           "release-type": "go"
         },
         "lan867x": {
           "component": "lan867x",
           "release-type": "go"
         },
-        "lan865x": {
-          "component": "lan865x",
+        "lan86xx_common": {
+          "component": "lan86xx_common",
           "release-type": "go"
+        },
+        "lan87xx": {
+          "component": "lan87xx",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "rtl8201": {
+          "component": "rtl8201",
+          "release-type": "go",
+          "release-as": "1.0.0"
+        },
+        "w5500": {
+          "component": "w5500",
+          "release-type": "go",
+          "release-as": "1.0.0"
         }
     }
 }

@@ -1,20 +1,72 @@
 dependencies:
   idf:
     version: '>=5.4'
+  # SPI Ethernet Drivers
+  espressif/ch390:
+    version: '*'
+    override_path: ../ch390/
+  espressif/dm9051:
+    override_path: ../dm9051/
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+  espressif/enc28j60:
+    version: '*'
+    override_path: ../enc28j60/
+  espressif/ksz8851snl:
+    override_path: ../ksz8851snl/
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+  espressif/lan865x:
+    version: ^0.1.1
+    override_path: ../lan865x/
+  espressif/w5500:
+    override_path: ../w5500/
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+  # Ethernet PHY Drivers
+  espressif/dp83848:
+    rules:
+      - if: target in [esp32, esp32p4]
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+    override_path: ../dp83848/
+  espressif/ip101:
+    rules:
+      - if: target in [esp32, esp32p4]
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+    override_path: ../ip101/
+  espressif/ksz80xx:
+    rules:
+      - if: target in [esp32, esp32p4]
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+    override_path: ../ksz80xx/
   espressif/lan867x:
     version: '>=2.0.0'
     rules:
       - if: target in [esp32, esp32p4]
     override_path: ../lan867x/
-  espressif/lan865x:
-    version: ^0.1.1
-    override_path: ../lan865x/
-  espressif/ch390:
-    version: '*'
-    override_path: ../ch390/
-  espressif/enc28j60:
-    version: '*'
-    override_path: ../enc28j60/
+  espressif/lan87xx:
+    rules:
+      - if: target in [esp32, esp32p4]
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+    override_path: ../lan87xx/
+  espressif/rtl8201:
+    rules:
+      - if: target in [esp32, esp32p4]
+    matches:
+      - if: "idf_version >=6.0"
+        version: '^1.0.0'
+    override_path: ../rtl8201/
 examples:
   - path: ../common_examples/
 description: >-

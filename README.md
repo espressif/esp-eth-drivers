@@ -1,15 +1,30 @@
-# Collection of additional Ethernet drivers for ESP-IDF
+# Collection of Ethernet drivers for ESP-IDF
 
-This repository aims to store additional Ethernet drivers which are not available directly in [ESP-IDF](https://github.com/espressif/esp-idf) but are accessible via [IDF Component Manager](https://components.espressif.com/).
+This repository aims to store Ethernet drivers which are not available directly in [ESP-IDF](https://github.com/espressif/esp-idf) but are accessible via [The ESP Component Registry](https://components.espressif.com/).
 
 List of currently supported chips:
 
-- [KSZ8863](ksz8863/README.md)
+Ethernet PHYs:
 - [ADIN1200](adin1200/README.md)
-- [LAN865X](lan865x/README.md)
-- [LAN867X](lan867x/README.md)
+- [DP83848](dp83848/README.md)
+- [IP101](ip101/README.md)
+- [KSZ80XX](ksz80xx/README.md)
+- [LAN87XX](lan87xx/README.md)
+- [LAN867X](lan867x/README.md) (10BASE-T1S)
+- [RTL8201](rtl8201/README.md)
+
+SPI Ethernet modules:
 - [CH390](ch390/README.md)
+- [DM9051](dm9051/README.md)
 - [ENC28J60](enc28j60/README.md)
+- [KSZ8851SNL](ksz8851snl/README.md)
+- [LAN865X](lan865x/README.md) (10BASE-T1S)
+- [W5500](w5500/README.md)
+
+Switch ICs:
+- [KSZ8863](ksz8863/README.md)
+
+Special:
 - [Dummy PHY (EMAC to EMAC)](eth_dummy_phy/README.md)
 
 ## Resources

@@ -23,6 +23,9 @@
 
 #define STARTUP_DELAY_MS 500
 
+#define EMAC_CLK_OUT_180_GPIO 17
+#define EMAC_CLK_IN_GPIO 0
+
 static const char *TAG = "emac2emac";
 
 #if !CONFIG_EXAMPLE_DHCP_SERVER_EN

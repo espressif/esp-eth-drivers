@@ -1,0 +1,7 @@
+version: "1.0.0"
+description: KSZ8851SNL Ethernet Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/ksz8851snl
+dependencies:
+  idf: ">=6.0"
+examples:
+  - path: ../common_examples/

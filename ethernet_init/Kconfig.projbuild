@@ -267,7 +267,7 @@ menu "Ethernet Configuration"
     config ETHERNET_SPI_SUPPORT
         bool "SPI Ethernet"
         default n
-        select ETH_USE_SPI_ETHERNET # TODO remove (IDF-13553)
+        select ETH_USE_SPI_ETHERNET
         help
             Use external SPI-Ethernet module(s).
 
@@ -288,15 +288,12 @@ menu "Ethernet Configuration"
 
             config ETHERNET_SPI_DEV0_DM9051
                 bool "DM9051 Module"
-                select ETH_SPI_ETHERNET_DM9051
 
             config ETHERNET_SPI_DEV0_KSZ8851SNL
                 bool "KSZ8851SNL Module"
-                select ETH_SPI_ETHERNET_KSZ8851SNL
 
             config ETHERNET_SPI_DEV0_W5500
                 bool "W5500 Module"
-                select ETH_SPI_ETHERNET_W5500
 
             config ETHERNET_SPI_DEV0_CH390
                 bool "CH390 Module"
@@ -317,15 +314,12 @@ menu "Ethernet Configuration"
 
             config ETHERNET_SPI_DEV1_DM9051
                 bool "DM9051 Module"
-                select ETH_SPI_ETHERNET_DM9051
 
             config ETHERNET_SPI_DEV1_KSZ8851SNL
                 bool "KSZ8851SNL Module"
-                select ETH_SPI_ETHERNET_KSZ8851SNL
 
             config ETHERNET_SPI_DEV1_W5500
                 bool "W5500 Module"
-                select ETH_SPI_ETHERNET_W5500
 
             config ETHERNET_SPI_DEV1_CH390
                 bool "CH390 Module"
@@ -341,16 +335,19 @@ menu "Ethernet Configuration"
             bool
             default y if ETHERNET_SPI_DEV0_DM9051 || ETHERNET_SPI_DEV1_DM9051
             default n
+            select ETH_SPI_ETHERNET_DM9051 # for backward compatibility with IDF<6.0
 
         config ETHERNET_SPI_USE_KSZ8851SNL
             bool
             default y if ETHERNET_SPI_DEV0_KSZ8851SNL || ETHERNET_SPI_DEV1_KSZ8851SNL
             default n
+            select ETH_SPI_ETHERNET_KSZ8851SNL # for backward compatibility with IDF<6.0
 
         config ETHERNET_SPI_USE_W5500
             bool
             default y if ETHERNET_SPI_DEV0_W5500 || ETHERNET_SPI_DEV1_W5500
             default n
+            select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
 
         config ETHERNET_SPI_USE_CH390
             bool

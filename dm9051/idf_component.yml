@@ -1,0 +1,7 @@
+version: "1.0.0"
+description: DM9051 Ethernet Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/dm9051
+dependencies:
+  idf: ">=6.0"
+examples:
+  - path: ../common_examples/
