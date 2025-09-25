@@ -1,0 +1,27 @@
+menu "Example Configuration"
+
+    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
+
+    config  EXAMPLE_PHY_RST_GPIO
+        int "PHY Reset GPIO number"
+        range -1 ENV_GPIO_OUT_RANGE_MAX
+        default 5
+        help
+            Set the GPIO number used to reset PHY chip.
+            Set to -1 to disable PHY chip hardware reset.
+
+    config EXAMPLE_EXTERNAL_CLK_EN
+        bool "Enable external RMII clock oscillator"
+        default "y"
+        help
+            Enable external clock oscillator.
+
+    config EXAMPLE_EXTERNAL_CLK_EN_GPIO
+        depends on EXAMPLE_EXTERNAL_CLK_EN
+        int "External oscillator enable GPIO"
+        range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+        default 2
+        help
+            Set GPIO number to enable External clock oscillator.
+
+endmenu
