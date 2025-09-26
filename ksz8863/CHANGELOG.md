@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.9...ksz8863@v0.2.10) (2025-09-26)
+
+
+### Bug Fixes
+
+* fixed examples builds and added .build-test-rules.yml ([0e459f1](https://github.com/espressif/esp-eth-drivers/commit/0e459f19b75d5114fe5e592fc9739f0e9fb919f9))
+
 ## [0.2.9](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.8...ksz8863@v0.2.9) (2025-08-06)
 
 
