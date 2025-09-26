@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.2...lan865x@v0.1.3) (2025-09-26)
+
+
+### Bug Fixes
+
+* **ksz865x:** fixed PRIV_REQUIRES in CMakLists ([c02f13d](https://github.com/espressif/esp-eth-drivers/commit/c02f13df0563e9b6b6603112b8ad8e4def0aa3ec))
+
 ## [0.1.2](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.1...lan865x@v0.1.2) (2025-08-12)
 
 
