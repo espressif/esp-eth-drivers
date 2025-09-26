@@ -56,15 +56,6 @@ esp_eth_phy_t *phy = esp_eth_phy_new_ch390(&phy_config);
 and use the Ethernet driver as you are used to. For more information of how to use ESP-IDF Ethernet driver, visit [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/network/esp_eth.html).
 
 
-## Version History
-| **Version** | **Date**   | **Description**                                                                                                        |
-|:-----------:|:----------:|--------------------------------------------------------------------------------------------------------------------    |
-| 0.1.0       | 2024-03-06 | Initial Release                                                                                                        |
-| 0.2.0       | 2024-08-29 | Fix start/stop issue: cannot acquire the ip address after several start/stop loops randomly                            |
-| 0.2.1       | 2024-11-25 | Correct some typos in comment; Fix the issue that loopback and auto-negotiation cannot be enabled at the same time     |
-| 0.2.2       | 2025-2-14  | Add support of CH390D; Remove beta symbol                                                                              |
-| 0.3.0       | 2025-9-26  | Refactor: Remove dependency on legacy `driver` component on newer IDF versions                                         |
-
 ## Acknowledgement
 In no particular order:
 - ***kostaond**
