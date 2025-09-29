@@ -74,18 +74,6 @@
 #endif // CONFIG_ETHERNET_PHY_KSZ80XX
 #endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
 
-#if CONFIG_ETHERNET_SPI_NUMBER
-#define SPI_ETHERNETS_NUM           CONFIG_ETHERNET_SPI_NUMBER
-#else
-#define SPI_ETHERNETS_NUM           0
-#endif
-
-#if CONFIG_ETHERNET_INTERNAL_SUPPORT
-#define INTERNAL_ETHERNETS_NUM      1
-#else
-#define INTERNAL_ETHERNETS_NUM      0
-#endif
-
 #define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                   \
     do {                                                                                     \
         eth_module_config[num].dev = CONFIG_ETHERNET_SPI_DEV ##num## _ID;                   \
@@ -100,8 +88,16 @@
 #define CONFIG_ETHERNET_INTERNAL_SUPPORT 0
 #endif
 
-#if !defined(CONFIG_ETHERNET_SPI_NUMBER)
-#define CONFIG_ETHERNET_SPI_NUMBER 0
+#if !defined(CONFIG_ETHERNET_SPI_SUPPORT)
+#define ETHERNET_SPI_NUMBER 0
+#elif defined(CONFIG_ETHERNET_SPI_DEV1_NONE)
+#define ETHERNET_SPI_NUMBER 1
+#else
+#define ETHERNET_SPI_NUMBER 2
+#endif
+
+#if !defined(CONFIG_ETHERNET_OPENETH_SUPPORT)
+#define CONFIG_ETHERNET_OPENETH_SUPPORT 0
 #endif
 
 /* This enum definition must be aligned with the ETHERNET_SPI_USE_ID* definitions in Kconfig.projbuild */
@@ -131,15 +127,13 @@ typedef enum {
 
 typedef struct {
     esp_eth_handle_t eth_handle;
-    esp_eth_mac_t *mac;
-    esp_eth_phy_t *phy;
     dev_state state;
     eth_dev_info_t dev_info;
 } eth_device;
 
 static const char *TAG = "ethernet_init";
 static uint8_t eth_cnt_g = 0;
-static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + CONFIG_ETHERNET_SPI_NUMBER];
+static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + ETHERNET_SPI_NUMBER + CONFIG_ETHERNET_OPENETH_SUPPORT];
 
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
@@ -212,17 +206,17 @@ esp_err_t eth_board_specific_init(esp_eth_handle_t eth_handle)
 /**
  * @brief Internal ESP32 Ethernet initialization
  *
- * @param[out] dev_out device information of the ethernet
+ * @param[out] dev_name device name string
  * @return
  *          - esp_eth_handle_t if init succeeded
  *          - NULL if init failed
  */
-static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
+static esp_eth_handle_t eth_init_internal(char *dev_name)
 {
     esp_eth_handle_t ret = NULL;
 
-    if (dev_out == NULL) {
-        ESP_LOGE(TAG, "eth_device NULL");
+    if (dev_name == NULL) {
+        ESP_LOGE(TAG, "dev_name NULL");
         return ret;
     }
 
@@ -281,8 +275,11 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
 #if CONFIG_ETHERNET_SPI_SUPPORT && !(CONFIG_ETHERNET_DMA_BURST_LEN_1 || CONFIG_ETHERNET_DMA_BURST_LEN_2 || CONFIG_ETHERNET_DMA_BURST_LEN_4 || CONFIG_ETHERNET_DMA_BURST_LEN_8)
 #warning "SPI Ethernet is used along with internal EMAC, consider lowering EMAC DMA burst length to 1, 2, 4 or 8 beats"
 #endif
+    esp_eth_mac_t *mac = NULL;
+    esp_eth_phy_t *phy = NULL;
+
     // Create new ESP32 Ethernet MAC instance
-    dev_out->mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
+    mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
 
     // Init common PHY configs to default
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -290,33 +287,37 @@ static esp_eth_handle_t eth_init_internal(eth_device *dev_out)
     // Update PHY config based on board specific configuration
     phy_config.phy_addr = CONFIG_ETHERNET_PHY_ADDR;
     phy_config.reset_gpio_num = CONFIG_ETHERNET_PHY_RST_GPIO;
+#if CONFIG_ETHERNET_PHY_RST_TIMING_EN
+    phy_config.hw_reset_assert_time_us = CONFIG_ETHERNET_PHY_RST_ASSERT_TIME_US;
+    phy_config.post_hw_reset_delay_ms = CONFIG_ETHERNET_PHY_RST_DELAY_MS;
+#endif // CONFIG_ETHERNET_PHY_RST_TIMING_EN
 
     // Create new PHY instance based on board configuration
 #if CONFIG_ETHERNET_PHY_GENERIC
-    dev_out->phy = esp_eth_phy_new_generic(&phy_config);
+    phy = esp_eth_phy_new_generic(&phy_config);
 #elif CONFIG_ETHERNET_PHY_IP101
-    dev_out->phy = esp_eth_phy_new_ip101(&phy_config);
-    sprintf(dev_out->dev_info.name, "IP101");
+    phy = esp_eth_phy_new_ip101(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "IP101");
 #elif CONFIG_ETHERNET_PHY_RTL8201
-    dev_out->phy = esp_eth_phy_new_rtl8201(&phy_config);
-    sprintf(dev_out->dev_info.name, "RTL8201");
+    phy = esp_eth_phy_new_rtl8201(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "RTL8201");
 #elif CONFIG_ETHERNET_PHY_LAN87XX
-    dev_out->phy = esp_eth_phy_new_lan87xx(&phy_config);
-    sprintf(dev_out->dev_info.name, "LAN87XX");
+    phy = esp_eth_phy_new_lan87xx(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "LAN87XX");
 #elif CONFIG_ETHERNET_PHY_DP83848
-    dev_out->phy = esp_eth_phy_new_dp83848(&phy_config);
-    sprintf(dev_out->dev_info.name, "DP83848");
+    phy = esp_eth_phy_new_dp83848(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "DP83848");
 #elif CONFIG_ETHERNET_PHY_KSZ80XX
-    dev_out->phy = esp_eth_phy_new_ksz80xx(&phy_config);
-    sprintf(dev_out->dev_info.name, "KSZ80XX");
+    phy = esp_eth_phy_new_ksz80xx(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "KSZ80XX");
 #elif CONFIG_ETHERNET_PHY_LAN867X
-    dev_out->phy = esp_eth_phy_new_lan867x(&phy_config);
-    sprintf(dev_out->dev_info.name, "LAN867X");
+    phy = esp_eth_phy_new_lan867x(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "LAN867X");
 #endif
 
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
-    esp_eth_config_t config = ETH_DEFAULT_CONFIG(dev_out->mac, dev_out->phy);
+    esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     config.on_lowlevel_init_done = eth_board_specific_init;
     ESP_GOTO_ON_FALSE(esp_eth_driver_install(&config, &eth_handle) == ESP_OK, NULL,
                       err, TAG, "Ethernet driver install failed");
@@ -326,11 +327,11 @@ err:
     if (eth_handle != NULL) {
         esp_eth_driver_uninstall(eth_handle);
     }
-    if (dev_out->mac != NULL) {
-        dev_out->mac->del(dev_out->mac);
+    if (mac != NULL) {
+        mac->del(mac);
     }
-    if (dev_out->phy != NULL) {
-        dev_out->phy->del(dev_out->phy);
+    if (phy != NULL) {
+        phy->del(phy);
     }
     return ret;
 }
@@ -378,22 +379,22 @@ err:
  * @brief Ethernet SPI modules initialization
  *
  * @param[in] spi_eth_module_config specific SPI Ethernet module configuration
- * @param[out] dev device information of the ethernet
+ * @param[out] dev_name device name string
  * @return
  *          - esp_eth_handle_t if init succeeded
  *          - NULL if init failed
  */
-static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_config, eth_device *dev_out)
+static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_config, char *dev_name)
 {
     esp_eth_handle_t ret = NULL;
 
-    if (dev_out == NULL) {
-        ESP_LOGE(TAG, "eth_device NULL");
+    if (dev_name == NULL) {
+        ESP_LOGE(TAG, "dev_name NULL");
         return ret;
     }
 
-    dev_out->mac = NULL;
-    dev_out->phy = NULL;
+    esp_eth_mac_t *mac = NULL;
+    esp_eth_phy_t *phy = NULL;
 
     // Init common MAC and PHY configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
@@ -418,53 +419,53 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         eth_ksz8851snl_config_t ksz8851snl_config = ETH_KSZ8851SNL_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
         ksz8851snl_config.int_gpio_num = spi_eth_module_config->int_gpio;
         ksz8851snl_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-        dev_out->mac = esp_eth_mac_new_ksz8851snl(&ksz8851snl_config, &mac_config);
-        dev_out->phy = esp_eth_phy_new_ksz8851snl(&phy_config);
-        sprintf(dev_out->dev_info.name, "KSZ8851SNL");
+        mac = esp_eth_mac_new_ksz8851snl(&ksz8851snl_config, &mac_config);
+        phy = esp_eth_phy_new_ksz8851snl(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "KSZ8851SNL");
 #endif // CONFIG_ETHERNET_SPI_USE_KSZ8851SNL
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_DM9051) {
 #if CONFIG_ETHERNET_SPI_USE_DM9051
         eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
         dm9051_config.int_gpio_num = spi_eth_module_config->int_gpio;
         dm9051_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-        dev_out->mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
-        dev_out->phy = esp_eth_phy_new_dm9051(&phy_config);
-        sprintf(dev_out->dev_info.name, "DM9051");
+        mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
+        phy = esp_eth_phy_new_dm9051(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "DM9051");
 #endif // CONFIG_ETHERNET_SPI_USE_DM9051
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_W5500) {
 #if CONFIG_ETHERNET_SPI_USE_W5500
         eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
         w5500_config.int_gpio_num = spi_eth_module_config->int_gpio;
         w5500_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-        dev_out->mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
-        dev_out->phy = esp_eth_phy_new_w5500(&phy_config);
-        sprintf(dev_out->dev_info.name, "W5500");
+        mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
+        phy = esp_eth_phy_new_w5500(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "W5500");
 #endif // CONFIG_ETHERNET_SPI_USE_W5500
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_CH390) {
 #if CONFIG_ETHERNET_SPI_USE_CH390
         eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
         ch390_config.int_gpio_num = spi_eth_module_config->int_gpio;
         ch390_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
-        dev_out->mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
-        dev_out->phy = esp_eth_phy_new_ch390(&phy_config);
-        sprintf(dev_out->dev_info.name, "CH390");
+        mac = esp_eth_mac_new_ch390(&ch390_config, &mac_config);
+        phy = esp_eth_phy_new_ch390(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "CH390");
 #endif // CONFIG_ETHERNET_SPI_USE_CH390
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_ENC28J60) {
 #if CONFIG_ETHERNET_SPI_USE_ENC28J60
         spi_devcfg.cs_ena_posttrans = enc28j60_cal_spi_cs_hold_time(CONFIG_ETHERNET_SPI_CLOCK_MHZ);
         eth_enc28j60_config_t enc28j60_config = ETH_ENC28J60_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
         enc28j60_config.int_gpio_num = spi_eth_module_config->int_gpio;
-        dev_out->mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
+        mac = esp_eth_mac_new_enc28j60(&enc28j60_config, &mac_config);
 
         // ENC28J60 Errata #1 check
-        ESP_GOTO_ON_FALSE(dev_out->mac, NULL, err, TAG, "creation of ENC28J60 MAC instance failed");
-        ESP_GOTO_ON_FALSE(emac_enc28j60_get_chip_info(dev_out->mac) >= ENC28J60_REV_B5 || CONFIG_ETHERNET_SPI_CLOCK_MHZ >= 8,
+        ESP_GOTO_ON_FALSE(mac, NULL, err, TAG, "creation of ENC28J60 MAC instance failed");
+        ESP_GOTO_ON_FALSE(emac_enc28j60_get_chip_info(mac) >= ENC28J60_REV_B5 || CONFIG_ETHERNET_SPI_CLOCK_MHZ >= 8,
                           NULL, err, TAG, "SPI frequency must be at least 8 MHz for chip revision less than 5");
 
         phy_config.autonego_timeout_ms = 0; // ENC28J60 doesn't support auto-negotiation
         phy_config.reset_gpio_num = -1; // ENC28J60 doesn't have a pin to reset internal PHY
-        dev_out->phy = esp_eth_phy_new_enc28j60(&phy_config);
-        sprintf(dev_out->dev_info.name, "ENC28J60");
+        phy = esp_eth_phy_new_enc28j60(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "ENC28J60");
 #endif // CONFIG_ETHERNET_SPI_USE_ENC28J60
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_LAN865X) {
 #if CONFIG_ETHERNET_SPI_USE_LAN865X
@@ -472,9 +473,9 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         lan865x_config.int_gpio_num = spi_eth_module_config->int_gpio;
         lan865x_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
 
-        dev_out->mac = esp_eth_mac_new_lan865x(&lan865x_config, &mac_config);
-        dev_out->phy = esp_eth_phy_new_lan865x(&phy_config);
-        sprintf(dev_out->dev_info.name, "LAN865X");
+        mac = esp_eth_mac_new_lan865x(&lan865x_config, &mac_config);
+        phy = esp_eth_phy_new_lan865x(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "LAN865X");
 #endif // CONFIG_ETHERNET_SPI_USE_LAN865X
     } else {
         ESP_LOGE(TAG, "Unsupported SPI Ethernet module type ID: %i", spi_eth_module_config->dev);
@@ -483,7 +484,7 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
-    esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(dev_out->mac, dev_out->phy);
+    esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac, phy);
     ESP_GOTO_ON_FALSE(esp_eth_driver_install(&eth_config_spi, &eth_handle) == ESP_OK, NULL, err, TAG, "SPI Ethernet driver install failed");
 
     // The SPI Ethernet module might not have a burned factory MAC address, we can set it manually.
@@ -497,35 +498,72 @@ err:
     if (eth_handle != NULL) {
         esp_eth_driver_uninstall(eth_handle);
     }
-    if (dev_out->mac != NULL) {
-        dev_out->mac->del(dev_out->mac);
+    if (mac != NULL) {
+        mac->del(mac);
     }
-    if (dev_out->phy != NULL) {
-        dev_out->phy->del(dev_out->phy);
+    if (phy != NULL) {
+        phy->del(phy);
     }
     return ret;
 }
 #endif // CONFIG_ETHERNET_SPI_SUPPORT
 
+#if CONFIG_ETHERNET_OPENETH_SUPPORT
+/**
+ * @brief OpenCores Ethernet initialization
+ *
+ * @param[out] dev_name device name string
+ * @return esp_eth_handle_t
+ */
+static esp_eth_handle_t eth_init_openeth(char *dev_name)
+{
+    esp_eth_handle_t ret = NULL;
+    if (dev_name == NULL) {
+        ESP_LOGE(TAG, "dev_name NULL");
+        return ret;
+    }
+
+    esp_eth_mac_t *mac = NULL;
+    esp_eth_phy_t *phy = NULL;
+
+    eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
+    eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
+
+    phy_config.autonego_timeout_ms = 100;
+    mac = esp_eth_mac_new_openeth(&mac_config);
+    phy = esp_eth_phy_new_generic(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "OPENETH");
+
+    // Init Ethernet driver to default and install it
+    esp_eth_handle_t eth_handle = NULL;
+    esp_eth_config_t eth_config_openeth = ETH_DEFAULT_CONFIG(mac, phy);
+    ESP_GOTO_ON_FALSE(esp_eth_driver_install(&eth_config_openeth, &eth_handle) == ESP_OK, NULL, err, TAG, "OPENETH Ethernet driver install failed");
+    return eth_handle;
+err:
+    if (mac != NULL) {
+        mac->del(mac);
+    }
+    if (phy != NULL) {
+        phy->del(phy);
+    }
+    return ret;
+}
+#endif // CONFIG_ETHERNET_OPENETH_SUPPORT
+
 esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cnt_out)
 {
     esp_err_t ret = ESP_OK;
     esp_eth_handle_t *eth_handles = NULL;
-    static int called = 0;
 
-    if (called == 0) {
-        ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
-        called = 1;
-    }
-
-#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT
+#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
     ESP_GOTO_ON_FALSE(eth_handles_out != NULL && eth_cnt_out != NULL, ESP_ERR_INVALID_ARG,
                       err, TAG, "invalid arguments: initialized handles array or number of interfaces");
-    eth_handles = calloc(SPI_ETHERNETS_NUM + INTERNAL_ETHERNETS_NUM, sizeof(esp_eth_handle_t));
+    eth_handles = calloc(CONFIG_ETHERNET_INTERNAL_SUPPORT + ETHERNET_SPI_NUMBER + CONFIG_ETHERNET_OPENETH_SUPPORT, sizeof(esp_eth_handle_t));
     ESP_GOTO_ON_FALSE(eth_handles != NULL, ESP_ERR_NO_MEM, err, TAG, "no memory");
 
 #if CONFIG_ETHERNET_INTERNAL_SUPPORT
-    eth_handles[eth_cnt_g] = eth_init_internal(&eth_instance_g[eth_cnt_g]);
+    eth_handles[eth_cnt_g] = eth_init_internal(eth_instance_g[eth_cnt_g].dev_info.name);
     ESP_GOTO_ON_FALSE(eth_handles[eth_cnt_g], ESP_FAIL, err, TAG, "internal Ethernet init failed");
     eth_instance_g[eth_cnt_g].state = DEV_STATE_INITIALIZED;
     eth_instance_g[eth_cnt_g].eth_handle = eth_handles[eth_cnt_g];
@@ -538,7 +576,7 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 #if CONFIG_ETHERNET_SPI_SUPPORT
     ESP_GOTO_ON_ERROR(spi_bus_init(), err, TAG, "SPI bus init failed");
     // Init specific SPI Ethernet module configuration from Kconfig (CS GPIO, Interrupt GPIO, etc.)
-    spi_eth_module_config_t spi_eth_module_config[CONFIG_ETHERNET_SPI_NUMBER] = { 0 };
+    spi_eth_module_config_t spi_eth_module_config[ETHERNET_SPI_NUMBER] = { 0 };
 
     /*
     The SPI Ethernet module(s) might not have a burned factory MAC address, hence use manually configured address(es).
@@ -566,7 +604,7 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
     INIT_SPI_ETH_MODULE_CONFIG(spi_eth_module_config, 0);
     spi_eth_module_config[0].mac_addr = local_mac_0;
 
-#if CONFIG_ETHERNET_SPI_NUMBER > 1
+#if ETHERNET_SPI_NUMBER > 1
     uint8_t local_mac_1[ETH_ADDR_LEN];
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
     base_mac_addr[ETH_ADDR_LEN - 1] += 1;
@@ -583,12 +621,12 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
     spi_eth_module_config[1].mac_addr = local_mac_1;
 #endif
 
-#if CONFIG_ETHERNET_SPI_NUMBER > 2
+#if ETHERNET_SPI_NUMBER > 2
 #error Maximum number of supported SPI Ethernet devices is currently limited to 2 by this example.
 #endif
 
-    for (int i = 0; i < CONFIG_ETHERNET_SPI_NUMBER; i++) {
-        eth_handles[eth_cnt_g] = eth_init_spi(&spi_eth_module_config[i], &eth_instance_g[eth_cnt_g]);
+    for (int i = 0; i < ETHERNET_SPI_NUMBER; i++) {
+        eth_handles[eth_cnt_g] = eth_init_spi(&spi_eth_module_config[i], eth_instance_g[eth_cnt_g].dev_info.name);
         ESP_GOTO_ON_FALSE(eth_handles[eth_cnt_g], ESP_FAIL, err, TAG, "SPI Ethernet init failed");
         eth_instance_g[eth_cnt_g].state = DEV_STATE_INITIALIZED;
         eth_instance_g[eth_cnt_g].eth_handle = eth_handles[eth_cnt_g];
@@ -602,12 +640,28 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
         if (strcmp(eth_instance_g[i].dev_info.name, "ENC28J60") == 0) {
             // It is recommended to use ENC28J60 in Full Duplex mode since multiple errata exist to the Half Duplex mode
             eth_duplex_t duplex = ETH_DUPLEX_FULL;
-            ESP_ERROR_CHECK(esp_eth_ioctl(eth_instance_g[i].eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
+            ESP_GOTO_ON_ERROR(esp_eth_ioctl(eth_instance_g[i].eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex),
+                              err, TAG, "failed to set duplex mode");
         }
     }
 #endif // CONFIG_ETHERNET_ENC28J60_DUPLEX_FULL
 #endif // CONFIG_ETHERNET_SPI_SUPPORT
 
+#if CONFIG_ETHERNET_OPENETH_SUPPORT
+    eth_handles[eth_cnt_g] = eth_init_openeth(eth_instance_g[eth_cnt_g].dev_info.name);
+    ESP_GOTO_ON_FALSE(eth_handles[eth_cnt_g], ESP_FAIL, err, TAG, "OpenCores Ethernet init failed");
+    eth_instance_g[eth_cnt_g].state = DEV_STATE_INITIALIZED;
+    eth_instance_g[eth_cnt_g].eth_handle = eth_handles[eth_cnt_g];
+    eth_instance_g[eth_cnt_g].dev_info.type = ETH_DEV_TYPE_OPENETH;
+    eth_cnt_g++;
+#endif // CONFIG_ETHERNET_OPENETH_SUPPORT
+    // Register Ethernet event handler
+    static int called = 0;
+    if (called == 0) {
+        ESP_GOTO_ON_ERROR(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL),
+                          err, TAG, "failed to register event handler");
+        called = 1;
+    }
 #else
     ESP_LOGD(TAG, "no Ethernet device selected to init");
 #endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT
@@ -675,59 +729,70 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
     *eth_cnt_out = eth_cnt_g;
 
     return ret;
-#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT
+#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
 err:
     ethernet_deinit_all(eth_handles);
     return ret;
 #endif
 }
 
-void ethernet_deinit_all(esp_eth_handle_t *eth_handles)
+esp_err_t ethernet_deinit_all(esp_eth_handle_t *eth_handles)
 {
-    while (eth_cnt_g) {
-        eth_cnt_g--;
-        if ((eth_instance_g[eth_cnt_g].state == DEV_STATE_INITIALIZED) &&
-                (eth_instance_g[eth_cnt_g].eth_handle != NULL)) {
-            if (esp_eth_driver_uninstall(eth_instance_g[eth_cnt_g].eth_handle) != ESP_OK) {
-                ESP_LOGE(TAG, "Unable to deinitialize ethernet handle: %d", eth_cnt_g);
-            }
-
-            if (eth_instance_g[eth_cnt_g].mac != NULL) {
-                eth_instance_g[eth_cnt_g].mac->del(eth_instance_g[eth_cnt_g].mac);
-            }
-            if (eth_instance_g[eth_cnt_g].phy != NULL) {
-                eth_instance_g[eth_cnt_g].phy->del(eth_instance_g[eth_cnt_g].phy);
+#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
+    if (eth_handles == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    uint8_t deinit_cnt = 0;
+    for (int eth_cnt = 0; eth_cnt < eth_cnt_g; eth_cnt++) {
+        if ((eth_instance_g[eth_cnt].state == DEV_STATE_INITIALIZED) &&
+                (eth_instance_g[eth_cnt].eth_handle != NULL)) {
+            esp_eth_mac_t *mac = NULL;
+            esp_eth_phy_t *phy = NULL;
+            esp_eth_get_mac_instance(eth_instance_g[eth_cnt].eth_handle, &mac);
+            esp_eth_get_phy_instance(eth_instance_g[eth_cnt].eth_handle, &phy);
+            if (esp_eth_driver_uninstall(eth_instance_g[eth_cnt].eth_handle) == ESP_OK) {
+                if (mac != NULL) {
+                    mac->del(mac);
+                }
+                if (phy != NULL) {
+                    phy->del(phy);
+                }
+                eth_instance_g[eth_cnt].state = DEV_STATE_UNINITIALIZED;
+                eth_instance_g[eth_cnt].eth_handle = NULL;
+                deinit_cnt++;
+            } else {
+                ESP_LOGE(TAG, "Unable to deinitialize ethernet handle: %p, if#: %" PRIu8,
+                         eth_instance_g[eth_cnt].eth_handle, eth_cnt);
             }
         }
     }
-
+    // continue only if all Ethernet devices were deinitialized
+    if (deinit_cnt != eth_cnt_g) {
+        return ESP_FAIL;
+    }
 #if CONFIG_ETHERNET_SPI_SUPPORT
     spi_bus_free(CONFIG_ETHERNET_SPI_HOST);
     gpio_uninstall_isr_service();
 #endif
-
     free(eth_handles);
-    if (eth_cnt_g != 0) {
-        ESP_LOGE(TAG, "Something is very wrong. eth_cnt_g is not zero(%d).", eth_cnt_g);
-    }
+    eth_cnt_g = 0;
+    ESP_LOGI(TAG, "All Ethernet devices were deinitialized");
+#else
+    ESP_LOGD(TAG, "no Ethernet device was selected to init");
+    return ESP_ERR_INVALID_STATE;
+#endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
+    return ESP_OK;
 }
 
-/**
- * @brief Returns the device type of the ethernet handle
- *
- * @param[out] eth_handles Initialized Ethernet driver handles
- * @return
- *          - eth_dev_info_t device information of the ethernet handle
- */
-eth_dev_info_t ethernet_init_get_dev_info(esp_eth_handle_t *eth_handle)
+eth_dev_info_t ethernet_init_get_dev_info(esp_eth_handle_t eth_handle)
 {
     eth_dev_info_t ret = {.type = ETH_DEV_TYPE_UNKNOWN};
-
+#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
     for (int i = 0; i < eth_cnt_g; i++) {
         if (eth_handle == eth_instance_g[i].eth_handle) {
             return eth_instance_g[i].dev_info;
         }
     }
-
+#endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
     return ret;
 }

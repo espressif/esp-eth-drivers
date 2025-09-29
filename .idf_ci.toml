@@ -6,4 +6,7 @@ build_job_filepatterns = [
     "**/build*/config/sdkconfig.json",
     "**/build*/bootloader/*.bin",
     "**/build*/partition_table/*.bin",
+    "**/build*/size.json",
+    "**/build*/project_description.json",
+    "**/build*/build.log",
 ]

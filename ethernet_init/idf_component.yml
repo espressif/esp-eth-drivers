@@ -1,33 +1,52 @@
 dependencies:
   idf:
-    version: '>=5.4'
+    version: '>=5.5.1'
   espressif/ch390:
     version: '*'
     override_path: ../ch390/
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_CH390} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_CH390} == True
   espressif/dm9051:
     override_path: ../dm9051/
-    matches:
+    rules:
       - if: idf_version >=6.0
         version: ^1.0.0
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_DM9051} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_DM9051} == True
   espressif/enc28j60:
     version: '*'
     override_path: ../enc28j60/
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_ENC28J60} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_ENC28J60} == True
   espressif/ksz8851snl:
     override_path: ../ksz8851snl/
-    matches:
+    rules:
       - if: idf_version >=6.0
         version: ^1.0.0
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_KSZ8851SNL} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_KSZ8851SNL} == True
   espressif/lan865x:
     version: ^0.1.1
     override_path: ../lan865x/
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_LAN865X} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_LAN865X} == True
   espressif/w5500:
     override_path: ../w5500/
-    matches:
+    rules:
       - if: idf_version >=6.0
         version: ^1.0.0
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV0_W5500} == True
+      - if: $CONFIG{ETHERNET_SPI_SUPPORT} == True && $CONFIG{ETHERNET_SPI_DEV1_W5500} == True
   espressif/dp83848:
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_DP83848} == True
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -35,6 +54,7 @@ dependencies:
   espressif/ip101:
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_IP101} == True
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -42,6 +62,7 @@ dependencies:
   espressif/ksz80xx:
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_KSZ80XX} == True
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -50,10 +71,12 @@ dependencies:
     version: '>=2.0.0'
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_LAN867X} == True
     override_path: ../lan867x/
   espressif/lan87xx:
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_LAN87XX} == True
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -61,6 +84,7 @@ dependencies:
   espressif/rtl8201:
     rules:
       - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_INTERNAL_SUPPORT} == True && $CONFIG{ETHERNET_PHY_RTL8201} == True
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0

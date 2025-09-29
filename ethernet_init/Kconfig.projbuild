@@ -8,9 +8,29 @@ menu "Ethernet Configuration"
         help
             Set stack size for EMAC Rx task in B.
 
-    config ETHERNET_INTERNAL_SUPPORT
-        depends on SOC_EMAC_SUPPORTED
+    config ETHERNET_INIT_OVERRIDE_DISABLE
+        bool
+        default n
+        help
+            Hidden option to override and disable Ethernet initialization on targets that support multiple network interfaces.
+            This provides a mechanism for upper-level applications to override the Ethernet configuration behavior based on
+            application requirements (e.g., when either WiFi or Ethernet should only be enabled). When this option is enabled,
+            both internal EMAC and SPI Ethernet support configuration options are disabled (not available), allowing applications
+            to explicitly enable Ethernet configuration only when needed.
+
+    config ETHERNET_INIT_DEFAULT_ETH_DISABLED
+        bool
+        default n
+        help
+            Hidden option to set default Ethernet initialization selection on targets that support multiple network interfaces.
+            This provides a mechanism for upper-level applications to select network interface default initialization preferences
+            based on application requirements. When this option is enabled, both internal EMAC and SPI Ethernet support configuration
+            are still available to be configured but they are disabled by default.
+
+    menuconfig ETHERNET_INTERNAL_SUPPORT
+        depends on SOC_EMAC_SUPPORTED && !ETHERNET_INIT_OVERRIDE_DISABLE
         select ETH_USE_ESP32_EMAC
+        default n if ETHERNET_INIT_DEFAULT_ETH_DISABLED
         default y
         bool "Internal EMAC"
         help
@@ -236,9 +256,10 @@ menu "Ethernet Configuration"
         choice ETHERNET_DMA_BURST_LEN
             prompt "EMAC DMA Burst Length"
             help
-                If you observe undefined behavior (e.g. LCD glitches) of any DMA capable peripheral (SPI, I2S, etc.) which works normally when Ethernet is not connected over internal EMAC,
-                you need to adjust EMAC DMA burst length (the DMA is shared resource between EMAC and other peripherals). The same applies when you observe Ethernet frames corruption at
-                the output of SPI Ethernet module and you use combination of internal EMAC and SPI Ethernet module as network interfaces.
+                If you observe undefined behavior (e.g. LCD glitches) of any DMA capable peripheral (SPI, I2S, etc.) which works normally
+                when Ethernet is not connected over internal EMAC, you need to adjust EMAC DMA burst length since the DMA is shared resource
+                between EMAC and other peripherals. The same applies when you observe Ethernet frames corruption at the output of
+                SPI Ethernet module and you use combination of internal EMAC and SPI Ethernet module as network interfaces.
                 Valid options are "1, 2, 4, 8, 16 and 32" beats. If you select default, driver's internal default value will be used.
 
             config ETHERNET_DMA_BURST_LEN_DEFAULT
@@ -262,29 +283,57 @@ menu "Ethernet Configuration"
             config ETHERNET_DMA_BURST_LEN_32
                 bool "EMAC DMA Burst Length 32 beats"
         endchoice #ETHERNET_DMA_BURST_LEN
+
+        menuconfig ETHERNET_PHY_RST_TIMING_EN
+            bool "PHY Reset Timing configuration"
+            default n
+            help
+                Reset timing configuration is automatically optimized for specific PHY chips. For "Generic 802.3 PHY",
+                the default reset timing is set conservatively. If you need faster response times and your chip supports it,
+                enable and configure this option.  Refer to your PHY datasheet "AC Specification" section for supported
+                timing values.
+                NOTE:
+                This option is recommended for use with "Generic 802.3 PHY" implementations. It is not recommended to
+                override specific PHY chip default configurations. However, this option is intentionally kept available
+                even for specific PHY chips for cases where compensation of possible hardware delay is required.
+
+        config ETHERNET_PHY_RST_ASSERT_TIME_US
+            int "PHY Reset Assert Time (microseconds)"
+            depends on ETHERNET_PHY_RST_TIMING_EN
+            range 0 100000
+            default 10000
+            help
+                Time in microseconds to assert the PHY reset signal.
+                This should be long enough to ensure the PHY chip is properly reset.
+
+        config ETHERNET_PHY_RST_DELAY_MS
+            int "PHY Post-Reset Delay (milliseconds)"
+            depends on ETHERNET_PHY_RST_TIMING_EN
+            range -1 4000
+            default 10
+            help
+                Delay in milliseconds after releasing the PHY reset signal.
+                This allows the PHY chip to stabilize before communication begins.
+                When no delay required, set -1.
+
     endif # ETHERNET_INTERNAL_SUPPORT
 
-    config ETHERNET_SPI_SUPPORT
+    menuconfig ETHERNET_SPI_SUPPORT
         bool "SPI Ethernet"
+        depends on !ETHERNET_INIT_OVERRIDE_DISABLE
+        default n if ETHERNET_INIT_DEFAULT_ETH_DISABLED
+        default y if !SOC_EMAC_SUPPORTED
         default n
         select ETH_USE_SPI_ETHERNET
         help
             Use external SPI-Ethernet module(s).
 
     if ETHERNET_SPI_SUPPORT
-        config ETHERNET_SPI_NUMBER
-            int "Number of SPI Ethernet modules to use at a time"
-            range 1 2
-            default 1
-            help
-                Set the number of SPI Ethernet modules you want to use at a time. Multiple SPI modules can be connected
-                to one SPI interface and can be separately accessed based on state of associated Chip Select (CS).
-
         choice ETHERNET_SPI_DEV0
             prompt "SPI Ethernet module #1"
             default ETHERNET_SPI_DEV0_W5500
             help
-                Select which kind of spi Ethernet will be used.
+                Select which kind of SPI Ethernet will be used.
 
             config ETHERNET_SPI_DEV0_DM9051
                 bool "DM9051 Module"
@@ -306,11 +355,14 @@ menu "Ethernet Configuration"
         endchoice
 
         choice ETHERNET_SPI_DEV1
-            depends on ETHERNET_SPI_NUMBER > 1
             prompt "SPI Ethernet module #2"
-            default ETHERNET_SPI_DEV1_W5500
+            default ETHERNET_SPI_DEV1_NONE
             help
-                Select which kind of spi Ethernet will be used.
+                Select which kind of SPI Ethernet will be used as the second module. Multiple SPI modules can be connected
+                to one SPI interface and can be separately accessed based on state of associated Chip Select (CS).
+
+            config ETHERNET_SPI_DEV1_NONE
+                bool "None"
 
             config ETHERNET_SPI_DEV1_DM9051
                 bool "DM9051 Module"
@@ -374,7 +426,7 @@ menu "Ethernet Configuration"
             default 5 if ETHERNET_SPI_DEV0_LAN865X
 
         config ETHERNET_SPI_DEV1_ID
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int
             default 0 if ETHERNET_SPI_DEV1_DM9051
             default 1 if ETHERNET_SPI_DEV1_KSZ8851SNL
@@ -483,7 +535,7 @@ menu "Ethernet Configuration"
             depends on !ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
 
         config ETHERNET_SPI_CS1_GPIO
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int "SPI CS1 GPIO number for SPI Ethernet module #2"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
             default 32 if IDF_TARGET_ESP32
@@ -498,7 +550,7 @@ menu "Ethernet Configuration"
                 Set the GPIO number used by SPI CS1, i.e. Chip Select associated with the second SPI Eth module.
 
         config ETHERNET_SPI_INT1_GPIO
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int "Interrupt GPIO number SPI Ethernet module #2"
             range -1 ENV_GPIO_IN_RANGE_MAX
             default 33 if IDF_TARGET_ESP32
@@ -512,7 +564,7 @@ menu "Ethernet Configuration"
                 Set -1 to use SPI Ethernet module in polling mode.
 
         config ETHERNET_SPI_PHY_RST1_GPIO
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int "PHY Reset GPIO number of SPI Ethernet Module #2"
             range -1 ENV_GPIO_OUT_RANGE_MAX
             default -1
@@ -521,7 +573,7 @@ menu "Ethernet Configuration"
                 Set to -1 to disable PHY chip hardware reset.
 
         config ETHERNET_SPI_PHY_ADDR1
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int "PHY Address of SPI Ethernet Module #2"
             range 0 31
             default 1
@@ -529,7 +581,7 @@ menu "Ethernet Configuration"
                 Set the second SPI Ethernet module PHY address according your board schematic.
 
         config ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             bool "Auto-configure MAC address of SPI Ethernet #2"
             default y
             help
@@ -538,7 +590,7 @@ menu "Ethernet Configuration"
         config ETHERNET_SPI_MAC_ADDR1
             string "MAC address of SPI Ethernet #2"
             default "5a:bf:25:e0:41:01"
-            depends on (!ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1) && (ETHERNET_SPI_NUMBER > 1)
+            depends on (!ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1) && (!ETHERNET_SPI_DEV1_NONE)
 
         config ETHERNET_SPI_POLLING0_MS_VAL
             depends on ETHERNET_SPI_INT0_GPIO < 0
@@ -548,7 +600,7 @@ menu "Ethernet Configuration"
                 Set SPI Ethernet module polling period.
 
         config ETHERNET_SPI_POLLING1_MS_VAL
-            depends on ETHERNET_SPI_NUMBER > 1 && ETHERNET_SPI_INT1_GPIO < 0
+            depends on !ETHERNET_SPI_DEV1_NONE && ETHERNET_SPI_INT1_GPIO < 0
             int "Polling period in msec of SPI Ethernet Module #2"
             default 10
             help
@@ -564,7 +616,7 @@ menu "Ethernet Configuration"
         # Hidden variable to ensure that polling period option is visible only when interrupt is set disabled and
         # it is set to known value (0) when interrupt is enabled at the same time.
         config ETHERNET_SPI_POLLING1_MS
-            depends on ETHERNET_SPI_NUMBER > 1
+            depends on !ETHERNET_SPI_DEV1_NONE
             int
             default ETHERNET_SPI_POLLING1_MS_VAL if ETHERNET_SPI_POLLING1_MS_VAL > 0
             default 0
@@ -688,6 +740,18 @@ menu "Ethernet Configuration"
 
         endmenu # PLCA
     endif # ETHERNET_PHY_LAN867X
+
+    config ETHERNET_OPENETH_SUPPORT
+        bool "OpenCores Ethernet MAC (EXPERIMENTAL)"
+        depends on !ETHERNET_INIT_OVERRIDE_DISABLE && (SOC_WIFI_SUPPORTED || SOC_EMAC_SUPPORTED) && !(ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT)
+        select ETH_USE_OPENETH
+        default n
+        help
+            When this option is enabled, the example is built with support for
+            OpenCores Ethernet MAC, which allows testing the example in QEMU.
+            Note that this option is used for internal testing purposes, and
+            not officially supported. Examples built with this option enabled
+            will not run on a real ESP32 chips.
 
     choice ETHERNET_BOARD_SPECIFIC_INIT
         prompt "Board Specific Init"

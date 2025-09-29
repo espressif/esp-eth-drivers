@@ -104,6 +104,47 @@ The ESP-IDF supports the usage of multiple Ethernet interfaces at a time when ex
 >[!TIP]
 > Follow the help inside **Project Configuration** (`idf.py menuconfig`) for each configuration option to gain better understanding. Press `?` on any option to view its help text.
 
+### Advanced Project Configuration
+
+Hidden `kconfig` option `ETHERNET_INIT_OVERRIDE_DISABLE` is provided to override and disable Ethernet initialization on targets that support multiple network interfaces. This provides a mechanism for upper-level applications to override the Ethernet configuration behavior based on application requirements (e.g., when either WiFi or Ethernet should only be enabled). When this option is enabled, both internal EMAC and SPI Ethernet support configuration options are disabled (not available), allowing applications to explicitly enable Ethernet configuration only when needed.
+
+Example of usage from user's application `Kconfig.projbuild`:
+```
+menu "Example Connection Configuration"
+
+    config EXAMPLE_CONNECT_WIFI
+        bool "connect using WiFi interface"
+        select ETHERNET_INIT_OVERRIDE_DISABLE
+        depends on !IDF_TARGET_LINUX && (SOC_WIFI_SUPPORTED || ESP_WIFI_REMOTE_ENABLED || ESP_HOST_WIFI_ENABLED)
+        default y if SOC_WIFI_SUPPORTED
+        help
+            Example can use Wi-Fi only (Ethernet cannot be configured).
+
+endmenu
+```
+
+Hidden `kconfig` option `ETHERNET_INIT_DEFAULT_ETH_DISABLED` is provided to set default Ethernet initialization selection on targets that support multiple network interfaces. This provides a mechanism for upper-level applications to select network interface default initialization preferences based on application requirements. When this option is enabled, both internal EMAC and SPI Ethernet support configuration are still available to be configured but they are disabled default.
+
+Example of usage from user's application `Kconfig.projbuild`:
+```
+menu "Example Connection Configuration"
+
+    config EXAMPLE_CONNECT_WIFI
+        bool "connect using WiFi interface"
+        select ETHERNET_INIT_DEFAULT_ETH_DISABLED
+        depends on !IDF_TARGET_LINUX && (SOC_WIFI_SUPPORTED || ESP_WIFI_REMOTE_ENABLED || ESP_HOST_WIFI_ENABLED)
+        default y if SOC_WIFI_SUPPORTED
+        help
+            Example can use Wi-Fi and Ethernet but Ethernet is set disabled by default.
+
+endmenu
+```
+
+>[!NOTE]
+> Default behavior:
+> - When `ETHERNET_INIT_DEFAULT_ETH_DISABLED` is **disabled** (default): Internal EMAC is enabled by default if the target supports it, otherwise SPI Ethernet is enabled by default.
+> - When `ETHERNET_INIT_DEFAULT_ETH_DISABLED` is **enabled**: Both Internal EMAC and SPI Ethernet are disabled by default.
+
 ### Pin Assignment
 
 Please always consult Espressif Technical reference manual along with datasheet or `ESP-IDF Programming Guide` for specific ESP SoC you use when assigning GPIO pins, especially when choosing from system configuration menu for the Ethernet initialization. Some pins cannot be used (they may already be utilized for different purpose like SPI Flash/RAM, some pins might be inputs only, etc.).
