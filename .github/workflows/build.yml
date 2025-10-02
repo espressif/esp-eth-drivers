@@ -1,36 +1,43 @@
-name: Build KSZ8863 Examples
+name: Build All
 
 on:
-  push:
-    branches:
-      - "!refs/pull/*" # Exclude push events related to PRs
   pull_request:
+
 
 jobs:
   build:
+    # don't run build when the PR branch is a release-please branch
+    if: ${{ !startsWith(github.head_ref, 'release-please') }}
     strategy:
       fail-fast: false
       matrix:
-        idf_ver: ["release-v5.3", "release-v5.4", "release-v5.5", "latest"]
-        example: ["ksz8863/examples/simple_switch",
-                  "ksz8863/examples/switch_mode",
-                  "ksz8863/examples/two_ports_mode",
-                  ]
-        idf_target: ["esp32"]
+        idf_ver: ["release-v5.4", "release-v5.5", "latest"]
 
     runs-on: ubuntu-24.04
     container: espressif/idf:${{ matrix.idf_ver }}
     steps:
-      - name: Checkout esp_eth_drivers
-        uses: actions/checkout@master
-        with:
-          path: esp_eth_drivers
-      - name: Build ${{ matrix.example }} with IDF-${{ matrix.idf_ver }} for ${{ matrix.idf_target }}
-        env:
-          IDF_TARGET: ${{ matrix.idf_target }}
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
-          pip install idf-build-apps
-          cd $GITHUB_WORKSPACE/esp_eth_drivers/${{ matrix.example }}
-          idf-build-apps build -p . --target ${{ matrix.idf_target }} --build-dir build_@t_@w --check-warnings
+          pip install -U idf-ci
+      - name: Build ESP-IDF Projects
+        id: build-esp-idf-projects
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          idf-ci build run
+      - name: Upload Artifact
+        if: success() || (failure() && steps.build-esp-idf-projects.outcome == 'failure')
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.idf_ver }}
+          path: |
+            **/build_*_*/build.log
+            **/build*/size.json
+            **/build*/project_description.json
+            app_info_*.txt
+            build_summary_*.xml
+            size_info_*.txt
+          retention-days: 5
