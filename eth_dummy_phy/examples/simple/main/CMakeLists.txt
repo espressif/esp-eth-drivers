@@ -1,2 +1,11 @@
+set (priv_requires "esp_netif" "esp_eth")
+
+# Starting from esp-idf v5.3, the GPIO driver is moved to separate components
+if("${IDF_VERSION_MAJOR}.${IDF_VERSION_MINOR}" VERSION_GREATER_EQUAL "5.3")
+    list(APPEND priv_requires "esp_driver_gpio")
+else()
+    list(APPEND priv_requires "driver")
+endif()
+
 idf_component_register(SRCS "emac2emac.c"
-                       PRIV_REQUIRES esp_netif driver esp_eth)
+                       PRIV_REQUIRES ${priv_requires})
