@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.10](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.9...ksz8863@v0.2.10) (2025-10-03)
+
+
+### Bug Fixes
+
+* fixed driver dependencies for IDF6.0 ([26f65fb](https://github.com/espressif/esp-eth-drivers/commit/26f65fbf46970a5a02340a949f9e5dd1a39c01cf))
+* fixed examples builds and added .build-test-rules.yml ([0e459f1](https://github.com/espressif/esp-eth-drivers/commit/0e459f19b75d5114fe5e592fc9739f0e9fb919f9))
+
 ## [0.2.9](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.8...ksz8863@v0.2.9) (2025-08-06)
 
 
