@@ -24,11 +24,3 @@ jobs:
 
       - name: Sync approved PRs to internal codebase
         uses: espressif/sync-pr-to-gitlab@v1
-
-      # Since we use FF merge strategy, we need to lock Gitlab master branch during the release
-      # to ensure that SHA of the release commit from Gitlab matches with the SHA of release PR.
-      - name: Lock Gitlab master
-        if: contains(github.event.pull_request.title, 'chore(master):') && success()
-        run: |
-            echo "Locking Gitlab master branch"
-            python3 tools/protect_branch.py --push-level 0 --merge-level 40
