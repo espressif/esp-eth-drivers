@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.0.0...ethernet_init@v1.1.0) (2025-10-17)
+
+
+### Features
+
+* **ethernet_init:** added ETHERNET_INIT_OVERRIDE_DISABLE, ETHERNET_INIT_DEFAULT_ETH_DISABLED ([10ebd4c](https://github.com/espressif/esp-eth-drivers/commit/10ebd4c08d7a9a448576a1e2cd113101eec3a7b8))
+* **ethernet_init:** added OPENETH, extended skdconfig default behavior ([10ebd4c](https://github.com/espressif/esp-eth-drivers/commit/10ebd4c08d7a9a448576a1e2cd113101eec3a7b8))
+* **ethernet_init:** made Dependencies conditional ([10ebd4c](https://github.com/espressif/esp-eth-drivers/commit/10ebd4c08d7a9a448576a1e2cd113101eec3a7b8))
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed ethernet_deinit_all and add return ([10ebd4c](https://github.com/espressif/esp-eth-drivers/commit/10ebd4c08d7a9a448576a1e2cd113101eec3a7b8))
+
 ## [1.0.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v0.7.0...ethernet_init@v1.0.0) (2025-09-24)
 
 
