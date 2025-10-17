@@ -57,11 +57,11 @@ jobs:
         id: guard
 
       - name: Check out
-        if: ${{ steps.guard.outputs.skip == 'false' }}
+        if: ${{ steps.guard.outputs.skip != 'true' }}
         uses: actions/checkout@v4
 
       - name: Run synchronization to Jira
-        if: ${{ steps.guard.outputs.skip == 'false' }}
+        if: ${{ steps.guard.outputs.skip != 'true' }}
         uses: espressif/sync-jira-actions@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
