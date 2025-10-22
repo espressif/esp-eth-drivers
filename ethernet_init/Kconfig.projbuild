@@ -2,30 +2,86 @@ menu "Ethernet Configuration"
 
     orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
 
-    config ETHERNET_RX_TASK_STACK_SIZE
-        int "EMAC Rx task stack size"
-        default 2048
-        help
-            Set stack size for EMAC Rx task in B.
-
     config ETHERNET_INIT_OVERRIDE_DISABLE
         bool
         default n
         help
-            Hidden option to override and disable Ethernet initialization on targets that support multiple network interfaces.
-            This provides a mechanism for upper-level applications to override the Ethernet configuration behavior based on
-            application requirements (e.g., when either WiFi or Ethernet should only be enabled). When this option is enabled,
-            both internal EMAC and SPI Ethernet support configuration options are disabled (not available), allowing applications
-            to explicitly enable Ethernet configuration only when needed.
+            Hidden option to override and disable Ethernet initialization on targets that support multiple network
+            interfaces. This provides a mechanism for upper-level applications to override the Ethernet configuration
+            behavior based on application requirements (e.g., when either WiFi or Ethernet should only be enabled).
+            When this option is enabled, both internal EMAC and SPI Ethernet support configuration options are disabled
+            (not available), allowing applications to explicitly enable Ethernet configuration only when needed.
 
     config ETHERNET_INIT_DEFAULT_ETH_DISABLED
         bool
         default n
         help
-            Hidden option to set default Ethernet initialization selection on targets that support multiple network interfaces.
-            This provides a mechanism for upper-level applications to select network interface default initialization preferences
-            based on application requirements. When this option is enabled, both internal EMAC and SPI Ethernet support configuration
-            are still available to be configured but they are disabled by default.
+            Hidden option to set default Ethernet initialization selection on targets that support multiple network
+            interfaces. This provides a mechanism for upper-level applications to select network interface default
+            initialization preferences based on application requirements. When this option is enabled, both internal
+            EMAC and SPI Ethernet support configuration are still available to be configured but they are disabled
+            by default.
+
+    # Hidden variables to drive Conditional Dependencies
+    config ETHERNET_SPI_USE_DM9051
+        int
+        default 1 if ETHERNET_SPI_DEV0_DM9051 || ETHERNET_SPI_DEV1_DM9051
+        default 0
+
+    config ETHERNET_SPI_USE_KSZ8851SNL
+        int
+        default 1 if ETHERNET_SPI_DEV0_KSZ8851SNL || ETHERNET_SPI_DEV1_KSZ8851SNL
+        default 0
+
+    config ETHERNET_SPI_USE_W5500
+        int
+        default 1 if ETHERNET_SPI_DEV0_W5500 || ETHERNET_SPI_DEV1_W5500
+        default 0
+
+    config ETHERNET_SPI_USE_CH390
+        int
+        default 1 if ETHERNET_SPI_DEV0_CH390 || ETHERNET_SPI_DEV1_CH390
+        default 0
+
+    config ETHERNET_SPI_USE_ENC28J60
+        int
+        default 1 if ETHERNET_SPI_DEV0_ENC28J60 || ETHERNET_SPI_DEV1_ENC28J60
+        default 0
+
+    config ETHERNET_SPI_USE_LAN865X
+        int
+        default 1 if ETHERNET_SPI_DEV0_LAN865X || ETHERNET_SPI_DEV1_LAN865X
+        default 0
+
+    config ETHERNET_PHY_USE_IP101
+        int
+        default 1 if ETHERNET_PHY_IP101
+        default 0
+
+    config ETHERNET_PHY_USE_LAN87XX
+        int
+        default 1 if ETHERNET_PHY_LAN87XX
+        default 0
+
+    config ETHERNET_PHY_USE_LAN867X
+        int
+        default 1 if ETHERNET_PHY_LAN867X
+        default 0
+
+    config ETHERNET_PHY_USE_DP83848
+        int
+        default 1 if ETHERNET_PHY_DP83848
+        default 0
+
+    config ETHERNET_PHY_USE_KSZ80XX
+        int
+        default 1 if ETHERNET_PHY_KSZ80XX
+        default 0
+
+    config ETHERNET_PHY_USE_RTL8201
+        int
+        default 1 if ETHERNET_PHY_RTL8201
+        default 0
 
     menuconfig ETHERNET_INTERNAL_SUPPORT
         depends on SOC_EMAC_SUPPORTED && !ETHERNET_INIT_OVERRIDE_DISABLE
@@ -70,9 +126,9 @@ menu "Ethernet Configuration"
                         Generate RMII CLK by internal PLL.
                         This clock can be routed to the external PHY device.
                         !! WARNING !!
-                        ESP32 Errata: If you want the Ethernet to work with WiFi or BT, don’t select ESP32 as RMII CLK output
-                        as it would result in clock instability! Applicable only to ESP32, other ESP32 SoCs (like ESP32P4)
-                        are not affected.
+                        ESP32 Errata: If you want the Ethernet to work with WiFi or BT, don't select ESP32 as RMII
+                        CLK output as it would result in clock instability! Applicable only to ESP32, other ESP32
+                        SoCs (like ESP32P4) are not affected.
             endchoice
 
             config ETHERNET_RMII_CLK_GPIO
@@ -217,7 +273,8 @@ menu "Ethernet Configuration"
             config ETHERNET_PHY_LAN867X
                 bool "LAN867x"
                 help
-                    The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for 10 Mbit/s half-duplex networking over a single pair of conductors
+                    The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for
+                    10 Mbit/s half-duplex networking over a single pair of conductors
                     Goto https://www.microchip.com for more information about them.
         endchoice # ETHERNET_PHY_MODEL
 
@@ -256,11 +313,13 @@ menu "Ethernet Configuration"
         choice ETHERNET_DMA_BURST_LEN
             prompt "EMAC DMA Burst Length"
             help
-                If you observe undefined behavior (e.g. LCD glitches) of any DMA capable peripheral (SPI, I2S, etc.) which works normally
-                when Ethernet is not connected over internal EMAC, you need to adjust EMAC DMA burst length since the DMA is shared resource
-                between EMAC and other peripherals. The same applies when you observe Ethernet frames corruption at the output of
-                SPI Ethernet module and you use combination of internal EMAC and SPI Ethernet module as network interfaces.
-                Valid options are "1, 2, 4, 8, 16 and 32" beats. If you select default, driver's internal default value will be used.
+                If you observe undefined behavior (e.g. LCD glitches) of any DMA capable peripheral (SPI, I2S, etc.)
+                which works normally when Ethernet is not connected over internal EMAC, you need to adjust EMAC DMA
+                burst length since the DMA is shared resource between EMAC and other peripherals. The same applies
+                when you observe Ethernet frames corruption at the output of SPI Ethernet module and you use
+                combination of internal EMAC and SPI Ethernet module as network interfaces.
+                Valid options are "1, 2, 4, 8, 16 and 32" beats. If you select default, driver's internal default
+                value will be used.
 
             config ETHERNET_DMA_BURST_LEN_DEFAULT
                 bool "EMAC DMA Burst Length driver default"
@@ -289,13 +348,14 @@ menu "Ethernet Configuration"
             default n
             help
                 Reset timing configuration is automatically optimized for specific PHY chips. For "Generic 802.3 PHY",
-                the default reset timing is set conservatively. If you need faster response times and your chip supports it,
-                enable and configure this option.  Refer to your PHY datasheet "AC Specification" section for supported
-                timing values.
+                the default reset timing is set conservatively. If you need faster response times and your chip
+                supports it, enable and configure this option.  Refer to your PHY datasheet "AC Specification" section
+                for supported timing values.
                 NOTE:
-                This option is recommended for use with "Generic 802.3 PHY" implementations. It is not recommended to
-                override specific PHY chip default configurations. However, this option is intentionally kept available
-                even for specific PHY chips for cases where compensation of possible hardware delay is required.
+                This option is recommended for use with "Generic 802.3 PHY" implementations. It is not recommended
+                to override specific PHY chip default configurations. However, this option is intentionally kept
+                available even for specific PHY chips for cases where compensation of possible hardware delay is
+                required.
 
         config ETHERNET_PHY_RST_ASSERT_TIME_US
             int "PHY Reset Assert Time (microseconds)"
@@ -337,12 +397,15 @@ menu "Ethernet Configuration"
 
             config ETHERNET_SPI_DEV0_DM9051
                 bool "DM9051 Module"
+                select ETH_SPI_ETHERNET_DM9051 # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV0_KSZ8851SNL
                 bool "KSZ8851SNL Module"
+                select ETH_SPI_ETHERNET_KSZ8851SNL # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV0_W5500
                 bool "W5500 Module"
+                select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV0_CH390
                 bool "CH390 Module"
@@ -358,20 +421,24 @@ menu "Ethernet Configuration"
             prompt "SPI Ethernet module #2"
             default ETHERNET_SPI_DEV1_NONE
             help
-                Select which kind of SPI Ethernet will be used as the second module. Multiple SPI modules can be connected
-                to one SPI interface and can be separately accessed based on state of associated Chip Select (CS).
+                Select which kind of SPI Ethernet will be used as the second module. Multiple SPI modules can be
+                connected to one SPI interface and can be separately accessed based on state of associated Chip
+                Select (CS).
 
             config ETHERNET_SPI_DEV1_NONE
                 bool "None"
 
             config ETHERNET_SPI_DEV1_DM9051
                 bool "DM9051 Module"
+                select ETH_SPI_ETHERNET_DM9051 # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV1_KSZ8851SNL
                 bool "KSZ8851SNL Module"
+                select ETH_SPI_ETHERNET_KSZ8851SNL # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV1_W5500
                 bool "W5500 Module"
+                select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
 
             config ETHERNET_SPI_DEV1_CH390
                 bool "CH390 Module"
@@ -382,39 +449,6 @@ menu "Ethernet Configuration"
             config ETHERNET_SPI_DEV1_LAN865X
                 bool "LAN865X Module"
         endchoice
-
-        config ETHERNET_SPI_USE_DM9051
-            bool
-            default y if ETHERNET_SPI_DEV0_DM9051 || ETHERNET_SPI_DEV1_DM9051
-            default n
-            select ETH_SPI_ETHERNET_DM9051 # for backward compatibility with IDF<6.0
-
-        config ETHERNET_SPI_USE_KSZ8851SNL
-            bool
-            default y if ETHERNET_SPI_DEV0_KSZ8851SNL || ETHERNET_SPI_DEV1_KSZ8851SNL
-            default n
-            select ETH_SPI_ETHERNET_KSZ8851SNL # for backward compatibility with IDF<6.0
-
-        config ETHERNET_SPI_USE_W5500
-            bool
-            default y if ETHERNET_SPI_DEV0_W5500 || ETHERNET_SPI_DEV1_W5500
-            default n
-            select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
-
-        config ETHERNET_SPI_USE_CH390
-            bool
-            default y if ETHERNET_SPI_DEV0_CH390 || ETHERNET_SPI_DEV1_CH390
-            default n
-
-        config ETHERNET_SPI_USE_ENC28J60
-            bool
-            default y if ETHERNET_SPI_DEV0_ENC28J60 || ETHERNET_SPI_DEV1_ENC28J60
-            default n
-
-        config ETHERNET_SPI_USE_LAN865X
-            bool
-            default y if ETHERNET_SPI_DEV0_LAN865X || ETHERNET_SPI_DEV1_LAN865X
-            default n
 
         config ETHERNET_SPI_DEV0_ID
             int
@@ -723,17 +757,18 @@ menu "Ethernet Configuration"
                 string "Node Multiple Local IDs"
                 default "1 3 6"
                 help
-                    Assigning multiple Local IDs to a node so the node can utilize multiple transmit opportunities during
-                    one PLCA bus cycle. Use ' '(space) as delimiter and decimal numbers to define transmit opportunities,
-                    for example "1 3 6". Maximum is 8 additional transmit opportunities per PLCA bus cycle for the node.
+                    Assigning multiple Local IDs to a node so the node can utilize multiple transmit opportunities
+                    during one PLCA bus cycle. Use ' '(space) as delimiter and decimal numbers to define transmit
+                    opportunities, for example "1 3 6". Maximum is 8 additional transmit opportunities per PLCA bus
+                    cycle for the node.
                     WARNINGS:
                     * Don't forget to configure PLCA node count appropriately in PLCA Coordinator settings!
-                    * Be aware that if consecutive transmit opportunities are assigned to the same node, transmit opportunities
-                    following a packet transmission will not be used until after the inter-packet gap (IPG) has expired (9.6us).
-                    The same behavior may be observed even when consecutive transmit opportunity is assigned to other node but
-                    is not used by that node at the time (e.g., no data to transmit). If transmit opportunity timer value is set
-                    lower than IPG, the next transmit opportunity cannot still be used by Multi Local ID node since the IPG hasn't
-                    expired yet.
+                    * Be aware that if consecutive transmit opportunities are assigned to the same node, transmit
+                    opportunities following a packet transmission will not be used until after the inter-packet gap
+                    (IPG) has expired (9.6us). The same behavior may be observed even when consecutive transmit
+                    opportunity is assigned to other node but is not used by that node at the time (e.g., no data to
+                    transmit). If transmit opportunity timer value is set lower than IPG, the next transmit opportunity
+                    cannot still be used by Multi Local ID node since the IPG hasn't expired yet.
 
             config ETHERNET_PLCA_TOT
                 depends on ETHERNET_USE_PLCA
@@ -750,7 +785,9 @@ menu "Ethernet Configuration"
 
     config ETHERNET_OPENETH_SUPPORT
         bool "OpenCores Ethernet MAC (EXPERIMENTAL)"
-        depends on !ETHERNET_INIT_OVERRIDE_DISABLE && (SOC_WIFI_SUPPORTED || SOC_EMAC_SUPPORTED) && !(ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT)
+        depends on !ETHERNET_INIT_OVERRIDE_DISABLE
+        depends on SOC_WIFI_SUPPORTED || SOC_EMAC_SUPPORTED
+        depends on !(ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT)
         select ETH_USE_OPENETH
         default n
         help
@@ -760,8 +797,16 @@ menu "Ethernet Configuration"
             not officially supported. Examples built with this option enabled
             will not run on a real ESP32 chips.
 
+    config ETHERNET_RX_TASK_STACK_SIZE
+        int "EMAC Rx task stack size"
+        depends on ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT || ETHERNET_OPENETH_SUPPORT
+        default 2048
+        help
+            Set stack size for EMAC Rx task in B.
+
     choice ETHERNET_BOARD_SPECIFIC_INIT
         prompt "Board Specific Init"
+        depends on ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT
         default ETHERNET_BOARD_SPECIFIC_INIT_NONE
 
         config ETHERNET_BOARD_SPECIFIC_INIT_NONE
