@@ -133,6 +133,8 @@ typedef struct {
 
 static const char *TAG = "ethernet_init";
 static uint8_t eth_cnt_g = 0;
+
+#if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
 static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + ETHERNET_SPI_NUMBER + CONFIG_ETHERNET_OPENETH_SUPPORT];
 
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
@@ -201,6 +203,7 @@ esp_err_t eth_board_specific_init(esp_eth_handle_t eth_handle)
     return ESP_OK;
 }
 #endif
+#endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
 
 #if CONFIG_ETHERNET_INTERNAL_SUPPORT
 /**
@@ -664,7 +667,7 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
     }
 #else
     ESP_LOGD(TAG, "no Ethernet device selected to init");
-#endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT
+#endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
 
 #ifdef CONFIG_ETHERNET_USE_PLCA
     for (int i = 0; i < eth_cnt_g; i++) {

@@ -450,6 +450,7 @@ menu "Ethernet Configuration"
             default 4 if IDF_TARGET_ESP32H2
             default 33 if IDF_TARGET_ESP32P4
             default 8 if IDF_TARGET_ESP32C5
+            default 14
             help
                 Set the GPIO number used by SPI SCLK.
 
@@ -462,6 +463,7 @@ menu "Ethernet Configuration"
             default 5 if IDF_TARGET_ESP32H2
             default 32 if IDF_TARGET_ESP32P4
             default 10 if IDF_TARGET_ESP32C5
+            default 13
             help
                 Set the GPIO number used by SPI MOSI.
 
@@ -474,6 +476,7 @@ menu "Ethernet Configuration"
             default 0 if IDF_TARGET_ESP32H2
             default 24 if IDF_TARGET_ESP32P4
             default 9 if IDF_TARGET_ESP32C5
+            default 12
             help
                 Set the GPIO number used by SPI MISO.
 
@@ -492,6 +495,7 @@ menu "Ethernet Configuration"
             default 3 if IDF_TARGET_ESP32C6 || IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C61
             default 1 if IDF_TARGET_ESP32H2
             default 21 if IDF_TARGET_ESP32P4
+            default 15
             help
                 Set the GPIO number used by SPI CS0, i.e. Chip Select associated with the first SPI Eth module).
 
@@ -503,6 +507,7 @@ menu "Ethernet Configuration"
             default 10 if IDF_TARGET_ESP32H2
             default 48 if IDF_TARGET_ESP32P4
             default 0 if IDF_TARGET_ESP32C61
+            default -1
             help
                 Set the GPIO number used by the first SPI Ethernet module interrupt line.
                 Set -1 to use SPI Ethernet module in polling mode.
@@ -546,6 +551,7 @@ menu "Ethernet Configuration"
             default 11 if IDF_TARGET_ESP32H2
             default 23 if IDF_TARGET_ESP32P4 || IDF_TARGET_ESP32C61
             default 1 if IDF_TARGET_ESP32C5
+            default 7
             help
                 Set the GPIO number used by SPI CS1, i.e. Chip Select associated with the second SPI Eth module.
 
@@ -559,6 +565,7 @@ menu "Ethernet Configuration"
             default 9 if IDF_TARGET_ESP32H2
             default 47 if IDF_TARGET_ESP32P4
             default 1 if IDF_TARGET_ESP32C61
+            default -1
             help
                 Set the GPIO number used by the second SPI Ethernet module interrupt line.
                 Set -1 to use SPI Ethernet module in polling mode.
