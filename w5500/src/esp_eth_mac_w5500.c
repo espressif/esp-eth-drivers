@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +8,6 @@
 #include <sys/cdefs.h>
 #include <inttypes.h>
 #include "esp_eth_mac_spi.h"
-#include "esp_eth_mac_w5500.h"
 #include "driver/gpio.h"
 #include "esp_private/gpio.h"
 #include "soc/io_mux_reg.h"
@@ -32,21 +31,25 @@ static const char *TAG = "w5500.mac";
 #define W5500_SPI_LOCK_TIMEOUT_MS (50)
 #define W5500_TX_MEM_SIZE (0x4000)
 #define W5500_RX_MEM_SIZE (0x4000)
+#define W5500_TX_CHUNK_MAX (1536)
 #define W5500_ETH_MAC_RX_BUF_SIZE_AUTO (0)
 
-typedef struct {
+typedef struct
+{
     uint32_t offset;
     uint32_t copy_len;
     uint32_t rx_len;
     uint32_t remain;
 } __attribute__((packed)) emac_w5500_auto_buf_info_t;
 
-typedef struct {
+typedef struct
+{
     spi_device_handle_t hdl;
     SemaphoreHandle_t lock;
 } eth_spi_info_t;
 
-typedef struct {
+typedef struct
+{
     void *ctx;
     void *(*init)(const void *spi_config);
     esp_err_t (*deinit)(void *spi_ctx);
@@ -54,7 +57,8 @@ typedef struct {
     esp_err_t (*write)(void *spi_ctx, uint32_t cmd, uint32_t addr, const void *data, uint32_t data_len);
 } eth_spi_custom_driver_t;
 
-typedef struct {
+typedef struct
+{
     esp_eth_mac_t parent;
     esp_eth_mediator_t *eth;
     eth_spi_custom_driver_t spi;
@@ -67,6 +71,8 @@ typedef struct {
     bool packets_remain;
     uint8_t *rx_buffer;
     uint8_t mcast_cnt;
+    uint32_t tx_dma_size;
+    uint8_t *tx_dma;
 } emac_w5500_t;
 
 static void *w5500_spi_init(const void *spi_config)
@@ -79,11 +85,14 @@ static void *w5500_spi_init(const void *spi_config)
     /* SPI device init */
     spi_device_interface_config_t spi_devcfg;
     spi_devcfg = *(w5500_config->spi_devcfg);
-    if (w5500_config->spi_devcfg->command_bits == 0 && w5500_config->spi_devcfg->address_bits == 0) {
+    if (w5500_config->spi_devcfg->command_bits == 0 && w5500_config->spi_devcfg->address_bits == 0)
+    {
         /* configure default SPI frame format */
         spi_devcfg.command_bits = 16; // Actually it's the address phase in W5500 SPI frame
         spi_devcfg.address_bits = 8;  // Actually it's the control phase in W5500 SPI frame
-    } else {
+    }
+    else
+    {
         ESP_GOTO_ON_FALSE(w5500_config->spi_devcfg->command_bits == 16 && w5500_config->spi_devcfg->address_bits == 8,
                           NULL, err, TAG, "incorrect SPI frame format (command_bits/address_bits)");
     }
@@ -96,8 +105,10 @@ static void *w5500_spi_init(const void *spi_config)
     ret = spi;
     return ret;
 err:
-    if (spi) {
-        if (spi->lock) {
+    if (spi)
+    {
+        if (spi->lock)
+        {
             vSemaphoreDelete(spi->lock);
         }
         free(spi);
@@ -136,15 +147,18 @@ static esp_err_t w5500_spi_write(void *spi_ctx, uint32_t cmd, uint32_t addr, con
         .cmd = cmd,
         .addr = addr,
         .length = 8 * len,
-        .tx_buffer = value
-    };
-    if (w5500_spi_lock(spi)) {
-        if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK) {
+        .tx_buffer = value};
+    if (w5500_spi_lock(spi))
+    {
+        if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK)
+        {
             ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
             ret = ESP_FAIL;
         }
         w5500_spi_unlock(spi);
-    } else {
+    }
+    else
+    {
         ret = ESP_ERR_TIMEOUT;
     }
     return ret;
@@ -160,37 +174,39 @@ static esp_err_t w5500_spi_read(void *spi_ctx, uint32_t cmd, uint32_t addr, void
         .cmd = cmd,
         .addr = addr,
         .length = 8 * len,
-        .rx_buffer = value
-    };
-    if (w5500_spi_lock(spi)) {
-        if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK) {
+        .rx_buffer = value};
+    if (w5500_spi_lock(spi))
+    {
+        if (spi_device_polling_transmit(spi->hdl, &trans) != ESP_OK)
+        {
             ESP_LOGE(TAG, "%s(%d): spi transmit failed", __FUNCTION__, __LINE__);
             ret = ESP_FAIL;
         }
         w5500_spi_unlock(spi);
-    } else {
+    }
+    else
+    {
         ret = ESP_ERR_TIMEOUT;
     }
-    if ((trans.flags & SPI_TRANS_USE_RXDATA) && len <= 4) {
-        memcpy(value, trans.rx_data, len);  // copy register values to output
+    if ((trans.flags & SPI_TRANS_USE_RXDATA) && len <= 4)
+    {
+        memcpy(value, trans.rx_data, len); // copy register values to output
     }
     return ret;
 }
 
 static esp_err_t w5500_read(emac_w5500_t *emac, uint32_t address, void *data, uint32_t len)
 {
-    uint32_t cmd = (address >> W5500_ADDR_OFFSET); // Actually it's the address phase in W5500 SPI frame
-    uint32_t addr = ((address & 0xFFFF) | (W5500_ACCESS_MODE_READ << W5500_RWB_OFFSET)
-                     | W5500_SPI_OP_MODE_VDM); // Actually it's the command phase in W5500 SPI frame
+    uint32_t cmd = (address >> W5500_ADDR_OFFSET);                                                               // Actually it's the address phase in W5500 SPI frame
+    uint32_t addr = ((address & 0xFFFF) | (W5500_ACCESS_MODE_READ << W5500_RWB_OFFSET) | W5500_SPI_OP_MODE_VDM); // Actually it's the command phase in W5500 SPI frame
 
     return emac->spi.read(emac->spi.ctx, cmd, addr, data, len);
 }
 
 static esp_err_t w5500_write(emac_w5500_t *emac, uint32_t address, const void *data, uint32_t len)
 {
-    uint32_t cmd = (address >> W5500_ADDR_OFFSET); // Actually it's the address phase in W5500 SPI frame
-    uint32_t addr = ((address & 0xFFFF) | (W5500_ACCESS_MODE_WRITE << W5500_RWB_OFFSET)
-                     | W5500_SPI_OP_MODE_VDM); // Actually it's the command phase in W5500 SPI frame
+    uint32_t cmd = (address >> W5500_ADDR_OFFSET);                                                                // Actually it's the address phase in W5500 SPI frame
+    uint32_t addr = ((address & 0xFFFF) | (W5500_ACCESS_MODE_WRITE << W5500_RWB_OFFSET) | W5500_SPI_OP_MODE_VDM); // Actually it's the command phase in W5500 SPI frame
 
     return emac->spi.write(emac->spi.ctx, cmd, addr, data, len);
 }
@@ -201,9 +217,11 @@ static esp_err_t w5500_send_command(emac_w5500_t *emac, uint8_t command, uint32_
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_CR(0), &command, sizeof(command)), err, TAG, "write SCR failed");
     // after W5500 accepts the command, the command register will be cleared automatically
     uint32_t to = 0;
-    for (to = 0; to < timeout_ms / 10; to++) {
+    for (to = 0; to < timeout_ms / 10; to++)
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_CR(0), &command, sizeof(command)), err, TAG, "read SCR failed");
-        if (!command) {
+        if (!command)
+        {
             break;
         }
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -220,7 +238,8 @@ static esp_err_t w5500_get_tx_free_size(emac_w5500_t *emac, uint16_t *size)
     uint16_t free0, free1 = 0;
     // read TX_FSR register more than once, until we get the same value
     // this is a trick because we might be interrupted between reading the high/low part of the TX_FSR register (16 bits in length)
-    do {
+    do
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_TX_FSR(0), &free0, sizeof(free0)), err, TAG, "read TX FSR failed");
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_TX_FSR(0), &free1, sizeof(free1)), err, TAG, "read TX FSR failed");
     } while (free0 != free1);
@@ -235,7 +254,8 @@ static esp_err_t w5500_get_rx_received_size(emac_w5500_t *emac, uint16_t *size)
 {
     esp_err_t ret = ESP_OK;
     uint16_t received0, received1 = 0;
-    do {
+    do
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_RX_RSR(0), &received0, sizeof(received0)), err, TAG, "read RX RSR failed");
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_RX_RSR(0), &received1, sizeof(received1)), err, TAG, "read RX RSR failed");
     } while (received0 != received1);
@@ -248,18 +268,28 @@ err:
 static esp_err_t w5500_write_buffer(emac_w5500_t *emac, const void *buffer, uint32_t len, uint16_t offset)
 {
     esp_err_t ret = ESP_OK;
-    uint32_t remain = len;
-    const uint8_t *buf = buffer;
+    const uint8_t *src = (const uint8_t *)buffer;
+    uint32_t total = len;
     offset %= W5500_TX_MEM_SIZE;
-    if (offset + len > W5500_TX_MEM_SIZE) {
-        remain = (offset + len) % W5500_TX_MEM_SIZE;
-        len = W5500_TX_MEM_SIZE - offset;
-        ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_MEM_SOCK_TX(0, offset), buf, len), err, TAG, "write TX buffer failed");
-        offset += len;
-        buf += len;
+    while (total)
+    {
+        uint32_t space = W5500_TX_MEM_SIZE - offset;
+        uint32_t chunk = total < space ? total : space;
+        while (chunk)
+        {
+            uint32_t n = chunk > emac->tx_dma_size ? emac->tx_dma_size : chunk;
+            memcpy(emac->tx_dma, src, n);
+            ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_MEM_SOCK_TX(0, offset), emac->tx_dma, n), err, TAG, "write TX buffer failed");
+            src += n;
+            offset += n;
+            chunk -= n;
+            total -= n;
+        }
+        if (offset >= W5500_TX_MEM_SIZE)
+        {
+            offset = 0;
+        }
     }
-    ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_MEM_SOCK_TX(0, offset), buf, remain), err, TAG, "write TX buffer failed");
-
 err:
     return ret;
 }
@@ -270,7 +300,8 @@ static esp_err_t w5500_read_buffer(emac_w5500_t *emac, void *buffer, uint32_t le
     uint32_t remain = len;
     uint8_t *buf = buffer;
     offset %= W5500_RX_MEM_SIZE;
-    if (offset + len > W5500_RX_MEM_SIZE) {
+    if (offset + len > W5500_RX_MEM_SIZE)
+    {
         remain = (offset + len) % W5500_RX_MEM_SIZE;
         len = W5500_RX_MEM_SIZE - offset;
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_MEM_SOCK_RX(0, offset), buf, len), err, TAG, "read RX buffer failed");
@@ -299,9 +330,11 @@ static esp_err_t w5500_reset(emac_w5500_t *emac)
     uint8_t mr = W5500_MR_RST; // Set RST bit (auto clear)
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_MR, &mr, sizeof(mr)), err, TAG, "write MR failed");
     uint32_t to = 0;
-    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++) {
+    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++)
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_MR, &mr, sizeof(mr)), err, TAG, "read MR failed");
-        if (!(mr & W5500_MR_RST)) {
+        if (!(mr & W5500_MR_RST))
+        {
             break;
         }
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -322,9 +355,11 @@ static esp_err_t w5500_verify_id(emac_w5500_t *emac)
     // some W5500 units may return version 0 when it is read right after the reset
     ESP_LOGD(TAG, "Waiting W5500 to start & verify version...");
     uint32_t to = 0;
-    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++) {
+    for (to = 0; to < emac->sw_reset_timeout_ms / 10; to++)
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_VERSIONR, &version, sizeof(version)), err, TAG, "read VERSIONR failed");
-        if (version == W5500_CHIP_VERSION) {
+        if (version == W5500_CHIP_VERSION)
+        {
             return ESP_OK;
         }
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -345,7 +380,8 @@ static esp_err_t w5500_setup_default(emac_w5500_t *emac)
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_RXBUF_SIZE(0), &reg_value, sizeof(reg_value)), err, TAG, "set rx buffer size failed");
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_TXBUF_SIZE(0), &reg_value, sizeof(reg_value)), err, TAG, "set tx buffer size failed");
     reg_value = 0;
-    for (int i = 1; i < 8; i++) {
+    for (int i = 1; i < 8; i++)
+    {
         ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_RXBUF_SIZE(i), &reg_value, sizeof(reg_value)), err, TAG, "set rx buffer size failed");
         ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_TXBUF_SIZE(i), &reg_value, sizeof(reg_value)), err, TAG, "set tx buffer size failed");
     }
@@ -466,9 +502,12 @@ static esp_err_t emac_w5500_set_block_ip4_mcast(esp_eth_mac_t *mac, bool block)
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
     uint8_t smr;
     ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_MR(0), &smr, sizeof(smr)), err, TAG, "read SMR failed");
-    if (block) {
+    if (block)
+    {
         smr |= W5500_SMR_MAC_BLOCK_MCAST;
-    } else {
+    }
+    else
+    {
         smr &= ~W5500_SMR_MAC_BLOCK_MCAST;
     }
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_MR(0), &smr, sizeof(smr)), err, TAG, "write SMR failed");
@@ -483,12 +522,17 @@ static esp_err_t emac_w5500_add_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
     // W5500 doesn't have specific MAC filter, so we just un-block multicast. W5500 filters out all multicast packets
     // except for IP multicast. However, behavior is not consistent. IPv4 multicast can be blocked, but IPv6 is always
     // accepted (this is not documented behavior, but it's observed on the real hardware).
-    if (addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e) {
+    if (addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e)
+    {
         ESP_GOTO_ON_ERROR(emac_w5500_set_block_ip4_mcast(mac, false), err, TAG, "set block multicast failed");
         emac->mcast_cnt++;
-    } else if (addr[0] == 0x33 && addr[1] == 0x33) {
+    }
+    else if (addr[0] == 0x33 && addr[1] == 0x33)
+    {
         ESP_LOGW(TAG, "IPv6 multicast is always filtered in by W5500.");
-    } else {
+    }
+    else
+    {
         ESP_LOGE(TAG, "W5500 filters in IP multicast frames only!");
         ret = ESP_ERR_NOT_SUPPORTED;
     }
@@ -503,10 +547,12 @@ static esp_err_t emac_w5500_del_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 
     ESP_GOTO_ON_FALSE(!(addr[0] == 0x33 && addr[1] == 0x33), ESP_FAIL, err, TAG, "IPv6 multicast is always filtered in by W5500.");
 
-    if (addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e && emac->mcast_cnt > 0) {
+    if (addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e && emac->mcast_cnt > 0)
+    {
         emac->mcast_cnt--;
     }
-    if (emac->mcast_cnt == 0) {
+    if (emac->mcast_cnt == 0)
+    {
         // W5500 doesn't have specific MAC filter, so we just block multicast
         ESP_GOTO_ON_ERROR(emac_w5500_set_block_ip4_mcast(mac, true), err, TAG, "set block multicast failed");
     }
@@ -518,11 +564,13 @@ static esp_err_t emac_w5500_set_link(esp_eth_mac_t *mac, eth_link_t link)
 {
     esp_err_t ret = ESP_OK;
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
-    switch (link) {
+    switch (link)
+    {
     case ETH_LINK_UP:
         ESP_LOGD(TAG, "link is up");
         ESP_GOTO_ON_ERROR(mac->start(mac), err, TAG, "w5500 start failed");
-        if (emac->poll_timer) {
+        if (emac->poll_timer)
+        {
             ESP_GOTO_ON_ERROR(esp_timer_start_periodic(emac->poll_timer, emac->poll_period_ms * 1000),
                               err, TAG, "start poll timer failed");
         }
@@ -530,7 +578,8 @@ static esp_err_t emac_w5500_set_link(esp_eth_mac_t *mac, eth_link_t link)
     case ETH_LINK_DOWN:
         ESP_LOGD(TAG, "link is down");
         ESP_GOTO_ON_ERROR(mac->stop(mac), err, TAG, "w5500 stop failed");
-        if (emac->poll_timer) {
+        if (emac->poll_timer)
+        {
             ESP_GOTO_ON_ERROR(esp_timer_stop(emac->poll_timer),
                               err, TAG, "stop poll timer failed");
         }
@@ -547,7 +596,8 @@ err:
 static esp_err_t emac_w5500_set_speed(esp_eth_mac_t *mac, eth_speed_t speed)
 {
     esp_err_t ret = ESP_OK;
-    switch (speed) {
+    switch (speed)
+    {
     case ETH_SPEED_10M:
         ESP_LOGD(TAG, "working in 10Mbps");
         break;
@@ -566,7 +616,8 @@ err:
 static esp_err_t emac_w5500_set_duplex(esp_eth_mac_t *mac, eth_duplex_t duplex)
 {
     esp_err_t ret = ESP_OK;
-    switch (duplex) {
+    switch (duplex)
+    {
     case ETH_DUPLEX_HALF:
         ESP_LOGD(TAG, "working in half duplex");
         break;
@@ -588,9 +639,12 @@ static esp_err_t emac_w5500_set_promiscuous(esp_eth_mac_t *mac, bool enable)
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
     uint8_t smr = 0;
     ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_MR(0), &smr, sizeof(smr)), err, TAG, "read SMR failed");
-    if (enable) {
+    if (enable)
+    {
         smr &= ~W5500_SMR_MAC_FILTER;
-    } else {
+    }
+    else
+    {
         smr |= W5500_SMR_MAC_FILTER;
     }
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_MR(0), &smr, sizeof(smr)), err, TAG, "write SMR failed");
@@ -604,9 +658,12 @@ static esp_err_t emac_w5500_set_all_multicast(esp_eth_mac_t *mac, bool enable)
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
     ESP_RETURN_ON_ERROR(emac_w5500_set_block_ip4_mcast(mac, !enable), TAG, "set block multicast failed");
     emac->mcast_cnt = 0;
-    if (enable) {
+    if (enable)
+    {
         ESP_LOGW(TAG, "W5500 filters in IP multicast frames only!");
-    } else {
+    }
+    else
+    {
         ESP_LOGW(TAG, "W5500 always filters in IPv6 multicast frames!");
     }
     return ESP_OK;
@@ -628,7 +685,8 @@ static inline bool is_w5500_sane_for_rxtx(emac_w5500_t *emac)
 {
     uint8_t phycfg;
     /* phy is ok for rx and tx operations if bits RST and LNK are set (no link down, no reset) */
-    if (w5500_read(emac, W5500_REG_PHYCFGR, &phycfg, 1) == ESP_OK && (phycfg & 0x8001)) {
+    if (w5500_read(emac, W5500_REG_PHYCFGR, &phycfg, 1) == ESP_OK && (phycfg & 0x8001))
+    {
         return true;
     }
     return false;
@@ -661,14 +719,16 @@ static esp_err_t emac_w5500_transmit(esp_eth_mac_t *mac, uint8_t *buf, uint32_t 
     // pooling the TX done event
     int retry = 0;
     uint8_t status = 0;
-    while (!(status & W5500_SIR_SEND)) {
+    while (!(status & W5500_SIR_SEND))
+    {
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_IR(0), &status, sizeof(status)), err, TAG, "read SOCK0 IR failed");
-        if ((retry++ > 3 && !is_w5500_sane_for_rxtx(emac)) || retry > 10) {
+        if ((retry++ > 3 && !is_w5500_sane_for_rxtx(emac)) || retry > 10)
+        {
             return ESP_FAIL;
         }
     }
     // clear the event bit
-    status  = W5500_SIR_SEND;
+    status = W5500_SIR_SEND;
     ESP_GOTO_ON_ERROR(w5500_write(emac, W5500_REG_SOCK_IR(0), &status, sizeof(status)), err, TAG, "write SOCK0 IR failed");
 
 err:
@@ -685,7 +745,8 @@ static esp_err_t emac_w5500_alloc_recv_buf(emac_w5500_t *emac, uint8_t **buf, ui
     *buf = NULL;
 
     w5500_get_rx_received_size(emac, &remain_bytes);
-    if (remain_bytes) {
+    if (remain_bytes)
+    {
         // get current read pointer
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_RX_RD(0), &offset, sizeof(offset)), err, TAG, "read RX RD failed");
         offset = __builtin_bswap16(offset);
@@ -697,13 +758,16 @@ static esp_err_t emac_w5500_alloc_recv_buf(emac_w5500_t *emac, uint8_t **buf, ui
         // runt frames are not forwarded by W5500 (tested on target), but check the length anyway since it could be corrupted at SPI bus
         ESP_GOTO_ON_FALSE(copy_len >= ETH_MIN_PACKET_SIZE - ETH_CRC_LEN, ESP_ERR_INVALID_SIZE, err, TAG, "invalid frame length %" PRIu32, copy_len);
         *buf = malloc(copy_len);
-        if (*buf != NULL) {
+        if (*buf != NULL)
+        {
             emac_w5500_auto_buf_info_t *buff_info = (emac_w5500_auto_buf_info_t *)*buf;
             buff_info->offset = offset;
             buff_info->copy_len = copy_len;
             buff_info->rx_len = rx_len;
             buff_info->remain = remain_bytes;
-        } else {
+        }
+        else
+        {
             ret = ESP_ERR_NO_MEM;
             goto err;
         }
@@ -723,9 +787,11 @@ static esp_err_t emac_w5500_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
     uint16_t remain_bytes = 0;
     emac->packets_remain = false;
 
-    if (*length != W5500_ETH_MAC_RX_BUF_SIZE_AUTO) {
+    if (*length != W5500_ETH_MAC_RX_BUF_SIZE_AUTO)
+    {
         w5500_get_rx_received_size(emac, &remain_bytes);
-        if (remain_bytes) {
+        if (remain_bytes)
+        {
             // get current read pointer
             ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_RX_RD(0), &offset, sizeof(offset)), err, TAG, "read RX RD failed");
             offset = __builtin_bswap16(offset);
@@ -734,11 +800,15 @@ static esp_err_t emac_w5500_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t *
             rx_len = __builtin_bswap16(rx_len) - 2; // data size includes 2 bytes of header
             // frames larger than expected will be truncated
             copy_len = rx_len > *length ? *length : rx_len;
-        } else {
+        }
+        else
+        {
             // silently return when no frame is waiting
             goto err;
         }
-    } else {
+    }
+    else
+    {
         emac_w5500_auto_buf_info_t *buff_info = (emac_w5500_auto_buf_info_t *)buf;
         offset = buff_info->offset;
         copy_len = buff_info->copy_len;
@@ -776,7 +846,8 @@ static esp_err_t emac_w5500_flush_recv_frame(emac_w5500_t *emac)
     emac->packets_remain = false;
 
     w5500_get_rx_received_size(emac, &remain_bytes);
-    if (remain_bytes) {
+    if (remain_bytes)
+    {
         // get current read pointer
         ESP_GOTO_ON_ERROR(w5500_read(emac, W5500_REG_SOCK_RX_RD(0), &offset, sizeof(offset)), err, TAG, "read RX RD failed");
         offset = __builtin_bswap16(offset);
@@ -803,7 +874,8 @@ IRAM_ATTR static void w5500_isr_handler(void *arg)
     BaseType_t high_task_wakeup = pdFALSE;
     /* notify w5500 task */
     vTaskNotifyGiveFromISR(emac->rx_task_hdl, &high_task_wakeup);
-    if (high_task_wakeup != pdFALSE) {
+    if (high_task_wakeup != pdFALSE)
+    {
         portYIELD_FROM_ISR();
     }
 }
@@ -822,52 +894,75 @@ static void emac_w5500_task(void *arg)
     uint32_t frame_len = 0;
     uint32_t buf_len = 0;
     esp_err_t ret;
-    while (1) {
+    while (1)
+    {
         /* check if the task receives any notification */
-        if (emac->int_gpio_num >= 0) {                                   // if in interrupt mode
-            if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)) == 0 &&   // if no notification ...
-                    gpio_get_level(emac->int_gpio_num) != 0) {               // ...and no interrupt asserted
-                continue;                                                // -> just continue to check again
+        if (emac->int_gpio_num >= 0)
+        {                                                             // if in interrupt mode
+            if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000)) == 0 && // if no notification ...
+                gpio_get_level(emac->int_gpio_num) != 0)
+            {             // ...and no interrupt asserted
+                continue; // -> just continue to check again
             }
-        } else {
+        }
+        else
+        {
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         }
         /* read interrupt status */
         w5500_read(emac, W5500_REG_SOCK_IR(0), &status, sizeof(status));
         /* packet received */
-        if (status & W5500_SIR_RECV) {
+        if (status & W5500_SIR_RECV)
+        {
             status = W5500_SIR_RECV;
             /* clear interrupt status */
             w5500_write(emac, W5500_REG_SOCK_IR(0), &status, sizeof(status));
-            do {
+            do
+            {
                 /* define max expected frame len */
                 frame_len = ETH_MAX_PACKET_SIZE;
-                if ((ret = emac_w5500_alloc_recv_buf(emac, &buffer, &frame_len)) == ESP_OK) {
-                    if (buffer != NULL) {
+                if ((ret = emac_w5500_alloc_recv_buf(emac, &buffer, &frame_len)) == ESP_OK)
+                {
+                    if (buffer != NULL)
+                    {
                         /* we have memory to receive the frame of maximal size previously defined */
                         buf_len = W5500_ETH_MAC_RX_BUF_SIZE_AUTO;
-                        if (emac->parent.receive(&emac->parent, buffer, &buf_len) == ESP_OK) {
-                            if (buf_len == 0) {
+                        if (emac->parent.receive(&emac->parent, buffer, &buf_len) == ESP_OK)
+                        {
+                            if (buf_len == 0)
+                            {
                                 free(buffer);
-                            } else if (frame_len > buf_len) {
+                            }
+                            else if (frame_len > buf_len)
+                            {
                                 ESP_LOGE(TAG, "received frame was truncated");
                                 free(buffer);
-                            } else {
+                            }
+                            else
+                            {
                                 ESP_LOGD(TAG, "receive len=%" PRIu32, buf_len);
                                 /* pass the buffer to stack (e.g. TCP/IP layer) */
                                 emac->eth->stack_input(emac->eth, buffer, buf_len);
                             }
-                        } else {
+                        }
+                        else
+                        {
                             ESP_LOGE(TAG, "frame read from module failed");
                             free(buffer);
                         }
-                    } else if (frame_len) {
+                    }
+                    else if (frame_len)
+                    {
                         ESP_LOGE(TAG, "invalid combination of frame_len(%" PRIu32 ") and buffer pointer(%p)", frame_len, buffer);
                     }
-                } else if (ret == ESP_ERR_NO_MEM) {
+                }
+                else if (ret == ESP_ERR_NO_MEM)
+                {
                     ESP_LOGE(TAG, "no mem for receive buffer");
                     emac_w5500_flush_recv_frame(emac);
-                } else {
+                }
+                else
+                {
                     ESP_LOGE(TAG, "unexpected error 0x%x", ret);
                 }
             } while (emac->packets_remain);
@@ -881,7 +976,8 @@ static esp_err_t emac_w5500_init(esp_eth_mac_t *mac)
     esp_err_t ret = ESP_OK;
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
     esp_eth_mediator_t *eth = emac->eth;
-    if (emac->int_gpio_num >= 0) {
+    if (emac->int_gpio_num >= 0)
+    {
         gpio_func_sel(emac->int_gpio_num, PIN_FUNC_GPIO);
         gpio_input_enable(emac->int_gpio_num);
         gpio_pullup_en(emac->int_gpio_num);
@@ -898,7 +994,8 @@ static esp_err_t emac_w5500_init(esp_eth_mac_t *mac)
     ESP_GOTO_ON_ERROR(w5500_setup_default(emac), err, TAG, "w5500 default setup failed");
     return ESP_OK;
 err:
-    if (emac->int_gpio_num >= 0) {
+    if (emac->int_gpio_num >= 0)
+    {
         gpio_isr_handler_remove(emac->int_gpio_num);
         gpio_reset_pin(emac->int_gpio_num);
     }
@@ -911,11 +1008,13 @@ static esp_err_t emac_w5500_deinit(esp_eth_mac_t *mac)
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
     esp_eth_mediator_t *eth = emac->eth;
     mac->stop(mac);
-    if (emac->int_gpio_num >= 0) {
+    if (emac->int_gpio_num >= 0)
+    {
         gpio_isr_handler_remove(emac->int_gpio_num);
         gpio_reset_pin(emac->int_gpio_num);
     }
-    if (emac->poll_timer && esp_timer_is_active(emac->poll_timer)) {
+    if (emac->poll_timer && esp_timer_is_active(emac->poll_timer))
+    {
         esp_timer_stop(emac->poll_timer);
     }
     eth->on_state_changed(eth, ETH_STATE_DEINIT, NULL);
@@ -925,12 +1024,14 @@ static esp_err_t emac_w5500_deinit(esp_eth_mac_t *mac)
 static esp_err_t emac_w5500_del(esp_eth_mac_t *mac)
 {
     emac_w5500_t *emac = __containerof(mac, emac_w5500_t, parent);
-    if (emac->poll_timer) {
+    if (emac->poll_timer)
+    {
         esp_timer_delete(emac->poll_timer);
     }
     vTaskDelete(emac->rx_task_hdl);
     emac->spi.deinit(emac->spi.ctx);
     heap_caps_free(emac->rx_buffer);
+    heap_caps_free(emac->tx_dma);
     free(emac);
     return ESP_OK;
 }
@@ -969,8 +1070,8 @@ esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, con
     emac->parent.transmit = emac_w5500_transmit;
     emac->parent.receive = emac_w5500_receive;
 
-    if (w5500_config->custom_spi_driver.init != NULL && w5500_config->custom_spi_driver.deinit != NULL
-            && w5500_config->custom_spi_driver.read != NULL && w5500_config->custom_spi_driver.write != NULL) {
+    if (w5500_config->custom_spi_driver.init != NULL && w5500_config->custom_spi_driver.deinit != NULL && w5500_config->custom_spi_driver.read != NULL && w5500_config->custom_spi_driver.write != NULL)
+    {
         ESP_LOGD(TAG, "Using user's custom SPI Driver");
         emac->spi.init = w5500_config->custom_spi_driver.init;
         emac->spi.deinit = w5500_config->custom_spi_driver.deinit;
@@ -978,7 +1079,9 @@ esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, con
         emac->spi.write = w5500_config->custom_spi_driver.write;
         /* Custom SPI driver device init */
         ESP_GOTO_ON_FALSE((emac->spi.ctx = emac->spi.init(w5500_config->custom_spi_driver.config)) != NULL, NULL, err, TAG, "SPI initialization failed");
-    } else {
+    }
+    else
+    {
         ESP_LOGD(TAG, "Using default SPI Driver");
         emac->spi.init = w5500_spi_init;
         emac->spi.deinit = w5500_spi_deinit;
@@ -990,7 +1093,8 @@ esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, con
 
     /* create w5500 task */
     BaseType_t core_num = tskNO_AFFINITY;
-    if (mac_config->flags & ETH_MAC_FLAG_PIN_TO_CORE) {
+    if (mac_config->flags & ETH_MAC_FLAG_PIN_TO_CORE)
+    {
         core_num = esp_cpu_get_core_id();
     }
     BaseType_t xReturned = xTaskCreatePinnedToCore(emac_w5500_task, "w5500_tsk", mac_config->rx_task_stack_size, emac,
@@ -999,29 +1103,40 @@ esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, con
 
     emac->rx_buffer = heap_caps_malloc(ETH_MAX_PACKET_SIZE, MALLOC_CAP_DMA);
     ESP_GOTO_ON_FALSE(emac->rx_buffer, NULL, err, TAG, "RX buffer allocation failed");
+    emac->tx_dma_size = W5500_TX_CHUNK_MAX;
+    emac->tx_dma = heap_caps_malloc(emac->tx_dma_size, MALLOC_CAP_DMA);
+    ESP_GOTO_ON_FALSE(emac->tx_dma, NULL, err, TAG, "TX DMA buffer allocation failed");
 
-    if (emac->int_gpio_num < 0) {
+    if (emac->int_gpio_num < 0)
+    {
         const esp_timer_create_args_t poll_timer_args = {
             .callback = w5500_poll_timer,
             .name = "emac_spi_poll_timer",
             .arg = emac,
-            .skip_unhandled_events = true
-        };
+            .skip_unhandled_events = true};
         ESP_GOTO_ON_FALSE(esp_timer_create(&poll_timer_args, &emac->poll_timer) == ESP_OK, NULL, err, TAG, "create poll timer failed");
     }
 
     return &(emac->parent);
 
 err:
-    if (emac) {
-        if (emac->poll_timer) {
+    if (emac)
+    {
+        if (emac->poll_timer)
+        {
             esp_timer_delete(emac->poll_timer);
         }
-        if (emac->rx_task_hdl) {
+        if (emac->rx_task_hdl)
+        {
             vTaskDelete(emac->rx_task_hdl);
         }
-        if (emac->spi.ctx) {
+        if (emac->spi.ctx)
+        {
             emac->spi.deinit(emac->spi.ctx);
+        }
+        if (emac->tx_dma)
+        {
+            heap_caps_free(emac->tx_dma);
         }
         heap_caps_free(emac->rx_buffer);
         free(emac);
