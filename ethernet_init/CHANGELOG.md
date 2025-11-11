@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.1.0...ethernet_init@v1.2.0) (2025-11-11)
+
+
+### Features
+
+* **ethernet_init:** streamlined conditional dependencies evaluation ([6645db3](https://github.com/espressif/esp-eth-drivers/commit/6645db345e638b50858e5672663f85e6e088c492))
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed build when no Ethernet selected ([da6ad85](https://github.com/espressif/esp-eth-drivers/commit/da6ad850b6901995aa0c4c2cd685f058cc26928e))
+
 ## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.0.0...ethernet_init@v1.1.0) (2025-10-17)
 
 

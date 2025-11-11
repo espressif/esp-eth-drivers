@@ -5,49 +5,42 @@ dependencies:
     version: '*'
     override_path: ../ch390/
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_CH390} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_CH390} == 1
   espressif/dm9051:
     override_path: ../dm9051/
     rules:
       - if: idf_version >=6.0
         version: ^1.0.0
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_DM9051} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_DM9051} == 1
   espressif/enc28j60:
     version: '*'
     override_path: ../enc28j60/
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_ENC28J60} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_ENC28J60} == 1
   espressif/ksz8851snl:
     override_path: ../ksz8851snl/
     rules:
       - if: idf_version >=6.0
         version: ^1.0.0
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_KSZ8851SNL} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_KSZ8851SNL} == 1
   espressif/lan865x:
     version: ^0.1.1
     override_path: ../lan865x/
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_LAN865X} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_LAN865X} == 1
   espressif/w5500:
     override_path: ../w5500/
     rules:
       - if: idf_version >=6.0
         version: ^1.0.0
     matches:
-      - if: >-
-          $CONFIG{ETHERNET_SPI_USE_W5500} == 1
+      - if: $CONFIG{ETHERNET_SPI_USE_W5500} == 1
   espressif/dp83848:
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_DP83848} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_DP83848} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -55,8 +48,7 @@ dependencies:
   espressif/ip101:
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_IP101} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_IP101} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -64,8 +56,7 @@ dependencies:
   espressif/ksz80xx:
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_KSZ80XX} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_KSZ80XX} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -74,14 +65,12 @@ dependencies:
     version: '>=2.0.0'
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_LAN867X} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_LAN867X} == 1
     override_path: ../lan867x/
   espressif/lan87xx:
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_LAN87XX} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_LAN87XX} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -89,8 +78,7 @@ dependencies:
   espressif/rtl8201:
     rules:
       - if: target in [esp32, esp32p4]
-      - if: >-
-          $CONFIG{ETHERNET_PHY_USE_RTL8201} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_RTL8201} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
@@ -101,4 +89,4 @@ description: >-
   This component initializes Ethernet driver based on Espressif IoT Development
   Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 1.1.0
+version: 1.2.0
