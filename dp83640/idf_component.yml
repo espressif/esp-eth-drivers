@@ -1,0 +1,7 @@
+version: "0.1.0"
+targets:
+  - esp32
+description: DP83640 Ethernet PHY Driver with IEEE1588 feature
+url: https://github.com/espressif/esp-eth-drivers/tree/master/dp83640
+dependencies:
+  idf: ">=5.0"
