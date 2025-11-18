@@ -52,7 +52,7 @@ static esp_err_t ksz8863_i2c_write(uint8_t reg_addr, uint8_t *data, size_t len)
     reg_addr_and_data[0] = reg_addr;
     memcpy(reg_addr_and_data + 1, data, len);
     // When performing a soft reset, the KSZ8863 doesn't produce an ACK.
-    if unlikely(reg_addr == KSZ8863_RESET_ADDR) {
+    if (unlikely(reg_addr == KSZ8863_RESET_ADDR)) {
         i2c_operation_job_t i2c_tx_no_ack_check_ops[3] = {
             {.command = I2C_MASTER_CMD_START },
             {.command = I2C_MASTER_CMD_WRITE, .write = {.ack_check = false, .data = reg_addr_and_data, .total_bytes = len + 1}},
