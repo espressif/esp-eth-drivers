@@ -4,6 +4,7 @@
 # Define stages
 stages:
   - pre_check
+  - build_idf_apps
   - build
   - test
   - deploy

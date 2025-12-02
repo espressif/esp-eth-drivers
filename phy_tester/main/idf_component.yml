@@ -2,7 +2,6 @@
 dependencies:
   espressif/ethernet_init:
     version: "*"
-    override_path: '../../ethernet_init'
   ## Required IDF version
   idf:
     version: ">=5.2.0"

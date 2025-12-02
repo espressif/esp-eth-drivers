@@ -1,6 +1,5 @@
 [gitlab.artifacts]
 build_job_filepatterns = [
-    "**/build*/config/sdkconfig.json",
     "**/build*/*.bin",
     "**/build*/flasher_args.json",
     "**/build*/config/sdkconfig.json",
@@ -10,3 +9,27 @@ build_job_filepatterns = [
     "**/build*/project_description.json",
     "**/build*/build.log",
 ]
+
+[gitlab.build_pipeline]
+job_template_jinja = """
+{{ settings.gitlab.build_pipeline.job_template_name }}:
+  stage: "{{ settings.gitlab.build_pipeline.job_stage }}"
+  tags: {{ settings.gitlab.build_pipeline.job_tags }}
+  image: "{{ settings.gitlab.build_pipeline.job_image }}"
+  timeout: "1h"
+  artifacts:
+    paths:
+    {%- for path in settings.gitlab.artifacts.build_job_filepatterns %}
+      - "{{ path }}"
+    {%- endfor %}
+    expire_in: "1 week"
+    when: "always"
+  before_script:
+    - pip install -U 'idf-ci<1'
+  script:
+    - python tools/overwrite_component_path.py . .
+    - idf-ci build run
+      --parallel-count ${CI_NODE_TOTAL:-1}
+      --parallel-index ${CI_NODE_INDEX:-1}
+
+"""

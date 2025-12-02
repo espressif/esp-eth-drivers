@@ -1,0 +1,73 @@
+
+spec:
+  inputs:
+    build-job-tags:
+      type: array
+      description: "Tags to add to the build job"
+      default:
+        - build
+    job-suffix:
+      type: string
+      description: "Suffix to add to the job name. For example, `:idf-v6.0`"
+      default: ""
+    build-job-image:
+      type: string
+      description: "docker image to use for the build job."
+      default: "espressif/idf:latest"
+    max-apps-per-node:
+      type: number
+      description: "Maximum number of apps per node."
+      default: 25
+---
+
+stages:
+  - build_idf_apps
+
+##############
+# .pre stage #
+##############
+generate_build_idf_child_pipeline$[[ inputs.job-suffix ]]:
+  stage: .pre
+  image: $[[ inputs.build-job-image ]]
+  tags: $[[ inputs.build-job-tags ]]
+  rules:
+    - if: '$CI_MERGE_REQUEST_LABELS =~ /build-idf-apps/'
+      when: on_success
+    - when: manual
+  before_script:
+    - pip install --upgrade idf-build-apps jinja2
+  script:
+    - python tools/overwrite_component_path.py . ${IDF_PATH}/examples/
+    - source eth_ci_env.sh
+    - cd ${IDF_PATH}
+    - |
+      # Generate the child pipeline for this specific IDF image
+      python ${CI_PROJECT_DIR}/tools/idf_build_generate_child_pipeline.py \
+        --config-file ${CI_PROJECT_DIR}/.ci/esp_idf_build_apps.toml \
+        --modified-components "${IDF_COMPONENTS_MOD}" \
+        --idf-image "$[[ inputs.build-job-image ]]" \
+        --max-apps-per-node $[[ inputs.max-apps-per-node ]] \
+        --output ${CI_PROJECT_DIR}/build_child_pipeline.yml
+  artifacts:
+    paths:
+      - build_child_pipeline.yml
+      - find_log_*.txt
+    expire_in: 1 day
+
+###############
+# build stage #
+###############
+build_idf_child_pipeline$[[ inputs.job-suffix ]]:
+  stage: build_idf_apps
+  needs:
+    - job: generate_build_idf_child_pipeline$[[ inputs.job-suffix ]]
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  # https://gitlab.com/gitlab-org/gitlab/-/issues/214340
+  inherit:
+    variables: false
+  trigger:
+    include:
+      - artifact: build_child_pipeline.yml
+        job: generate_build_idf_child_pipeline$[[ inputs.job-suffix ]]
+    strategy: depend

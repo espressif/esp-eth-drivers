@@ -35,7 +35,7 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy                                         # Runs mypy for Python type checking
-        additional_dependencies: ['PyYAML', 'types-PyYAML', 'types-requests']
+        additional_dependencies: ['PyYAML', 'types-PyYAML', 'types-requests', 'jinja2']
 
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.10.0
