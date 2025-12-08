@@ -34,6 +34,7 @@ generate_build_idf_child_pipeline$[[ inputs.job-suffix ]]:
     - if: '$CI_MERGE_REQUEST_LABELS =~ /build-idf-apps/'
       when: on_success
     - when: manual
+      allow_failure: true
   before_script:
     - pip install --upgrade idf-build-apps jinja2
   script:
@@ -61,6 +62,7 @@ build_idf_child_pipeline$[[ inputs.job-suffix ]]:
   stage: build_idf_apps
   needs:
     - job: generate_build_idf_child_pipeline$[[ inputs.job-suffix ]]
+      optional: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
   # https://gitlab.com/gitlab-org/gitlab/-/issues/214340
