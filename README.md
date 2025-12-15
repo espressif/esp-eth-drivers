@@ -20,6 +20,7 @@ SPI Ethernet modules:
 - [KSZ8851SNL](ksz8851snl/README.md)
 - [LAN865X](lan865x/README.md) (10BASE-T1S)
 - [W5500](w5500/README.md)
+- [W6100](w6100/README.md)
 
 Switch ICs:
 - [KSZ8863](ksz8863/README.md)

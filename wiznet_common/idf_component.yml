@@ -1,0 +1,5 @@
+version: 1.0.0
+description: Common code for WIZnet Ethernet controllers (W5500, W6100)
+url: https://github.com/espressif/esp-eth-drivers/tree/master/wiznet_common
+dependencies:
+  idf: '>=5.3'
