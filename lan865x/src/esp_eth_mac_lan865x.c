@@ -911,6 +911,7 @@ static void emac_lan865x_task(void *arg)
         } else {
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         }
+
         uint8_t remain = 0;
         do {
             uint32_t frame_len = ETH_MAX_PACKET_SIZE;
@@ -942,15 +943,6 @@ static esp_err_t emac_lan865x_init(esp_eth_mac_t *mac)
     esp_eth_mediator_t *eth = emac->eth;
 
     ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LLINIT, NULL), err, TAG, "lowlevel init failed");
-
-    if (emac->int_gpio_num >= 0) {
-        gpio_func_sel(emac->int_gpio_num, PIN_FUNC_GPIO);
-        gpio_input_enable(emac->int_gpio_num);
-        gpio_pulldown_en(emac->int_gpio_num);
-        gpio_set_intr_type(emac->int_gpio_num, GPIO_INTR_NEGEDGE);
-        gpio_intr_enable(emac->int_gpio_num);
-        gpio_isr_handler_add(emac->int_gpio_num, lan865x_isr_handler, emac);
-    }
 
     // Reset the device
     ESP_GOTO_ON_ERROR(lan865x_reset(emac), err, TAG, "reset failed");
@@ -994,6 +986,15 @@ static esp_err_t emac_lan865x_init(esp_eth_mac_t *mac)
         .resetc = 1,
     };
     ESP_GOTO_ON_ERROR(lan865x_clear_reg_bits(emac, LAN865X_MMS_OA, LAN865X_OA_STATUS0_REG_ADDR, oa_status0_mask.val), err, TAG, "OA_STATUS0 configuration failed");
+
+    if (emac->int_gpio_num >= 0) {
+        gpio_func_sel(emac->int_gpio_num, PIN_FUNC_GPIO);
+        gpio_input_enable(emac->int_gpio_num);
+        gpio_pulldown_en(emac->int_gpio_num);
+        gpio_set_intr_type(emac->int_gpio_num, GPIO_INTR_NEGEDGE);
+        gpio_intr_enable(emac->int_gpio_num);
+        gpio_isr_handler_add(emac->int_gpio_num, lan865x_isr_handler, emac);
+    }
 
     return ESP_OK;
 err:
