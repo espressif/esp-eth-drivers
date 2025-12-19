@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.2...lan865x@v0.1.3) (2025-12-19)
+
+
+### Bug Fixes
+
+* **ksz865x:** fixed PRIV_REQUIRES in CMakLists ([c02f13d](https://github.com/espressif/esp-eth-drivers/commit/c02f13df0563e9b6b6603112b8ad8e4def0aa3ec))
+* **lan865x:** Fix IRQ issue during reset of lan8651 ([c590d24](https://github.com/espressif/esp-eth-drivers/commit/c590d247137f6fc13ccddcabe5a278a4bf0000e0))
+
 ## [0.1.2](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.1...lan865x@v0.1.2) (2025-08-12)
 
 
