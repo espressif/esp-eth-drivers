@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -145,6 +145,11 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
     // we can get the ethernet driver handle from event data
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
     eth_dev_info_t dev_info = ethernet_init_get_dev_info(eth_handle);
+
+    // check if the handle is valid and was created by "ethernet_init" component
+    if (dev_info.type == ETH_DEV_TYPE_UNKNOWN) {
+        return;
+    }
 
     if (dev_info.type == ETH_DEV_TYPE_INTERNAL_ETH) {
         pin1 = dev_info.pin.eth_internal_mdc;
