@@ -25,6 +25,35 @@
 #endif
 #include "wiznet_mac_common.h"
 
+/* Forward declaration for cleanup helper */
+static void emac_wiznet_cleanup(emac_wiznet_t *emac);
+
+/**
+ * @brief Common base structure for WIZnet EMAC implementations (opaque)
+ *
+ * This structure contains fields common to all WIZnet Ethernet MAC drivers
+ * (W5500, W6100, etc.). The structure is opaque; use emac_wiznet_new() to
+ * create instances.
+ */
+struct emac_wiznet_s {
+    esp_eth_mac_t parent;           /*!< ESP-IDF MAC vtable (must be first for __containerof) */
+    esp_eth_mediator_t *eth;        /*!< Mediator for callbacks to ESP-ETH layer */
+    eth_spi_custom_driver_t spi;    /*!< SPI driver interface */
+    TaskHandle_t rx_task_hdl;       /*!< RX task handle */
+    const char *tag;                /*!< Logging tag (e.g., "w6100.mac") */
+    const wiznet_chip_ops_t *ops;   /*!< Chip-specific operations */
+    uint32_t sw_reset_timeout_ms;   /*!< Software reset timeout */
+    int int_gpio_num;               /*!< Interrupt GPIO number, or -1 for polling mode */
+    esp_timer_handle_t poll_timer;  /*!< Poll timer handle (polling mode only) */
+    uint32_t poll_period_ms;        /*!< Poll period in milliseconds */
+    uint8_t addr[ETH_ADDR_LEN];     /*!< MAC address */
+    bool packets_remain;            /*!< Flag indicating more packets in RX buffer */
+    uint8_t *rx_buffer;             /*!< RX buffer for incoming frames */
+    uint32_t tx_tmo;                /*!< TX timeout in microseconds (speed-dependent) */
+    uint8_t mcast_v4_cnt;           /*!< IPv4 multicast filter reference count */
+    uint8_t mcast_v6_cnt;           /*!< IPv6 multicast filter reference count */
+};
+
 esp_err_t emac_wiznet_set_mediator(esp_eth_mac_t *mac, esp_eth_mediator_t *eth)
 {
     emac_wiznet_t *emac = __containerof(mac, emac_wiznet_t, parent);
@@ -41,7 +70,7 @@ esp_err_t emac_wiznet_get_addr(esp_eth_mac_t *mac, uint8_t *addr)
     emac_wiznet_t *emac = __containerof(mac, emac_wiznet_t, parent);
     esp_err_t ret = ESP_OK;
     ESP_GOTO_ON_FALSE(addr, ESP_ERR_INVALID_ARG, err, emac->tag, "invalid argument");
-    memcpy(addr, emac->addr, 6);
+    memcpy(addr, emac->addr, ETH_ADDR_LEN);
 
 err:
     return ret;
@@ -159,8 +188,8 @@ esp_err_t emac_wiznet_set_addr(esp_eth_mac_t *mac, uint8_t *addr)
     esp_err_t ret = ESP_OK;
     emac_wiznet_t *emac = __containerof(mac, emac_wiznet_t, parent);
     ESP_GOTO_ON_FALSE(addr, ESP_ERR_INVALID_ARG, err, emac->tag, "invalid argument");
-    memcpy(emac->addr, addr, 6);
-    ESP_GOTO_ON_ERROR(wiznet_write(emac, emac->ops->regs[WIZNET_REG_MAC_ADDR], emac->addr, 6), err, emac->tag, "write MAC address register failed");
+    memcpy(emac->addr, addr, ETH_ADDR_LEN);
+    ESP_GOTO_ON_ERROR(wiznet_write(emac, emac->ops->regs[WIZNET_REG_MAC_ADDR], emac->addr, ETH_ADDR_LEN), err, emac->tag, "write MAC address register failed");
 err:
     return ret;
 }
@@ -257,12 +286,7 @@ esp_err_t emac_wiznet_deinit(esp_eth_mac_t *mac)
 esp_err_t emac_wiznet_del(esp_eth_mac_t *mac)
 {
     emac_wiznet_t *emac = __containerof(mac, emac_wiznet_t, parent);
-    if (emac->poll_timer) {
-        esp_timer_delete(emac->poll_timer);
-    }
-    vTaskDelete(emac->rx_task_hdl);
-    emac->spi.deinit(emac->spi.ctx);
-    heap_caps_free(emac->rx_buffer);
+    emac_wiznet_cleanup(emac);
     free(emac);
     return ESP_OK;
 }
@@ -733,32 +757,86 @@ err:
  * Common Constructor Helper
  ******************************************************************************/
 
-void emac_wiznet_cleanup_common(emac_wiznet_t *emac)
+/**
+ * @brief Cleanup resources allocated during emac_wiznet_new
+ *
+ * Internal function used on error path. Does not free the emac struct itself.
+ */
+static void emac_wiznet_cleanup(emac_wiznet_t *emac)
 {
     if (emac->poll_timer) {
         esp_timer_delete(emac->poll_timer);
+        emac->poll_timer = NULL;
     }
     if (emac->rx_task_hdl) {
         vTaskDelete(emac->rx_task_hdl);
+        emac->rx_task_hdl = NULL;
     }
     if (emac->spi.ctx) {
         emac->spi.deinit(emac->spi.ctx);
+        emac->spi.ctx = NULL;
     }
-    heap_caps_free(emac->rx_buffer);
+    if (emac->rx_buffer) {
+        heap_caps_free(emac->rx_buffer);
+        emac->rx_buffer = NULL;
+    }
 }
 
-esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
-                                  const eth_wiznet_config_t *wiznet_config,
-                                  const eth_mac_config_t *mac_config,
-                                  const wiznet_chip_ops_t *ops,
-                                  const char *tag,
-                                  const char *task_name)
+esp_eth_mac_t *emac_wiznet_get_parent(emac_wiznet_t *emac)
 {
-    esp_err_t ret = ESP_OK;
+    return &emac->parent;
+}
+
+emac_wiznet_t *emac_wiznet_from_parent(esp_eth_mac_t *mac)
+{
+    return __containerof(mac, emac_wiznet_t, parent);
+}
+
+uint32_t emac_wiznet_get_sw_reset_timeout_ms(emac_wiznet_t *emac)
+{
+    return emac->sw_reset_timeout_ms;
+}
+
+uint8_t emac_wiznet_get_mcast_v4_cnt(emac_wiznet_t *emac)
+{
+    return emac->mcast_v4_cnt;
+}
+
+void emac_wiznet_set_mcast_v4_cnt(emac_wiznet_t *emac, uint8_t cnt)
+{
+    emac->mcast_v4_cnt = cnt;
+}
+
+uint8_t emac_wiznet_get_mcast_v6_cnt(emac_wiznet_t *emac)
+{
+    return emac->mcast_v6_cnt;
+}
+
+void emac_wiznet_set_mcast_v6_cnt(emac_wiznet_t *emac, uint8_t cnt)
+{
+    emac->mcast_v6_cnt = cnt;
+}
+
+emac_wiznet_t *emac_wiznet_new(const eth_wiznet_config_t *wiznet_config,
+                               const eth_mac_config_t *mac_config,
+                               const wiznet_chip_ops_t *ops,
+                               const char *tag,
+                               const char *task_name)
+{
+    emac_wiznet_t *emac = NULL;
 
     /* Validate chip-specific ops */
-    ESP_GOTO_ON_FALSE(ops && ops->reset && ops->verify_id && ops->setup_default,
-                      ESP_ERR_INVALID_ARG, err, tag, "chip-specific ops not configured");
+    if (!ops || !ops->reset || !ops->verify_id || !ops->setup_default) {
+        ESP_LOGE(tag, "chip-specific ops not configured");
+        return NULL;
+    }
+
+    /* Allocate the EMAC instance */
+    emac = calloc(1, sizeof(emac_wiznet_t));
+    if (!emac) {
+        ESP_LOGE(tag, "no mem for MAC instance");
+        return NULL;
+    }
 
     /* bind methods and attributes */
     emac->tag = tag;
@@ -795,8 +873,10 @@ esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
         emac->spi.read = wiznet_config->custom_spi_driver.read;
         emac->spi.write = wiznet_config->custom_spi_driver.write;
         /* Custom SPI driver device init */
-        ESP_GOTO_ON_FALSE((emac->spi.ctx = emac->spi.init(wiznet_config->custom_spi_driver.config)) != NULL,
-                          ESP_FAIL, err, tag, "SPI initialization failed");
+        if ((emac->spi.ctx = emac->spi.init(wiznet_config->custom_spi_driver.config)) == NULL) {
+            ESP_LOGE(tag, "SPI initialization failed");
+            goto err;
+        }
     } else {
         ESP_LOGD(tag, "Using default SPI Driver");
         emac->spi.init = wiznet_spi_init;
@@ -804,8 +884,10 @@ esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
         emac->spi.read = wiznet_spi_read;
         emac->spi.write = wiznet_spi_write;
         /* SPI device init */
-        ESP_GOTO_ON_FALSE((emac->spi.ctx = emac->spi.init(wiznet_config)) != NULL,
-                          ESP_FAIL, err, tag, "SPI initialization failed");
+        if ((emac->spi.ctx = emac->spi.init(wiznet_config)) == NULL) {
+            ESP_LOGE(tag, "SPI initialization failed");
+            goto err;
+        }
     }
 
     /* create rx task */
@@ -815,18 +897,28 @@ esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
     }
     BaseType_t xReturned = xTaskCreatePinnedToCore(emac_wiznet_task, task_name, mac_config->rx_task_stack_size, emac,
                                                    mac_config->rx_task_prio, &emac->rx_task_hdl, core_num);
-    ESP_GOTO_ON_FALSE(xReturned == pdPASS, ESP_FAIL, err, tag, "create rx task failed");
+    if (xReturned != pdPASS) {
+        ESP_LOGE(tag, "create rx task failed");
+        goto err;
+    }
 
     /* allocate RX buffer */
     emac->rx_buffer = heap_caps_malloc(ETH_MAX_PACKET_SIZE, MALLOC_CAP_DMA);
-    ESP_GOTO_ON_FALSE(emac->rx_buffer, ESP_ERR_NO_MEM, err, tag, "RX buffer allocation failed");
+    if (!emac->rx_buffer) {
+        ESP_LOGE(tag, "RX buffer allocation failed");
+        goto err;
+    }
 
     /* create poll timer if needed */
-    ESP_GOTO_ON_ERROR(wiznet_create_poll_timer(emac), err, tag, "create poll timer failed");
+    if (wiznet_create_poll_timer(emac) != ESP_OK) {
+        ESP_LOGE(tag, "create poll timer failed");
+        goto err;
+    }
 
-    return ESP_OK;
+    return emac;
 
 err:
-    emac_wiznet_cleanup_common(emac);
-    return ret;
+    emac_wiznet_cleanup(emac);
+    free(emac);
+    return NULL;
 }

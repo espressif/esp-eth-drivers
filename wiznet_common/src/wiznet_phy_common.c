@@ -20,6 +20,41 @@
 
 static const char *TAG = "wiznet.phy";
 
+/**
+ * @brief Common base structure for WIZnet PHY implementations (opaque)
+ *
+ * This structure contains fields common to all WIZnet Ethernet PHY drivers
+ * (W5500, W6100, etc.). The structure is opaque; use phy_wiznet_new() to
+ * create instances.
+ */
+struct phy_wiznet_s {
+    esp_eth_phy_t parent;           /**< ESP-IDF PHY vtable (must be first for __containerof) */
+    esp_eth_mediator_t *eth;        /**< Mediator for communication with MAC layer */
+    int addr;                       /**< PHY address (unused for internal PHY, but required by API) */
+    uint32_t reset_timeout_ms;      /**< Reset timeout in milliseconds */
+    uint32_t autonego_timeout_ms;   /**< Auto-negotiation timeout in milliseconds */
+    eth_link_t link_status;         /**< Current link status */
+    int reset_gpio_num;             /**< Hardware reset GPIO, or -1 if not used */
+    uint32_t phy_status_reg;        /**< Register address for PHY status (link/speed/duplex) */
+    eth_speed_t speed_when_bit_set;    /**< Speed value when status register speed bit is 1 */
+    eth_speed_t speed_when_bit_clear;  /**< Speed value when status register speed bit is 0 */
+    eth_duplex_t duplex_when_bit_set;  /**< Duplex value when status register duplex bit is 1 */
+    eth_duplex_t duplex_when_bit_clear;/**< Duplex value when status register duplex bit is 0 */
+
+    /* Table-driven get_mode configuration */
+    const wiznet_opmode_entry_t *opmode_table;  /**< Table of fixed-mode entries for get_mode lookup */
+    uint8_t opmode_table_size;         /**< Number of entries in opmode_table */
+    uint32_t opmode_status_reg;        /**< Register to read current opmode from */
+    uint8_t opmode_shift;              /**< Bit shift for opmode field in status register */
+    uint8_t opmode_mask;               /**< Mask for opmode field after shifting */
+
+    /** @brief Chip-specific: Check if auto-negotiation is enabled */
+    esp_err_t (*is_autoneg_enabled)(phy_wiznet_t *wiznet, bool *enabled);
+    /** @brief Chip-specific: Set PHY mode (autoneg or fixed speed/duplex) */
+    esp_err_t (*set_mode)(phy_wiznet_t *wiznet, bool autoneg, eth_speed_t speed, eth_duplex_t duplex);
+
+};
+
 esp_err_t phy_wiznet_set_mediator(esp_eth_phy_t *phy, esp_eth_mediator_t *eth)
 {
     esp_err_t ret = ESP_OK;
@@ -315,4 +350,99 @@ esp_err_t phy_wiznet_get_mode(phy_wiznet_t *wiznet, bool *autoneg, eth_speed_t *
     return ESP_OK;
 err:
     return ret;
+}
+
+/*******************************************************************************
+ * Accessor Functions
+ ******************************************************************************/
+
+phy_wiznet_t *phy_wiznet_from_parent(esp_eth_phy_t *phy)
+{
+    return __containerof(phy, phy_wiznet_t, parent);
+}
+
+esp_eth_mediator_t *phy_wiznet_get_eth(phy_wiznet_t *wiznet)
+{
+    return wiznet->eth;
+}
+
+uint32_t phy_wiznet_get_addr_val(phy_wiznet_t *wiznet)
+{
+    return wiznet->addr;
+}
+
+void phy_wiznet_set_link_down(phy_wiznet_t *wiznet)
+{
+    wiznet->link_status = ETH_LINK_DOWN;
+}
+
+/*******************************************************************************
+ * Factory Function
+ ******************************************************************************/
+
+esp_eth_phy_t *phy_wiznet_new(const phy_wiznet_config_t *config)
+{
+    if (!config) {
+        ESP_LOGE(TAG, "invalid arguments");
+        return NULL;
+    }
+
+    /* Validate required function pointers and table */
+    if (!config->is_autoneg_enabled || !config->set_mode) {
+        ESP_LOGE(TAG, "chip-specific PHY ops not configured");
+        return NULL;
+    }
+    if (!config->opmode_table || config->opmode_table_size == 0) {
+        ESP_LOGE(TAG, "opmode_table not configured");
+        return NULL;
+    }
+    if (!config->reset || !config->pwrctl) {
+        ESP_LOGE(TAG, "chip-specific reset/pwrctl not configured");
+        return NULL;
+    }
+
+    phy_wiznet_t *wiznet = calloc(1, sizeof(phy_wiznet_t));
+    if (!wiznet) {
+        ESP_LOGE(TAG, "no mem for PHY instance");
+        return NULL;
+    }
+
+    /* Copy configuration to instance */
+    wiznet->addr = config->phy_addr;
+    wiznet->reset_timeout_ms = config->reset_timeout_ms;
+    wiznet->reset_gpio_num = config->reset_gpio_num;
+    wiznet->link_status = ETH_LINK_DOWN;
+    wiznet->autonego_timeout_ms = config->autonego_timeout_ms;
+    wiznet->phy_status_reg = config->phy_status_reg;
+    wiznet->speed_when_bit_set = config->speed_when_bit_set;
+    wiznet->speed_when_bit_clear = config->speed_when_bit_clear;
+    wiznet->duplex_when_bit_set = config->duplex_when_bit_set;
+    wiznet->duplex_when_bit_clear = config->duplex_when_bit_clear;
+    wiznet->opmode_table = config->opmode_table;
+    wiznet->opmode_table_size = config->opmode_table_size;
+    wiznet->opmode_status_reg = config->opmode_status_reg;
+    wiznet->opmode_shift = config->opmode_shift;
+    wiznet->opmode_mask = config->opmode_mask;
+    wiznet->is_autoneg_enabled = config->is_autoneg_enabled;
+    wiznet->set_mode = config->set_mode;
+
+    /* Set common vtable entries */
+    wiznet->parent.reset = config->reset;
+    wiznet->parent.reset_hw = phy_wiznet_reset_hw;
+    wiznet->parent.init = phy_wiznet_init;
+    wiznet->parent.deinit = phy_wiznet_deinit;
+    wiznet->parent.set_mediator = phy_wiznet_set_mediator;
+    wiznet->parent.autonego_ctrl = config->autonego_ctrl ? config->autonego_ctrl : phy_wiznet_autonego_ctrl;
+    wiznet->parent.get_link = phy_wiznet_get_link;
+    wiznet->parent.set_link = phy_wiznet_set_link;
+    wiznet->parent.pwrctl = config->pwrctl;
+    wiznet->parent.get_addr = phy_wiznet_get_addr;
+    wiznet->parent.set_addr = phy_wiznet_set_addr;
+    wiznet->parent.advertise_pause_ability = phy_wiznet_advertise_pause_ability;
+    wiznet->parent.loopback = phy_wiznet_loopback;
+    wiznet->parent.set_speed = phy_wiznet_set_speed;
+    wiznet->parent.set_duplex = phy_wiznet_set_duplex;
+    wiznet->parent.del = phy_wiznet_del;
+
+    return &wiznet->parent;
 }

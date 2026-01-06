@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <sys/cdefs.h>
 #include "esp_eth_phy.h"
+#include "esp_eth_phy_w6100.h"
 #include "esp_log.h"
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
@@ -78,27 +79,28 @@ typedef union {
     uint8_t val;
 } phycr1_reg_t;
 
-static esp_err_t w6100_reset(esp_eth_phy_t *phy)
+static esp_err_t w6100_phy_reset(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
-    phy_wiznet_t *w6100 = __containerof(phy, phy_wiznet_t, parent);
-    w6100->link_status = ETH_LINK_DOWN;
-    esp_eth_mediator_t *eth = w6100->eth;
+    phy_wiznet_t *w6100 = phy_wiznet_from_parent(phy);
+    phy_wiznet_set_link_down(w6100);
+    esp_eth_mediator_t *eth = phy_wiznet_get_eth(w6100);
+    uint32_t addr = phy_wiznet_get_addr_val(w6100);
 
     // Unlock PHY configuration
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w6100->addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK), err, TAG, "unlock PHY failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK), err, TAG, "unlock PHY failed");
 
     // Reset PHY by setting reset bit in PHYCR1
     phycr1_reg_t phycr1;
     /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w6100->addr, W6100_REG_PHYCR1, (uint32_t *) & (phycr1.val)), err, TAG, "read PHYCR1 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, W6100_REG_PHYCR1, (uint32_t *) & (phycr1.val)), err, TAG, "read PHYCR1 failed");
     phycr1.reset = 1;
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w6100->addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
 
     vTaskDelay(pdMS_TO_TICKS(W6100_WAIT_FOR_RESET_MS));
 
     phycr1.reset = 0;
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w6100->addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
 
     return ESP_OK;
 err:
@@ -108,11 +110,12 @@ err:
 static esp_err_t w6100_is_autoneg_enabled(phy_wiznet_t *wiznet, bool *enabled)
 {
     esp_err_t ret = ESP_OK;
-    esp_eth_mediator_t *eth = wiznet->eth;
+    esp_eth_mediator_t *eth = phy_wiznet_get_eth(wiznet);
+    uint32_t addr = phy_wiznet_get_addr_val(wiznet);
     physr_reg_t physr;
 
     /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, wiznet->addr, W6100_REG_PHYSR, (uint32_t *)&physr.val),
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, W6100_REG_PHYSR, (uint32_t *)&physr.val),
                       err, TAG, "read PHYSR failed");
     /* PHYSR MODE[2] (bit 5 of register) = 0 means auto negotiation
      * MODE 0xx = Auto, MODE 1xx = Fixed mode */
@@ -125,10 +128,11 @@ err:
 static esp_err_t w6100_set_mode(phy_wiznet_t *wiznet, bool autoneg, eth_speed_t speed, eth_duplex_t duplex)
 {
     esp_err_t ret = ESP_OK;
-    esp_eth_mediator_t *eth = wiznet->eth;
+    esp_eth_mediator_t *eth = phy_wiznet_get_eth(wiznet);
+    uint32_t addr = phy_wiznet_get_addr_val(wiznet);
 
     // Unlock PHY configuration
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, wiznet->addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK),
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK),
                       err, TAG, "unlock PHY failed");
 
     uint32_t phycr0;
@@ -142,7 +146,7 @@ static esp_err_t w6100_set_mode(phy_wiznet_t *wiznet, bool autoneg, eth_speed_t 
             phycr0 = (speed == ETH_SPEED_100M) ? W6100_OP_MODE_100BT_HALF : W6100_OP_MODE_10BT_HALF;
         }
     }
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, wiznet->addr, W6100_REG_PHYCR0, phycr0), err, TAG, "write PHYCR0 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR0, phycr0), err, TAG, "write PHYCR0 failed");
     return ESP_OK;
 err:
     return ret;
@@ -151,17 +155,18 @@ err:
 static esp_err_t w6100_pwrctl(esp_eth_phy_t *phy, bool enable)
 {
     esp_err_t ret = ESP_OK;
-    phy_wiznet_t *w6100 = __containerof(phy, phy_wiznet_t, parent);
-    esp_eth_mediator_t *eth = w6100->eth;
+    phy_wiznet_t *w6100 = phy_wiznet_from_parent(phy);
+    esp_eth_mediator_t *eth = phy_wiznet_get_eth(w6100);
+    uint32_t addr = phy_wiznet_get_addr_val(w6100);
 
     // Unlock PHY configuration
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w6100->addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK), err, TAG, "unlock PHY failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK), err, TAG, "unlock PHY failed");
 
     phycr1_reg_t phycr1;
     /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w6100->addr, W6100_REG_PHYCR1, (uint32_t *) & (phycr1.val)), err, TAG, "read PHYCR1 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, W6100_REG_PHYCR1, (uint32_t *) & (phycr1.val)), err, TAG, "read PHYCR1 failed");
     phycr1.pwdn = enable ? 0 : 1;  // 0 = power on, 1 = power down
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w6100->addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
 
     if (enable) {
         // Wait for PHY to power up
@@ -176,47 +181,35 @@ esp_eth_phy_t *esp_eth_phy_new_w6100(const eth_phy_config_t *config)
 {
     esp_eth_phy_t *ret = NULL;
     ESP_GOTO_ON_FALSE(config, NULL, err, TAG, "invalid arguments");
-    phy_wiznet_t *w6100 = calloc(1, sizeof(phy_wiznet_t));
-    ESP_GOTO_ON_FALSE(w6100, NULL, err, TAG, "no mem for PHY instance");
-    w6100->addr = config->phy_addr;
-    w6100->reset_timeout_ms = config->reset_timeout_ms;
-    w6100->reset_gpio_num = config->reset_gpio_num;
-    w6100->link_status = ETH_LINK_DOWN;
-    w6100->autonego_timeout_ms = config->autonego_timeout_ms;
-    /* W6100 PHY status register bit interpretation (inverted from W5500):
-     * - speed bit: 1 = 10Mbps, 0 = 100Mbps
-     * - duplex bit: 1 = half, 0 = full
-     */
-    w6100->phy_status_reg = W6100_REG_PHYSR;
-    w6100->speed_when_bit_set = ETH_SPEED_10M;
-    w6100->speed_when_bit_clear = ETH_SPEED_100M;
-    w6100->duplex_when_bit_set = ETH_DUPLEX_HALF;
-    w6100->duplex_when_bit_clear = ETH_DUPLEX_FULL;
-    /* Table-driven get_mode configuration */
-    w6100->opmode_table = w6100_opmode_table;
-    w6100->opmode_table_size = sizeof(w6100_opmode_table) / sizeof(w6100_opmode_table[0]);
-    w6100->opmode_status_reg = W6100_REG_PHYSR;
-    w6100->opmode_shift = 3;  /* opmode is bits [5:3] */
-    w6100->opmode_mask = 0x07;
-    w6100->is_autoneg_enabled = w6100_is_autoneg_enabled;
-    w6100->set_mode = w6100_set_mode;
-    w6100->parent.reset = w6100_reset;
-    w6100->parent.reset_hw = phy_wiznet_reset_hw;
-    w6100->parent.init = phy_wiznet_init;
-    w6100->parent.deinit = phy_wiznet_deinit;
-    w6100->parent.set_mediator = phy_wiznet_set_mediator;
-    w6100->parent.autonego_ctrl = phy_wiznet_autonego_ctrl;
-    w6100->parent.get_link = phy_wiznet_get_link;
-    w6100->parent.set_link = phy_wiznet_set_link;
-    w6100->parent.pwrctl = w6100_pwrctl;
-    w6100->parent.get_addr = phy_wiznet_get_addr;
-    w6100->parent.set_addr = phy_wiznet_set_addr;
-    w6100->parent.advertise_pause_ability = phy_wiznet_advertise_pause_ability;
-    w6100->parent.loopback = phy_wiznet_loopback;
-    w6100->parent.set_speed = phy_wiznet_set_speed;
-    w6100->parent.set_duplex = phy_wiznet_set_duplex;
-    w6100->parent.del = phy_wiznet_del;
-    return &(w6100->parent);
+
+    phy_wiznet_config_t wiznet_config = {
+        /* Basic config */
+        .phy_addr = config->phy_addr,
+        .reset_timeout_ms = config->reset_timeout_ms,
+        .autonego_timeout_ms = config->autonego_timeout_ms,
+        .reset_gpio_num = config->reset_gpio_num,
+        /* W6100 PHY status register bit interpretation (inverted from W5500):
+         * - speed bit: 1 = 10Mbps, 0 = 100Mbps
+         * - duplex bit: 1 = half, 0 = full */
+        .phy_status_reg = W6100_REG_PHYSR,
+        .speed_when_bit_set = ETH_SPEED_10M,
+        .speed_when_bit_clear = ETH_SPEED_100M,
+        .duplex_when_bit_set = ETH_DUPLEX_HALF,
+        .duplex_when_bit_clear = ETH_DUPLEX_FULL,
+        /* Table-driven get_mode configuration */
+        .opmode_table = w6100_opmode_table,
+        .opmode_table_size = sizeof(w6100_opmode_table) / sizeof(w6100_opmode_table[0]),
+        .opmode_status_reg = W6100_REG_PHYSR,
+        .opmode_shift = 3,  /* opmode is bits [5:3] */
+        .opmode_mask = 0x07,
+        /* Chip-specific function pointers */
+        .is_autoneg_enabled = w6100_is_autoneg_enabled,
+        .set_mode = w6100_set_mode,
+        .reset = w6100_phy_reset,
+        .pwrctl = w6100_pwrctl,
+    };
+
+    return phy_wiznet_new(&wiznet_config);
 err:
     return ret;
 }

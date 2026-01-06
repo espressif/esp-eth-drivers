@@ -37,6 +37,11 @@
 #include "esp_eth_phy_lan865x.h"
 #endif // CONFIG_ETHERNET_PHY_LAN865X
 
+#if CONFIG_ETHERNET_SPI_USE_W6100
+#include "esp_eth_mac_w6100.h"
+#include "esp_eth_phy_w6100.h"
+#endif // CONFIG_ETHERNET_SPI_USE_W6100
+
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
 #if CONFIG_ETHERNET_SPI_USE_DM9051
 #include "esp_eth_mac_dm9051.h"
@@ -52,11 +57,6 @@
 #include "esp_eth_mac_w5500.h"
 #include "esp_eth_phy_w5500.h"
 #endif // CONFIG_ETHERNET_SPI_USE_W5500
-
-#if CONFIG_ETHERNET_SPI_USE_W6100
-#include "esp_eth_mac_w6100.h"
-#include "esp_eth_phy_w6100.h"
-#endif // CONFIG_ETHERNET_SPI_USE_W6100
 
 #if CONFIG_ETHERNET_PHY_IP101
 #include "esp_eth_phy_ip101.h"
