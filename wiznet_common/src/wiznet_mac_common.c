@@ -737,14 +737,20 @@ void emac_wiznet_cleanup_common(emac_wiznet_t *emac)
 {
     if (emac->poll_timer) {
         esp_timer_delete(emac->poll_timer);
+        emac->poll_timer = NULL;
     }
     if (emac->rx_task_hdl) {
         vTaskDelete(emac->rx_task_hdl);
+        emac->rx_task_hdl = NULL;
     }
     if (emac->spi.ctx) {
         emac->spi.deinit(emac->spi.ctx);
+        emac->spi.ctx = NULL;
     }
-    heap_caps_free(emac->rx_buffer);
+    if (emac->rx_buffer) {
+        heap_caps_free(emac->rx_buffer);
+        emac->rx_buffer = NULL;
+    }
 }
 
 esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
