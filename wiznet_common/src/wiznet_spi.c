@@ -62,6 +62,9 @@ void *wiznet_spi_init(const void *spi_config)
     return ret;
 err:
     if (spi) {
+        if (spi->hdl) {
+            spi_bus_remove_device(spi->hdl);
+        }
         if (spi->lock) {
             vSemaphoreDelete(spi->lock);
         }
