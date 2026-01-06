@@ -231,7 +231,7 @@ static esp_err_t emac_w6100_rm_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
 {
     esp_err_t ret = ESP_OK;
     emac_w6100_t *emac = __containerof(mac, emac_w6100_t, base.parent);
-    ESP_LOGI(TAG, "rm_mac_filter: %02x:%02x:%02x:%02x:%02x:%02x (v4_cnt=%d, v6_cnt=%d)",
+    ESP_LOGD(TAG, "rm_mac_filter: %02x:%02x:%02x:%02x:%02x:%02x (v4_cnt=%d, v6_cnt=%d)",
              addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
              emac->mcast_v4_cnt, emac->mcast_v6_cnt);
     if (addr[0] == 0x01 && addr[1] == 0x00 && addr[2] == 0x5e) {
