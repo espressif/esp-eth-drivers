@@ -230,7 +230,9 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
 
     // Init common MAC configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+#if CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
+#endif // CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
 
     // Init vendor specific MAC config to default
     eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
@@ -406,7 +408,9 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 
     // Init common MAC and PHY configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+#if CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
+#endif // CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
     // Update PHY config based on board specific configuration
@@ -535,7 +539,9 @@ static esp_eth_handle_t eth_init_openeth(char *dev_name)
     esp_eth_phy_t *phy = NULL;
 
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+#if CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
+#endif // CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
     phy_config.autonego_timeout_ms = 100;
