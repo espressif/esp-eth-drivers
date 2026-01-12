@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.2.0...ethernet_init@v1.3.0) (2026-01-12)
+
+
+### Features
+
+* **ethernet_init:** set default value of Rx task stack size to IDF default ([70aa40a](https://github.com/espressif/esp-eth-drivers/commit/70aa40a127f63904ca838946ee0bc170c8662021))
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed eth_event_handler ([01fc159](https://github.com/espressif/esp-eth-drivers/commit/01fc1595321d6153ba57a39d39a2ce05620e1844))
+* **ethernet_init:** fixed RMII CLK loopback configuration on P4 ([b995438](https://github.com/espressif/esp-eth-drivers/commit/b995438347d1b902f067c6dd8f19dc2b6997b54c))
+
 ## [1.2.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.1.0...ethernet_init@v1.2.0) (2025-11-11)
 
 
