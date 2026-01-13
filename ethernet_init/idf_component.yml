@@ -37,6 +37,11 @@ dependencies:
         version: ^1.0.0
     matches:
       - if: $CONFIG{ETHERNET_SPI_USE_W5500} == 1
+  espressif/w6100:
+    version: '*'
+    override_path: ../w6100/
+    matches:
+      - if: $CONFIG{ETHERNET_SPI_USE_W6100} == 1
   espressif/dp83848:
     rules:
       - if: target in [esp32, esp32p4]

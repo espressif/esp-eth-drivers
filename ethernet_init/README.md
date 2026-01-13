@@ -15,6 +15,7 @@ Supported devices are:
     * DM9051 MAC-PHY Module
     * KSZ8851SNL MAC-PHY Module
     * W5500 MAC-PHY Module
+    * W6100 MAC-PHY Module
     * ENC28J60 MAC-PHY Module
     * CH390 MAC-PHY Module
     * LAN865x MAC-PHY Module (10BASE-T1S)
