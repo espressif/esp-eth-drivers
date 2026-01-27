@@ -797,13 +797,29 @@ menu "Ethernet Configuration"
             not officially supported. Examples built with this option enabled
             will not run on a real ESP32 chips.
 
-    config ETHERNET_RX_TASK_STACK_SIZE
-        int "EMAC Rx task stack size"
+    menu "Rx Task Configuration"
         depends on ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT || ETHERNET_OPENETH_SUPPORT
-        default -1
+        config ETHERNET_RX_TASK_STACK_SIZE
+            int "EMAC Rx Task Stack Size"
+            default -1
+            help
+                Set stack size for EMAC Rx task in B.
+                When set to -1, the default ESP-IDF value is used.
+
+        config ETHERNET_RX_TASK_PRIO
+            int "EMAC Rx Task Priority"
+            default -1
+            range -1 25
+            help
+                Set priority of EMAC RX task.
+                When set to -1, the default ESP-IDF value is used.
+    endmenu
+
+    config ETHERNET_DEFAULT_EVENT_HANDLER
+        bool "Enable Default Ethernet Event Handler"
+        default y
         help
-            Set stack size for EMAC Rx task in B.
-            When set to -1, the default ESP-IDF value is used.
+            Enable default Ethernet event handler which logs basic Ethernet link statuses.
 
     choice ETHERNET_BOARD_SPECIFIC_INIT
         prompt "Board Specific Init"

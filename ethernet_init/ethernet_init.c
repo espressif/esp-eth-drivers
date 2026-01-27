@@ -133,9 +133,13 @@ typedef struct {
 
 static const char *TAG = "ethernet_init";
 static uint8_t eth_cnt_g = 0;
-
 #if CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
 static eth_device eth_instance_g[CONFIG_ETHERNET_INTERNAL_SUPPORT + ETHERNET_SPI_NUMBER + CONFIG_ETHERNET_OPENETH_SUPPORT];
+#if CONFIG_ETHERNET_SPI_SUPPORT
+static bool spi_bus_deinit_g = false;
+#endif // CONFIG_ETHERNET_SPI_SUPPORT
+#if CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
+static esp_event_handler_instance_t eth_event_ctx_g;
 
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
                               int32_t event_id, void *event_data)
@@ -180,6 +184,7 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         break;
     }
 }
+#endif // CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
 
 #if CONFIG_ETHERNET_BOARD_SPECIFIC_INIT_WEAK
 __attribute__((weak)) esp_err_t eth_board_specific_init(esp_eth_handle_t eth_handle)
@@ -363,7 +368,7 @@ static esp_err_t spi_bus_init(void)
     ret = gpio_install_isr_service(0);
     if (ret != ESP_OK) {
         if (ret == ESP_ERR_INVALID_STATE) {
-            ESP_LOGW(TAG, "GPIO ISR handler has been already installed");
+            ESP_LOGD(TAG, "GPIO ISR handler has been already installed");
             ret = ESP_OK; // ISR handler has been already installed so no issues
         } else {
             ESP_LOGE(TAG, "GPIO ISR handler install failed");
@@ -379,9 +384,22 @@ static esp_err_t spi_bus_init(void)
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
     };
-    ESP_GOTO_ON_ERROR(spi_bus_initialize(CONFIG_ETHERNET_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO),
-                      err, TAG, "SPI host #%d init failed", CONFIG_ETHERNET_SPI_HOST);
 
+    ret = spi_bus_initialize(CONFIG_ETHERNET_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    if (ret == ESP_OK) {
+        // SPI bus initialized by us, so we need to deinitialize it later on deinit
+        spi_bus_deinit_g = true;
+    } else {
+        if (ret == ESP_ERR_INVALID_STATE) {
+            ESP_LOGD(TAG, "SPI host #%d has been already initialized", CONFIG_ETHERNET_SPI_HOST);
+            ret = ESP_OK; // SPI host has been already initialized so no issues
+        } else {
+            ESP_LOGE(TAG, "SPI host #%d init failed", CONFIG_ETHERNET_SPI_HOST);
+            goto err;
+        }
+    }
+
+    return ESP_OK;
 err:
     return ret;
 }
@@ -412,6 +430,9 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 #if CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
     mac_config.rx_task_stack_size = CONFIG_ETHERNET_RX_TASK_STACK_SIZE;
 #endif // CONFIG_ETHERNET_RX_TASK_STACK_SIZE > 0
+#if CONFIG_ETHERNET_RX_TASK_PRIO > -1
+    mac_config.rx_task_prio = CONFIG_ETHERNET_RX_TASK_PRIO;
+#endif // CONFIG_ETHERNET_RX_TASK_PRIO > -1
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
 
     // Update PHY config based on board specific configuration
@@ -670,13 +691,13 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
     eth_instance_g[eth_cnt_g].dev_info.type = ETH_DEV_TYPE_OPENETH;
     eth_cnt_g++;
 #endif // CONFIG_ETHERNET_OPENETH_SUPPORT
+#if CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
     // Register Ethernet event handler
-    static int called = 0;
-    if (called == 0) {
-        ESP_GOTO_ON_ERROR(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL),
-                          err, TAG, "failed to register event handler");
-        called = 1;
+    if (eth_event_ctx_g == NULL) {
+        ESP_GOTO_ON_ERROR(esp_event_handler_instance_register(ETH_EVENT, ESP_EVENT_ANY_ID, eth_event_handler, NULL, &eth_event_ctx_g),
+                          err, TAG, "failed to register event handler instance");
     }
+#endif // CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
 #else
     ESP_LOGD(TAG, "no Ethernet device selected to init");
 #endif // CONFIG_ETHERNET_INTERNAL_SUPPORT || CONFIG_ETHERNET_SPI_SUPPORT || CONFIG_ETHERNET_OPENETH_SUPPORT
@@ -785,10 +806,19 @@ esp_err_t ethernet_deinit_all(esp_eth_handle_t *eth_handles)
     if (deinit_cnt != eth_cnt_g) {
         return ESP_FAIL;
     }
+#if CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
+    if (eth_event_ctx_g != NULL) {
+        esp_event_handler_instance_unregister(ETH_EVENT, ESP_EVENT_ANY_ID, eth_event_ctx_g);
+        eth_event_ctx_g = NULL;
+    }
+#endif // CONFIG_ETHERNET_DEFAULT_EVENT_HANDLER
 #if CONFIG_ETHERNET_SPI_SUPPORT
-    spi_bus_free(CONFIG_ETHERNET_SPI_HOST);
+    if (spi_bus_deinit_g) {
+        spi_bus_free(CONFIG_ETHERNET_SPI_HOST);
+        spi_bus_deinit_g = false;
+    }
     gpio_uninstall_isr_service();
-#endif
+#endif // CONFIG_ETHERNET_SPI_SUPPORT
     free(eth_handles);
     eth_cnt_g = 0;
     ESP_LOGI(TAG, "All Ethernet devices were deinitialized");
