@@ -623,12 +623,12 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 
     uint8_t local_mac_0[ETH_ADDR_LEN];
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0 || CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
-    uint8_t base_mac_addr[ETH_ADDR_LEN];
-    ESP_GOTO_ON_ERROR(esp_efuse_mac_get_default(base_mac_addr), err, TAG, "get EFUSE MAC failed");
+    uint8_t base_eth_mac_addr[ETH_ADDR_LEN];
+    ESP_GOTO_ON_ERROR(esp_read_mac(base_eth_mac_addr, ESP_MAC_ETH), err, TAG, "get ETH MAC failed");
 #endif
 
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
-    esp_derive_local_mac(local_mac_0, base_mac_addr);
+    esp_derive_local_mac(local_mac_0, base_eth_mac_addr);
 #else
     sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR0, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (local_mac_0[0]),
            (unsigned int *)&local_mac_0[1],
@@ -636,6 +636,7 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
            (unsigned int *)&local_mac_0[3],
            (unsigned int *)&local_mac_0[4],
            (unsigned int *)&local_mac_0[5]);
+    ESP_GOTO_ON_ERROR(esp_iface_mac_addr_set(local_mac_0, ESP_MAC_ETH), err, TAG, "set ETH MAC failed");
 #endif
     INIT_SPI_ETH_MODULE_CONFIG(spi_eth_module_config, 0);
     spi_eth_module_config[0].mac_addr = local_mac_0;
@@ -643,8 +644,8 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 #if ETHERNET_SPI_NUMBER > 1
     uint8_t local_mac_1[ETH_ADDR_LEN];
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
-    base_mac_addr[ETH_ADDR_LEN - 1] += 1;
-    esp_derive_local_mac(local_mac_1, base_mac_addr);
+    base_eth_mac_addr[ETH_ADDR_LEN - 1] += 1;
+    esp_derive_local_mac(local_mac_1, base_eth_mac_addr);
 #else
     sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR1, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (local_mac_1[0]),
            (unsigned int *)&local_mac_1[1],
