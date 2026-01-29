@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.2.0...ethernet_init@v1.3.0) (2026-01-29)
+
+
+### Features
+
+* **ethernet_init:** added new kconfig option to make default event handler optional ([3adb96f](https://github.com/espressif/esp-eth-drivers/commit/3adb96fdb805a8199a59d961353cd6a537c8aed0))
+* **ethernet_init:** added new kconfig option to set Rx task priority ([3adb96f](https://github.com/espressif/esp-eth-drivers/commit/3adb96fdb805a8199a59d961353cd6a537c8aed0))
+* **ethernet_init:** set default value of Rx task stack size to IDF default ([70aa40a](https://github.com/espressif/esp-eth-drivers/commit/70aa40a127f63904ca838946ee0bc170c8662021))
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed eth_event_handler ([01fc159](https://github.com/espressif/esp-eth-drivers/commit/01fc1595321d6153ba57a39d39a2ce05620e1844))
+* **ethernet_init:** fixed MAC address configuration of SPI modules ([f9977c4](https://github.com/espressif/esp-eth-drivers/commit/f9977c4d855b30d4f5a6fd6350f5d1042492c218))
+* **ethernet_init:** fixed RMII CLK loopback configuration on P4 ([b995438](https://github.com/espressif/esp-eth-drivers/commit/b995438347d1b902f067c6dd8f19dc2b6997b54c))
+* **ethernet_init:** fixed SPI bus initialization - don't return error when already initialized ([3adb96f](https://github.com/espressif/esp-eth-drivers/commit/3adb96fdb805a8199a59d961353cd6a537c8aed0))
+
 ## [1.2.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.1.0...ethernet_init@v1.2.0) (2025-11-11)
 
 
