@@ -23,6 +23,7 @@ from pytest_embedded_idf.utils import idf_parametrize
         pytest.param('dm9051', marks=[pytest.mark.eth_dm9051]),
         pytest.param('ksz8851snl', marks=[pytest.mark.eth_ksz8851snl]),
         pytest.param('w5500', marks=[pytest.mark.eth_w5500]),
+        pytest.param('w6100', marks=[pytest.mark.eth_w6100]),
     ],
     indirect=True,
 )

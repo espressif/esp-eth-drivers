@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,11 +12,8 @@
 #include "esp_check.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
-#include "esp_private/gpio.h"
-#include "soc/io_mux_reg.h"
-#include "esp_rom_sys.h"
 #include "w5500.h"
+#include "wiznet_phy_common.h"
 
 #define W5500_WAIT_FOR_RESET_MS (10) // wait for W5500 internal PLL to be Locked after reset assert
 
@@ -50,95 +47,23 @@ typedef enum {
     W5500_OP_MODE_ALL_CAPABLE,
 } phy_w5500_op_mode_e;
 
-typedef struct {
-    esp_eth_phy_t parent;
-    esp_eth_mediator_t *eth;
-    int addr;
-    uint32_t reset_timeout_ms;
-    uint32_t autonego_timeout_ms;
-    eth_link_t link_status;
-    int reset_gpio_num;
-} phy_w5500_t;
-
-static esp_err_t w5500_update_link_duplex_speed(phy_w5500_t *w5500)
-{
-    esp_err_t ret = ESP_OK;
-    esp_eth_mediator_t *eth = w5500->eth;
-    eth_speed_t speed = ETH_SPEED_10M;
-    eth_duplex_t duplex = ETH_DUPLEX_HALF;
-    phycfg_reg_t phycfg;
-
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w5500->addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
-    eth_link_t link = phycfg.link ? ETH_LINK_UP : ETH_LINK_DOWN;
-    /* check if link status changed */
-    if (w5500->link_status != link) {
-        /* when link up, read negotiation result */
-        if (link == ETH_LINK_UP) {
-            if (phycfg.speed) {
-                speed = ETH_SPEED_100M;
-            } else {
-                speed = ETH_SPEED_10M;
-            }
-            if (phycfg.duplex) {
-                duplex = ETH_DUPLEX_FULL;
-            } else {
-                duplex = ETH_DUPLEX_HALF;
-            }
-            ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_SPEED, (void *)speed), err, TAG, "change speed failed");
-            ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_DUPLEX, (void *)duplex), err, TAG, "change duplex failed");
-        }
-        ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LINK, (void *)link), err, TAG, "change link failed");
-        w5500->link_status = link;
-    }
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t w5500_set_mediator(esp_eth_phy_t *phy, esp_eth_mediator_t *eth)
-{
-    esp_err_t ret = ESP_OK;
-    ESP_GOTO_ON_FALSE(eth, ESP_ERR_INVALID_ARG, err, TAG, "mediator can't be null");
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    w5500->eth = eth;
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t w5500_get_link(esp_eth_phy_t *phy)
-{
-    esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    /* Updata information about link, speed, duplex */
-    ESP_GOTO_ON_ERROR(w5500_update_link_duplex_speed(w5500), err, TAG, "update link duplex speed failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t w5500_set_link(esp_eth_phy_t *phy, eth_link_t link)
-{
-    esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    esp_eth_mediator_t *eth   = w5500->eth;
-
-    if (w5500->link_status != link) {
-        w5500->link_status = link;
-        // link status changed, inmiedately report to upper layers
-        ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LINK, (void *)w5500->link_status), err, TAG, "change link failed");
-    }
-err:
-    return ret;
-}
+/* Opmode table for get_mode lookup - only fixed modes, autoneg modes fall through */
+static const wiznet_opmode_entry_t w5500_opmode_table[] = {
+    { W5500_OP_MODE_10BT_HALF_AUTO_DIS,  ETH_SPEED_10M,  ETH_DUPLEX_HALF },
+    { W5500_OP_MODE_10BT_FULL_AUTO_DIS,  ETH_SPEED_10M,  ETH_DUPLEX_FULL },
+    { W5500_OP_MODE_100BT_HALF_AUTO_DIS, ETH_SPEED_100M, ETH_DUPLEX_HALF },
+    { W5500_OP_MODE_100BT_FULL_AUTO_DIS, ETH_SPEED_100M, ETH_DUPLEX_FULL },
+};
 
 static esp_err_t w5500_reset(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
+    phy_wiznet_t *w5500 = __containerof(phy, phy_wiznet_t, parent);
     w5500->link_status = ETH_LINK_DOWN;
     esp_eth_mediator_t *eth = w5500->eth;
     phycfg_reg_t phycfg;
+
+    /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w5500->addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
     phycfg.reset = 0; // set to '0' will reset internal PHY
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
@@ -150,78 +75,44 @@ err:
     return ret;
 }
 
-static esp_err_t w5500_reset_hw(esp_eth_phy_t *phy)
-{
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    // set reset_gpio_num to a negative value can skip hardware reset phy chip
-    if (w5500->reset_gpio_num >= 0) {
-        gpio_func_sel(w5500->reset_gpio_num, PIN_FUNC_GPIO);
-        gpio_set_level(w5500->reset_gpio_num, 0);
-        gpio_output_enable(w5500->reset_gpio_num);
-        esp_rom_delay_us(100); // insert min input assert time
-        gpio_set_level(w5500->reset_gpio_num, 1);
-    }
-    return ESP_OK;
-}
-
-static esp_err_t w5500_autonego_ctrl(esp_eth_phy_t *phy, eth_phy_autoneg_cmd_t cmd, bool *autonego_en_stat)
+static esp_err_t w5500_is_autoneg_enabled(phy_wiznet_t *wiznet, bool *enabled)
 {
     esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    esp_eth_mediator_t *eth = w5500->eth;
-
+    esp_eth_mediator_t *eth = wiznet->eth;
     phycfg_reg_t phycfg;
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w5500->addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
 
-    switch (cmd) {
-    case ESP_ETH_PHY_AUTONEGO_RESTART:
-        ESP_GOTO_ON_FALSE(phycfg.opmode == W5500_OP_MODE_ALL_CAPABLE || phycfg.opmode == W5500_OP_MODE_100BT_HALF_AUTO_EN,
-                          ESP_ERR_INVALID_STATE, err, TAG, "auto negotiation is disabled");
-        /* in case any link status has changed, let's assume we're in link down status */
-        w5500->link_status = ETH_LINK_DOWN;
+    /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, wiznet->addr, W5500_REG_PHYCFGR, (uint32_t *)&phycfg.val),
+                      err, TAG, "read PHYCFG failed");
+    *enabled = (phycfg.opmode == W5500_OP_MODE_ALL_CAPABLE || phycfg.opmode == W5500_OP_MODE_100BT_HALF_AUTO_EN);
+    return ESP_OK;
+err:
+    return ret;
+}
 
-        phycfg.opsel = 1; // Configure PHY Operation Mode based on registry setting
-        phycfg.reset = 0; // PHY needs to be reset after configuring opsel and opmode
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-        vTaskDelay(pdMS_TO_TICKS(W5500_WAIT_FOR_RESET_MS));
-        phycfg.reset = 1; // reset flag needs to be put back to 1
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
+static esp_err_t w5500_set_mode(phy_wiznet_t *wiznet, bool autoneg, eth_speed_t speed, eth_duplex_t duplex)
+{
+    esp_err_t ret = ESP_OK;
+    esp_eth_mediator_t *eth = wiznet->eth;
+    phycfg_reg_t phycfg;
 
-        *autonego_en_stat = phycfg.opmode == W5500_OP_MODE_ALL_CAPABLE || phycfg.opmode == W5500_OP_MODE_100BT_HALF_AUTO_EN;
-        break;
-    case ESP_ETH_PHY_AUTONEGO_DIS:
-        /* W5500 autonegotiation cannot be separately disabled, only specific speed/duplex mode needs to be configured. Hence set the
-        last used configuration */
-        if (phycfg.duplex) { // Full duplex
-            if (phycfg.speed) { // 100 Mbps speed
-                phycfg.opmode = W5500_OP_MODE_100BT_FULL_AUTO_DIS;
-            } else {
-                phycfg.opmode = W5500_OP_MODE_10BT_FULL_AUTO_DIS;
-            }
+    /* Cast safe: Wiznet MAC's read_phy_reg only writes 1 byte to the pointer despite uint32_t* parameter */
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, wiznet->addr, W5500_REG_PHYCFGR, (uint32_t *)&phycfg.val),
+                      err, TAG, "read PHYCFG failed");
+
+    if (autoneg) {
+        phycfg.opmode = W5500_OP_MODE_ALL_CAPABLE;
+    } else {
+        /* Set fixed mode based on speed/duplex */
+        if (duplex == ETH_DUPLEX_FULL) {
+            phycfg.opmode = (speed == ETH_SPEED_100M) ? W5500_OP_MODE_100BT_FULL_AUTO_DIS : W5500_OP_MODE_10BT_FULL_AUTO_DIS;
         } else {
-            if (phycfg.speed) { // 100 Mbps speed
-                phycfg.opmode = W5500_OP_MODE_100BT_HALF_AUTO_DIS;
-            } else {
-                phycfg.opmode = W5500_OP_MODE_10BT_HALF_AUTO_DIS;
-            }
+            phycfg.opmode = (speed == ETH_SPEED_100M) ? W5500_OP_MODE_100BT_HALF_AUTO_DIS : W5500_OP_MODE_10BT_HALF_AUTO_DIS;
         }
-        phycfg.opsel = 1;
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-        *autonego_en_stat = false;
-        break;
-    case ESP_ETH_PHY_AUTONEGO_EN:
-        phycfg.opsel = 1;                          // PHY working mode configured by register
-        phycfg.opmode = W5500_OP_MODE_ALL_CAPABLE; // all capable, auto-negotiation enabled
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-        *autonego_en_stat = true;
-        break;
-    case ESP_ETH_PHY_AUTONEGO_G_STAT:
-        *autonego_en_stat = phycfg.opmode == W5500_OP_MODE_ALL_CAPABLE || phycfg.opmode == W5500_OP_MODE_100BT_HALF_AUTO_EN;
-        break;
-    default:
-        return ESP_ERR_INVALID_ARG;
     }
 
+    phycfg.opsel = 1;  // PHY working mode configured by register
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, wiznet->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
     return ESP_OK;
 err:
     return ret;
@@ -233,161 +124,50 @@ static esp_err_t w5500_pwrctl(esp_eth_phy_t *phy, bool enable)
     return ESP_OK;
 }
 
-static esp_err_t w5500_set_addr(esp_eth_phy_t *phy, uint32_t addr)
-{
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    w5500->addr = addr;
-    return ESP_OK;
-}
-
-static esp_err_t w5500_get_addr(esp_eth_phy_t *phy, uint32_t *addr)
-{
-    esp_err_t ret = ESP_OK;
-    ESP_GOTO_ON_FALSE(addr, ESP_ERR_INVALID_ARG, err, TAG, "addr can't be null");
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    *addr = w5500->addr;
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t w5500_del(esp_eth_phy_t *phy)
-{
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    free(w5500);
-    return ESP_OK;
-}
-
-static esp_err_t w5500_advertise_pause_ability(esp_eth_phy_t *phy, uint32_t ability)
-{
-    // pause ability advertisement is not supported for W5500 internal PHY
-    return ESP_OK;
-}
-
-static esp_err_t w5500_loopback(esp_eth_phy_t *phy, bool enable)
-{
-    // Loopback is not supported for W5500 internal PHY
-    return ESP_ERR_NOT_SUPPORTED;
-}
-
-static esp_err_t w5500_set_speed(esp_eth_phy_t *phy, eth_speed_t speed)
-{
-    esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    esp_eth_mediator_t *eth = w5500->eth;
-
-    /* Since the link is going to be reconfigured, consider it down to be status updated once the driver re-started */
-    w5500->link_status = ETH_LINK_DOWN;
-
-    phycfg_reg_t phycfg;
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w5500->addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
-    if (phycfg.duplex) { // Full duplex
-        if (speed == ETH_SPEED_100M) {
-            phycfg.opmode = W5500_OP_MODE_100BT_FULL_AUTO_DIS;
-        } else {
-            phycfg.opmode = W5500_OP_MODE_10BT_FULL_AUTO_DIS;
-        }
-    } else {
-        if (speed == ETH_SPEED_100M) {
-            phycfg.opmode = W5500_OP_MODE_100BT_HALF_AUTO_DIS;
-        } else {
-            phycfg.opmode = W5500_OP_MODE_10BT_HALF_AUTO_DIS;
-        }
-    }
-    phycfg.opsel = 1;  // PHY working mode configured by register
-    phycfg.reset = 0;  // PHY needs to be reset after configuring opsel and opmode
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-    vTaskDelay(pdMS_TO_TICKS(W5500_WAIT_FOR_RESET_MS));
-    phycfg.reset = 1; // reset flag needs to be put back to 1
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-
-err:
-    return ret;
-}
-
-static esp_err_t w5500_set_duplex(esp_eth_phy_t *phy, eth_duplex_t duplex)
-{
-    esp_err_t ret = ESP_OK;
-    phy_w5500_t *w5500 = __containerof(phy, phy_w5500_t, parent);
-    esp_eth_mediator_t *eth = w5500->eth;
-
-    /* Since the link is going to be reconfigured, consider it down to be status updated once the driver re-started */
-    w5500->link_status = ETH_LINK_DOWN;
-
-    phycfg_reg_t phycfg;
-    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, w5500->addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
-    if (phycfg.speed) { // 100Mbps
-        if (duplex == ETH_DUPLEX_FULL) {
-            phycfg.opmode = W5500_OP_MODE_100BT_FULL_AUTO_DIS;
-        } else {
-            phycfg.opmode = W5500_OP_MODE_100BT_HALF_AUTO_DIS;
-        }
-    } else {
-        if (duplex == ETH_DUPLEX_FULL) {
-            phycfg.opmode = W5500_OP_MODE_10BT_FULL_AUTO_DIS;
-        } else {
-            phycfg.opmode = W5500_OP_MODE_10BT_HALF_AUTO_DIS;
-        }
-    }
-    phycfg.opsel = 1;  // PHY working mode configured by register
-    phycfg.reset = 0;  // PHY needs to be reset after configuring opsel and opmode
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-    vTaskDelay(pdMS_TO_TICKS(W5500_WAIT_FOR_RESET_MS));
-    phycfg.reset = 1; // reset flag needs to be put back to 1
-    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, w5500->addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-err:
-    return ret;
-}
-
-static esp_err_t w5500_init(esp_eth_phy_t *phy)
-{
-    esp_err_t ret = ESP_OK;
-    /* Power on Ethernet PHY */
-    ESP_GOTO_ON_ERROR(w5500_pwrctl(phy, true), err, TAG, "power control failed");
-    /* Reset Ethernet PHY */
-    ESP_GOTO_ON_ERROR(w5500_reset(phy), err, TAG, "reset failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
-static esp_err_t w5500_deinit(esp_eth_phy_t *phy)
-{
-    esp_err_t ret = ESP_OK;
-    /* Power off Ethernet PHY */
-    ESP_GOTO_ON_ERROR(w5500_pwrctl(phy, false), err, TAG, "power control failed");
-    return ESP_OK;
-err:
-    return ret;
-}
-
 esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
 {
     esp_eth_phy_t *ret = NULL;
     ESP_GOTO_ON_FALSE(config, NULL, err, TAG, "invalid arguments");
-    phy_w5500_t *w5500 = calloc(1, sizeof(phy_w5500_t));
+    phy_wiznet_t *w5500 = calloc(1, sizeof(phy_wiznet_t));
     ESP_GOTO_ON_FALSE(w5500, NULL, err, TAG, "no mem for PHY instance");
     w5500->addr = config->phy_addr;
     w5500->reset_timeout_ms = config->reset_timeout_ms;
     w5500->reset_gpio_num = config->reset_gpio_num;
     w5500->link_status = ETH_LINK_DOWN;
     w5500->autonego_timeout_ms = config->autonego_timeout_ms;
+    /* W5500 PHY status register bit interpretation:
+     * - speed bit: 1 = 100Mbps, 0 = 10Mbps
+     * - duplex bit: 1 = full, 0 = half
+     */
+    w5500->phy_status_reg = W5500_REG_PHYCFGR;
+    w5500->speed_when_bit_set = ETH_SPEED_100M;
+    w5500->speed_when_bit_clear = ETH_SPEED_10M;
+    w5500->duplex_when_bit_set = ETH_DUPLEX_FULL;
+    w5500->duplex_when_bit_clear = ETH_DUPLEX_HALF;
+    /* Table-driven get_mode configuration */
+    w5500->opmode_table = w5500_opmode_table;
+    w5500->opmode_table_size = sizeof(w5500_opmode_table) / sizeof(w5500_opmode_table[0]);
+    w5500->opmode_status_reg = W5500_REG_PHYCFGR;
+    w5500->opmode_shift = 3;  /* opmode is bits [5:3] */
+    w5500->opmode_mask = 0x07;
+    w5500->is_autoneg_enabled = w5500_is_autoneg_enabled;
+    w5500->set_mode = w5500_set_mode;
     w5500->parent.reset = w5500_reset;
-    w5500->parent.reset_hw = w5500_reset_hw;
-    w5500->parent.init = w5500_init;
-    w5500->parent.deinit = w5500_deinit;
-    w5500->parent.set_mediator = w5500_set_mediator;
-    w5500->parent.autonego_ctrl = w5500_autonego_ctrl;
-    w5500->parent.get_link = w5500_get_link;
-    w5500->parent.set_link = w5500_set_link;
+    w5500->parent.reset_hw = phy_wiznet_reset_hw;
+    w5500->parent.init = phy_wiznet_init;
+    w5500->parent.deinit = phy_wiznet_deinit;
+    w5500->parent.set_mediator = phy_wiznet_set_mediator;
+    w5500->parent.autonego_ctrl = phy_wiznet_autonego_ctrl;
+    w5500->parent.get_link = phy_wiznet_get_link;
+    w5500->parent.set_link = phy_wiznet_set_link;
     w5500->parent.pwrctl = w5500_pwrctl;
-    w5500->parent.get_addr = w5500_get_addr;
-    w5500->parent.set_addr = w5500_set_addr;
-    w5500->parent.advertise_pause_ability = w5500_advertise_pause_ability;
-    w5500->parent.loopback = w5500_loopback;
-    w5500->parent.set_speed = w5500_set_speed;
-    w5500->parent.set_duplex = w5500_set_duplex;
-    w5500->parent.del = w5500_del;
+    w5500->parent.get_addr = phy_wiznet_get_addr;
+    w5500->parent.set_addr = phy_wiznet_set_addr;
+    w5500->parent.advertise_pause_ability = phy_wiznet_advertise_pause_ability;
+    w5500->parent.loopback = phy_wiznet_loopback;
+    w5500->parent.set_speed = phy_wiznet_set_speed;
+    w5500->parent.set_duplex = phy_wiznet_set_duplex;
+    w5500->parent.del = phy_wiznet_del;
     return &(w5500->parent);
 err:
     return ret;
