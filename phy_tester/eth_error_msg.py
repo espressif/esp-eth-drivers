@@ -130,6 +130,7 @@ class EthFailMsg:
         cls.print_yellow('=================================================================================')
         cls.print_yellow('Path between PHY and RJ45 non functional!')
         cls.print_yellow('----------------------------------------')
+        cls.print_yellow('* Check the DUT is directly connected to the test PC NIC and correct NIC is used by the test script.')
         cls.print_yellow('* Double check the design checklist if you used correct components and the design is correct.')
         cls.print_yellow('* Check the trace is not corrupted.')
         cls.print_yellow('* Check the components are correctly soldered and correct Part Numbers (PNs) are mounted.')
