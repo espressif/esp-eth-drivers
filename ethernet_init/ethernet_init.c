@@ -53,6 +53,11 @@
 #include "esp_eth_phy_w5500.h"
 #endif // CONFIG_ETHERNET_SPI_USE_W5500
 
+#if CONFIG_ETHERNET_SPI_USE_W6100
+#include "esp_eth_mac_w6100.h"
+#include "esp_eth_phy_w6100.h"
+#endif // CONFIG_ETHERNET_SPI_USE_W6100
+
 #if CONFIG_ETHERNET_PHY_IP101
 #include "esp_eth_phy_ip101.h"
 #endif // CONFIG_ETHERNET_PHY_IP101
@@ -108,6 +113,7 @@ typedef enum {
     SPI_DEV_TYPE_CH390,
     SPI_DEV_TYPE_ENC28J60,
     SPI_DEV_TYPE_LAN865X,
+    SPI_DEV_TYPE_W6100,
 } spi_eth_dev_type_t;
 
 typedef struct {
@@ -475,6 +481,15 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         phy = esp_eth_phy_new_w5500(&phy_config);
         (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "W5500");
 #endif // CONFIG_ETHERNET_SPI_USE_W5500
+    } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_W6100) {
+#if CONFIG_ETHERNET_SPI_USE_W6100
+        eth_w6100_config_t w6100_config = ETH_W6100_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+        w6100_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        w6100_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+        mac = esp_eth_mac_new_w6100(&w6100_config, &mac_config);
+        phy = esp_eth_phy_new_w6100(&phy_config);
+        (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "W6100");
+#endif // CONFIG_ETHERNET_SPI_USE_W6100
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_CH390) {
 #if CONFIG_ETHERNET_SPI_USE_CH390
         eth_ch390_config_t ch390_config = ETH_CH390_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);

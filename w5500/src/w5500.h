@@ -70,3 +70,9 @@
 
 #define W5500_SIR_RECV (1<<2)  // Receive done
 #define W5500_SIR_SEND (1<<4)  // Send done
+
+/* PHYCFGR (PHY Configuration Register) bits */
+#define W5500_PHYCFGR_LNK (1<<0)  // Link status (1=up, 0=down)
+#define W5500_PHYCFGR_SPD (1<<1)  // Speed status (1=100Mbps, 0=10Mbps)
+#define W5500_PHYCFGR_DPX (1<<2)  // Duplex status (1=full, 0=half)
+#define W5500_PHYCFGR_RST (1<<7)  // PHY reset (0=reset, 1=normal)
