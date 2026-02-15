@@ -1,10 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * SPDX-FileContributor: 2024-2025 Sergey Kharenko
- * SPDX-FileContributor: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2024-2026 Espressif Systems (Shanghai) CO LTD
  */
 
 #include <string.h>
@@ -26,6 +26,7 @@
 
 #include "ch390.h"
 #include "esp_eth_mac_ch390.h"
+#include "esp_rom_crc.h"
 
 /** @note -----------------------  RX Pack Structure ---------------------------
  * |              4 Bytes Frame Head               | Data Area(pass to lwip) |
@@ -51,6 +52,9 @@ static const char *TAG = "ch390.mac";
 #define CH390_SPI_LOCK_TIMEOUT_MS           (50)
 #define CH390_MAC_TX_WAIT_TIMEOUT_US        (1000)
 #define CH390_PHY_OPERATION_TIMEOUT_US      (1000)
+
+#define CH390_HASH_FILTER_TABLE_SIZE        (64)
+#define CH390_BCAST_HASH_VALUE              (63) // MAR7 bit7 - broadcast control bit
 
 typedef struct {
     uint8_t flag;
@@ -85,6 +89,7 @@ typedef struct {
     bool                    flow_ctrl_enabled;
     uint8_t                 *rx_buffer;
     uint32_t                rx_len;
+    uint8_t                 hash_filter_cnt[CH390_HASH_FILTER_TABLE_SIZE];
 } emac_ch390_t;
 
 static inline bool CH390_SPI_LOCK(eth_spi_info_t *spi)
@@ -277,15 +282,87 @@ static esp_err_t ch390_clear_multicast_table(emac_ch390_t *emac)
     esp_err_t ret = ESP_OK;
     /* rx broadcast packet control by bit7 of MAC register 1DH */
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_BCASTCR, 0x00), err, TAG, "write BCASTCR failed");
+    /* clear MAR0-MAR6; skip MAR7 to preserve the broadcast control bit (bit7) */
     for (int i = 0; i < 7; i++) {
         ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MAR + i, 0x00), err, TAG, "write MAR failed");
     }
-    /* enable receive broadcast paclets */
+    /* clear MAR7 multicast bits while keeping bit7 (broadcast enable) always set */
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_MAR + 7, 0x80), err, TAG, "write MAR failed");
-    return ESP_OK;
+    memset(emac->hash_filter_cnt, 0, sizeof(emac->hash_filter_cnt));
+
 err:
     return ret;
 }
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+static inline __attribute__((always_inline)) uint32_t ch390_reflect32(uint32_t x)
+{
+    x = ((x >> 1) & 0x55555555u) | ((x & 0x55555555u) << 1);
+    x = ((x >> 2) & 0x33333333u) | ((x & 0x33333333u) << 2);
+    x = ((x >> 4) & 0x0F0F0F0Fu) | ((x & 0x0F0F0F0Fu) << 4);
+    x = ((x >> 8) & 0x00FF00FFu) | ((x & 0x00FF00FFu) << 8);
+    x = (x >> 16) | (x << 16);
+    return x;
+}
+
+/**
+ * @brief modify multicast hash table
+ */
+static esp_err_t ch390_hash_filter_modify(emac_ch390_t *emac, uint8_t *addr, bool add)
+{
+    esp_err_t ret = ESP_OK;
+    // calculate crc32 value of mac address:
+    // reflect all 32 bits of the CRC, then take the upper 6 bits
+    uint32_t crc = ch390_reflect32(esp_rom_crc32_le(0, addr, ETH_ADDR_LEN));
+
+    uint8_t hash_value = (crc >> 26) & 0x3F;
+
+    /* Hash value 63 (MAR7 bit7) is permanently reserved for broadcast reception and
+     * is managed exclusively by ch390_clear_multicast_table. Never let the multicast
+     * filter API touch it, even on a hash collision with a multicast address. */
+    if (hash_value == CH390_BCAST_HASH_VALUE) {
+        return ESP_OK;
+    }
+
+    uint8_t hash_group = hash_value / 8;
+    uint8_t hash_bit   = hash_value % 8;
+
+    uint8_t mar;
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, (CH390_MAR + hash_group), &mar), err, TAG, "read MAR failed");
+    if (add) {
+        // add address to hash table
+        mar |= (1 << hash_bit);
+        emac->hash_filter_cnt[hash_value]++;
+    } else {
+        if (emac->hash_filter_cnt[hash_value] > 0) {
+            emac->hash_filter_cnt[hash_value]--;
+            if (emac->hash_filter_cnt[hash_value] == 0) {
+                // remove address from hash table
+                mar &= ~(1 << hash_bit);
+            }
+        }
+    }
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, (CH390_MAR + hash_group), mar), err, TAG, "write MAR failed");
+
+err:
+    return ret;
+}
+
+static esp_err_t emac_ch390_add_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
+{
+    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
+    ESP_RETURN_ON_ERROR(ch390_hash_filter_modify(emac, addr, true), TAG, "modify multicast table failed");
+    return ESP_OK;
+}
+
+static esp_err_t emac_ch390_rm_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
+{
+    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
+
+    ESP_RETURN_ON_ERROR(ch390_hash_filter_modify(emac, addr, false), TAG, "modify multicast table failed");
+    return ESP_OK;
+}
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 
 /**
  * @brief software reset ch390 internal register
@@ -345,9 +422,9 @@ static esp_err_t ch390_setup_default(emac_ch390_t *emac)
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_WCR, 0x00), err, TAG, "write WCR failed");
     /* stop transmitting, enable appending pad, crc for packets */
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR, 0x00), err, TAG, "write TCR failed");
-    /* stop receiving, no promiscuous mode, no runt packet(size < 64bytes), receive all multicast packets */
+    /* stop receiving, no promiscuous mode, no runt packet(size < 64bytes), multicast receive disabled by default */
     /* discard long packet(size > 1522bytes) and crc error packet, enable watchdog */
-    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, RCR_DIS_CRC | RCR_ALL), err, TAG, "write RCR failed");
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, RCR_DIS_CRC), err, TAG, "write RCR failed");
     /* retry late collision packet, at most two transmit command can be issued before transmit complete */
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR2, TCR2_RLCP), err, TAG, "write TCR2 failed");
     /* generate checksum for UDP, TCP and IPv4 packets */
@@ -619,6 +696,27 @@ err:
     return ret;
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+static esp_err_t emac_ch390_set_all_multicast(esp_eth_mac_t *mac, bool enable)
+{
+    esp_err_t ret = ESP_OK;
+    emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
+    uint8_t rcr = 0;
+    ESP_GOTO_ON_ERROR(ch390_io_register_read(emac, CH390_RCR, &rcr), err, TAG, "read RCR failed");
+
+    if (enable) {
+        // Accept all multicasts: set RCR_ALL
+        rcr |= RCR_ALL;
+    } else {
+        // Block all multicasts: clear RCR_ALL
+        rcr &= ~RCR_ALL;
+    }
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
+err:
+    return ret;
+}
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+
 static esp_err_t emac_ch390_enable_flow_ctrl(esp_eth_mac_t *mac, bool enable)
 {
     emac_ch390_t *emac = __containerof(mac, emac_ch390_t, parent);
@@ -872,6 +970,11 @@ esp_eth_mac_t *esp_eth_mac_new_ch390(const eth_ch390_config_t *ch390_config, con
     emac->parent.enable_flow_ctrl = emac_ch390_enable_flow_ctrl;
     emac->parent.transmit = emac_ch390_transmit;
     emac->parent.receive = emac_ch390_receive;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+    emac->parent.set_all_multicast = emac_ch390_set_all_multicast;
+    emac->parent.add_mac_filter = emac_ch390_add_mac_filter;
+    emac->parent.rm_mac_filter = emac_ch390_rm_mac_filter;
+#endif
 
     if (ch390_config->custom_spi_driver.init != NULL && ch390_config->custom_spi_driver.deinit != NULL
             && ch390_config->custom_spi_driver.read != NULL && ch390_config->custom_spi_driver.write != NULL) {
