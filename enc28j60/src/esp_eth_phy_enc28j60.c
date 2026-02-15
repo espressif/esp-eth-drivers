@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,6 +13,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
+#include "esp_check.h"
 
 static const char *TAG = "enc28j60";
 #define PHY_CHECK(a, str, goto_tag, ...)                                          \
@@ -143,6 +144,21 @@ static esp_err_t enc28j60_get_link(esp_eth_phy_t *phy)
     return ESP_OK;
 err:
     return ESP_FAIL;
+}
+
+static esp_err_t enc28j60_set_link(esp_eth_phy_t *phy, eth_link_t link)
+{
+    esp_err_t ret = ESP_OK;
+    phy_enc28j60_t *enc28j60 = __containerof(phy, phy_enc28j60_t, parent);
+    esp_eth_mediator_t *eth = enc28j60->eth;
+
+    if (enc28j60->link_status != link) {
+        enc28j60->link_status = link;
+        // link status changed, inmiedately report to upper layers
+        ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_LINK, (void *)enc28j60->link_status), err, TAG, "change link failed");
+    }
+err:
+    return ret;
 }
 
 static esp_err_t enc28j60_reset(esp_eth_phy_t *phy)
@@ -359,6 +375,7 @@ esp_eth_phy_t *esp_eth_phy_new_enc28j60(const eth_phy_config_t *config)
     enc28j60->parent.set_addr = enc28j60_set_addr;
     enc28j60->parent.set_speed = enc28j60_set_speed;
     enc28j60->parent.set_duplex = enc28j60_set_duplex;
+    enc28j60->parent.set_link = enc28j60_set_link;
     enc28j60->parent.del = enc28j60_del;
     return &(enc28j60->parent);
 err:
