@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.3...lan865x@v0.1.4) (2026-02-16)
+
+
+### Bug Fixes
+
+* **lan865x:** fixed 0 bytes copy when Tx frame length is a multiple of 64 [#138](https://github.com/espressif/esp-eth-drivers/issues/138) ([3a142d7](https://github.com/espressif/esp-eth-drivers/commit/3a142d79b8afd9d7d9c6e2cfbd558fe0af31d1e6))
+
 ## [0.1.3](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.2...lan865x@v0.1.3) (2025-12-19)
 
 
