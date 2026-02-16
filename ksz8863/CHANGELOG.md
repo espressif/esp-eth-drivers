@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.11](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.10...ksz8863@v0.2.11) (2026-02-16)
+
+
+### Bug Fixes
+
+* **ksz8863:** Fix broken use of unlikely ([0c6415d](https://github.com/espressif/esp-eth-drivers/commit/0c6415d4e2e071c50e5575c38d73cd116a08cac0))
+
 ## [0.2.10](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.9...ksz8863@v0.2.10) (2025-10-03)
 
 
