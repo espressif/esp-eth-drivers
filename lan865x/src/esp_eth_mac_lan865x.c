@@ -276,7 +276,8 @@ static esp_err_t lan865x_frame_transmit(emac_lan865x_t *emac, uint8_t *frame, ui
         if (i == chunks - 1) {
             tx_block->header.ev = 1;
             tx_block->header.ebo = (length - 1) % LAN865X_DATA_BLOCK_SIZE;
-            memcpy(tx_block->data, frame + i * LAN865X_DATA_BLOCK_SIZE, length % LAN865X_DATA_BLOCK_SIZE);
+            uint32_t remaining = length - i * LAN865X_DATA_BLOCK_SIZE;
+            memcpy(tx_block->data, frame + i * LAN865X_DATA_BLOCK_SIZE, remaining);
         } else {
             memcpy(tx_block->data, frame + i * LAN865X_DATA_BLOCK_SIZE, LAN865X_DATA_BLOCK_SIZE);
         }
