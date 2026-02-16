@@ -311,6 +311,7 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
     // Create new PHY instance based on board configuration
 #if CONFIG_ETHERNET_PHY_GENERIC
     phy = esp_eth_phy_new_generic(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "IEEE802.3");
 #elif CONFIG_ETHERNET_PHY_IP101
     phy = esp_eth_phy_new_ip101(&phy_config);
     (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "IP101");
