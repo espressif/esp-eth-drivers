@@ -1,4 +1,4 @@
-version: 1.0.1
+version: 1.0.2
 description: ENC28J60 SPI Ethernet Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/enc28j60
 dependencies:
