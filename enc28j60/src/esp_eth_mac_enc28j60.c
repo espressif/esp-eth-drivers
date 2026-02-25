@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2019-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -15,12 +15,14 @@
 #include "esp_intr_alloc.h"
 #include "esp_heap_caps.h"
 #include "esp_rom_sys.h"
+#include "esp_rom_crc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_eth_enc28j60.h"
 #include "enc28j60.h"
 #include "sdkconfig.h"
+#include "esp_check.h"
 
 static const char *TAG = "enc28j60";
 #define MAC_CHECK(a, str, goto_tag, ret_value, ...)                               \
@@ -49,6 +51,7 @@ static const char *TAG = "enc28j60";
 #define ENC28J60_PHY_OPERATION_TIMEOUT_US (150)
 #define ENC28J60_SYSTEM_RESET_ADDITION_TIME_US (1000)
 #define ENC28J60_TX_READY_TIMEOUT_MS (2000)
+#define ENC28J60_HASH_FILTER_TABLE_SIZE (64)
 
 #define ENC28J60_BUFFER_SIZE (0x2000) // 8KB built-in buffer
 /**
@@ -118,6 +121,7 @@ typedef struct {
     uint8_t last_bank;
     bool packets_remain;
     eth_enc28j60_rev_t revision;
+    uint8_t hash_filter_cnt[ENC28J60_HASH_FILTER_TABLE_SIZE];
 } emac_enc28j60_t;
 
 static inline bool enc28j60_spi_lock(emac_enc28j60_t *emac)
@@ -569,13 +573,58 @@ static esp_err_t enc28j60_clear_multicast_table(emac_enc28j60_t *emac)
 {
     esp_err_t ret = ESP_OK;
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         MAC_CHECK(enc28j60_register_write(emac, ENC28J60_EHT0 + i, 0x00) == ESP_OK,
                   "write ENC28J60_EHT%d failed", out, ESP_FAIL, i);
     }
+    memset(emac->hash_filter_cnt, 0, sizeof(emac->hash_filter_cnt));
+
 out:
     return ret;
 }
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+static inline __attribute__((always_inline)) uint32_t enc28j60_reflect32(uint32_t x)
+{
+    x = ((x >> 1) & 0x55555555u) | ((x & 0x55555555u) << 1);
+    x = ((x >> 2) & 0x33333333u) | ((x & 0x33333333u) << 2);
+    x = ((x >> 4) & 0x0F0F0F0Fu) | ((x & 0x0F0F0F0Fu) << 4);
+    x = ((x >> 8) & 0x00FF00FFu) | ((x & 0x00FF00FFu) << 8);
+    x = (x >> 16) | (x << 16);
+    return x;
+}
+
+static esp_err_t enc28j60_hash_filter_modify(emac_enc28j60_t *emac, uint8_t *addr, bool add)
+{
+    esp_err_t ret = ESP_OK;
+
+    // CRC-32 over the 6 MAC bytes, input bits processed LSB-first.
+    uint32_t crc = enc28j60_reflect32(~esp_rom_crc32_le(0, addr, ETH_ADDR_LEN));
+
+    // Bits [28:26] of CRC -> which EHT register (0-7)
+    // Bits [25:23] of CRC -> which bit within that register, counted from MSB (bit 7)
+    uint8_t hash_value = (crc >> 23) & 0x3F;
+    uint8_t hash_group = hash_value >> 3;
+    uint8_t hash_bit   = hash_value & 0x07;
+    uint8_t eht = 0;
+
+    MAC_CHECK(enc28j60_register_read(emac, ENC28J60_EHT0 + hash_group, &eht) == ESP_OK, "read EHT failed", out, ESP_FAIL);
+    if (add) {
+        eht |= (1 << hash_bit);
+        emac->hash_filter_cnt[hash_value]++;
+    } else {
+        if (emac->hash_filter_cnt[hash_value] > 0) {
+            emac->hash_filter_cnt[hash_value]--;
+            if (emac->hash_filter_cnt[hash_value] == 0) {
+                eht &= ~(1 << hash_bit);
+            }
+        }
+    }
+    MAC_CHECK(enc28j60_register_write(emac, ENC28J60_EHT0 + hash_group, eht) == ESP_OK, "write EHT failed", out, ESP_FAIL);
+out:
+    return ret;
+}
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
 
 /**
  * @brief Default setup for ENC28J60 internal registers
@@ -605,8 +654,8 @@ static esp_err_t enc28j60_setup_default(emac_enc28j60_t *emac)
     MAC_CHECK(enc28j60_register_write(emac, ENC28J60_ETXSTH, (ENC28J60_BUF_TX_START & 0xFF00) >> 8) == ESP_OK,
               "write ETXSTH failed", out, ESP_FAIL);
 
-    // set up default filter mode: (unicast OR broadcast OR multicast) AND crc valid
-    MAC_CHECK(enc28j60_register_write(emac, ENC28J60_ERXFCON, ERXFCON_UCEN | ERXFCON_CRCEN | ERXFCON_BCEN | ERXFCON_MCEN) == ESP_OK,
+    // set up default filter mode: (unicast OR broadcast OR hash table) AND crc valid; multicast receive disabled by default
+    MAC_CHECK(enc28j60_register_write(emac, ENC28J60_ERXFCON, ERXFCON_UCEN | ERXFCON_CRCEN | ERXFCON_BCEN | ERXFCON_HTEN) == ESP_OK,
               "write ERXFCON failed", out, ESP_FAIL);
 
     // enable MAC receive, enable pause control frame on Tx and Rx path
@@ -894,6 +943,51 @@ out:
     return ret;
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+static esp_err_t emac_enc28j60_set_all_multicast(esp_eth_mac_t *mac, bool enable)
+{
+    esp_err_t ret = ESP_OK;
+    emac_enc28j60_t *emac = __containerof(mac, emac_enc28j60_t, parent);
+    uint8_t erxfcon = 0;
+
+    MAC_CHECK(enc28j60_register_read(emac, ENC28J60_ERXFCON, &erxfcon) == ESP_OK,
+              "read ERXFCON failed", out, ESP_FAIL);
+    if (enable) {
+        erxfcon |= ERXFCON_MCEN;
+    } else {
+        erxfcon &= ~ERXFCON_MCEN;
+    }
+
+    MAC_CHECK(enc28j60_register_write(emac, ENC28J60_ERXFCON, erxfcon) == ESP_OK,
+              "write ERXFCON failed", out, ESP_FAIL);
+out:
+    return ret;
+}
+
+static esp_err_t emac_enc28j60_add_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
+{
+    esp_err_t ret = ESP_OK;
+
+    emac_enc28j60_t *emac = __containerof(mac, emac_enc28j60_t, parent);
+    MAC_CHECK(enc28j60_hash_filter_modify(emac, addr, true) == ESP_OK,
+              "modify multicast table failed", out, ESP_FAIL);
+out:
+    return ret;
+}
+
+static esp_err_t emac_enc28j60_rm_mac_filter(esp_eth_mac_t *mac, uint8_t *addr)
+{
+    esp_err_t ret = ESP_OK;
+    emac_enc28j60_t *emac = __containerof(mac, emac_enc28j60_t, parent);
+
+    MAC_CHECK(enc28j60_hash_filter_modify(emac, addr, false) == ESP_OK,
+              "modify multicast table failed", out, ESP_FAIL);
+
+out:
+    return ret;
+}
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+
 static esp_err_t emac_enc28j60_transmit(esp_eth_mac_t *mac, uint8_t *buf, uint32_t length)
 {
     esp_err_t ret = ESP_OK;
@@ -1091,6 +1185,11 @@ esp_eth_mac_t *esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_co
     emac->parent.set_promiscuous = emac_enc28j60_set_promiscuous;
     emac->parent.transmit = emac_enc28j60_transmit;
     emac->parent.receive = emac_enc28j60_receive;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+    emac->parent.set_all_multicast = emac_enc28j60_set_all_multicast;
+    emac->parent.add_mac_filter = emac_enc28j60_add_mac_filter;
+    emac->parent.rm_mac_filter = emac_enc28j60_rm_mac_filter;
+#endif
     /* create mutex */
     emac->spi_lock = xSemaphoreCreateMutex();
     MAC_CHECK(emac->spi_lock, "create spi lock failed", err, NULL);
