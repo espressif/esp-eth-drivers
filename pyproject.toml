@@ -1,4 +1,14 @@
 [tool]
+    [tool.mypy]
+    explicit_package_bases = true
+
+    [[tool.mypy.overrides]]
+    module = [
+        'scapy.*',
+        'pytest_embedded.*',
+    ]
+    ignore_missing_imports = true
+
     [tool.ruff]
     extend-exclude                 = []
     format.docstring-code-format   = true

@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/eth_test_app:
+    version: "*"
+    override_path: ../../

@@ -78,6 +78,10 @@
         "w5500": {
           "component": "w5500",
           "release-type": "go"
+        },
+        "eth_test_app": {
+          "component": "eth_test_app",
+          "release-type": "go"
         }
     }
 }

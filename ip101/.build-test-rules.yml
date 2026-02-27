@@ -1,0 +1,8 @@
+# Build test rules for common examples
+# This file is used by idf-build-apps to determine which examples to build and test
+
+ip101/test_apps:
+  enable:
+    - if: IDF_TARGET in ["esp32", "esp32p4"]
+      temporary: true
+      reason: only ESP32 and ESP32P4 runners are supported for now

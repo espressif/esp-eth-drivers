@@ -6,3 +6,7 @@ description: IP101 Ethernet PHY Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ip101
 dependencies:
   idf: '>=6.0'
+files:
+  exclude:
+    - test_apps/**/*
+    - .build-test-rules.yml
