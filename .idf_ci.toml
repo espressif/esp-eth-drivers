@@ -26,6 +26,7 @@ job_template_jinja = """
     when: "always"
   before_script:
     - pip install -U 'idf-ci<1'
+    - pip install -r .ci/requirements.txt
   script:
     - python tools/overwrite_component_path.py . .
     - idf-ci build run
