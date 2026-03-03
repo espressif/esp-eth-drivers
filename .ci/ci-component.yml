@@ -1,0 +1,153 @@
+spec:
+  inputs:
+    build-job-tags:
+      type: array
+      description: "Tags to add to the build job"
+      default:
+        - build
+    job-suffix:
+      type: string
+      description: "Suffix to add to the job name. For example, `:idf-v6.0`"
+      default: ""
+    build-job-image:
+      type: string
+      description: "docker image to use for the build job."
+      default: "espressif/idf:latest"
+    test-job-image:
+      type: string
+      description: "docker image to use for the test job."
+      default: "python:3-slim"
+    before-script:
+      type: array
+      description: "Commands to run before the build job."
+      default: []
+---
+include:
+  - component: $CI_SERVER_FQDN/ci/actions/changed-files/ci-component@main
+    inputs:
+      tags: $[[ inputs.build-job-tags ]]
+
+####################
+# Default Settings #
+####################
+.if-dev-push: &if-dev-push
+  if: '$CI_COMMIT_REF_NAME != "master" && $CI_COMMIT_BRANCH !~ /^release\/v/ && $CI_COMMIT_TAG !~ /^v\d+\.\d+(\.\d+)?($|-)/ && $CI_COMMIT_TAG !~ /^qa-test/ && ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event")'
+
+.rules:dev-push:
+  rules:
+    - <<: *if-dev-push
+
+##############
+# .pre stage #
+##############
+# write the following env vars to pipeline.env injected by idf-ci
+# please refer to https://docs.espressif.com/projects/idf-ci/en/latest/references/api/idf_ci.idf_gitlab.html#idf_ci.idf_gitlab.dynamic_pipeline_variables
+# to get the full list of variables
+pipeline_variables$[[ inputs.job-suffix ]]:
+  stage: .pre
+  image: $[[ inputs.build-job-image ]]
+  tags: $[[ inputs.build-job-tags ]]
+  timeout: 1h
+  needs:
+    - changed-files
+  script:
+    - pip install -U idf-ci
+    - idf-ci gitlab pipeline-variables >pipeline.env
+  artifacts:
+    reports:
+      dotenv: pipeline.env
+    paths:
+      - pipeline.env
+    expire_in: 1 week
+    when: always
+
+baseline_manifest_sha$[[ inputs.job-suffix ]]:
+  extends:
+    - .rules:dev-push
+  stage: .pre
+  image: $[[ inputs.build-job-image ]]
+  tags: $[[ inputs.build-job-tags ]]
+  timeout: 1h
+  needs: []
+  script:
+    - pip install -U idf-build-apps
+    - |
+      # merged results pipelines, by default
+      # diff between target-branch-head and merged-result-head
+      if [ -n "$CI_MERGE_REQUEST_TARGET_BRANCH_SHA" ]; then
+        git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_SHA --depth=1
+        git checkout FETCH_HEAD
+        manifest_files=$(find . -name ".build-test-rules.yml")
+        if [ -n "$manifest_files" ]; then
+          idf-build-apps dump-manifest-sha \
+            --manifest-files $manifest_files \
+            --output .manifest_sha
+        else
+          touch .manifest_sha
+        fi
+      # merge request pipelines, when the mr got conflicts
+      # diff between diff-base-sha and merge-request-head
+      elif [ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]; then
+        git fetch origin $CI_MERGE_REQUEST_DIFF_BASE_SHA --depth=1
+        git checkout FETCH_HEAD
+        manifest_files=$(find . -name ".build-test-rules.yml")
+        if [ -n "$manifest_files" ]; then
+          idf-build-apps dump-manifest-sha \
+            --manifest-files $manifest_files \
+            --output .manifest_sha
+        else
+          touch .manifest_sha
+        fi
+      # other pipelines, like the protected branches pipelines
+      # not triggered in this job
+      fi
+  artifacts:
+    paths:
+      - .manifest_sha
+    expire_in: 1 week
+    when: always
+
+generate_build_child_pipeline$[[ inputs.job-suffix ]]:
+  image: $[[ inputs.build-job-image ]]
+  tags: $[[ inputs.build-job-tags ]]
+  timeout: 1h
+  stage: .pre
+  needs:
+    - job: pipeline_variables$[[ inputs.job-suffix ]]
+    - job: baseline_manifest_sha$[[ inputs.job-suffix ]]
+      optional: true
+  before_script: $[[ inputs.before-script ]]
+  script:
+    - pip install -U idf-ci
+    - idf-ci
+      --config 'gitlab.build_pipeline.parent_pipeline_job_suffix="$[[ inputs.job-suffix ]]"'
+      --config 'gitlab.build_pipeline.job_image="$[[ inputs.build-job-image ]]"'
+      --config 'gitlab.build_pipeline.job_tags=$[[ inputs.build-job-tags ]]'
+      --config 'gitlab.test_pipeline.job_image="$[[ inputs.test-job-image ]]"'
+      gitlab build-child-pipeline
+  artifacts:
+    paths:
+      - build_child_pipeline.yml
+      - test_related_apps.txt
+      - non_test_related_apps.txt
+    expire_in: 1 week
+    when: always
+
+###############
+# build stage #
+###############
+build_child_pipeline$[[ inputs.job-suffix ]]:
+  stage: build
+  needs:
+    - job: pipeline_variables$[[ inputs.job-suffix ]]
+    - job: generate_build_child_pipeline$[[ inputs.job-suffix ]]
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+  # https://gitlab.com/gitlab-org/gitlab/-/issues/214340
+  inherit:
+    variables: false
+  trigger:
+    include:
+      - artifact: build_child_pipeline.yml
+        job: generate_build_child_pipeline$[[ inputs.job-suffix ]]
+    strategy: depend

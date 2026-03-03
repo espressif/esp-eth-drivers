@@ -5,7 +5,7 @@
 # Note: No need to run build and test on master branch since we use FastForward merge strategy and so each merge request
 # is tested and then merged onto top of master branch.
 include:
-  - component: $CI_SERVER_FQDN/ci/actions/idf-dynamic-pipeline/ci-component@main
+  - local: '.ci/ci-component.yml'
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
@@ -13,6 +13,8 @@ include:
       test-job-image: "$CI_DOCKER_REGISTRY/target-test-env-v6.1:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.1"
+      before-script:
+        - pip install -r .ci/requirements.txt
   - component: $CI_SERVER_FQDN/ci/actions/idf-dynamic-pipeline/ci-component@main
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
