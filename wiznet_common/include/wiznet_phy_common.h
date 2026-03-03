@@ -28,46 +28,51 @@ typedef struct {
 } wiznet_opmode_entry_t;
 
 /**
- * @brief Common base structure for WIZnet PHY implementations
+ * @brief Configuration for creating a WIZnet PHY instance
  *
- * This structure contains fields common to all WIZnet Ethernet PHY drivers
- * (W5500, W6100, etc.). Chip-specific structures should embed this as their
- * first member to allow safe casting between base and derived types.
- *
- * Usage:
- * @code
- * typedef struct {
- *     phy_wiznet_t base;        // Must be first member
- *     // No chip-specific fields needed currently
- * } phy_w6100_t;
- * @endcode
+ * This structure contains all chip-specific configuration needed
+ * by phy_wiznet_new() to create and configure a PHY instance.
  */
-struct phy_wiznet_s {
-    esp_eth_phy_t parent;           /**< ESP-IDF PHY vtable (must be first for __containerof) */
-    esp_eth_mediator_t *eth;        /**< Mediator for communication with MAC layer */
-    int addr;                       /**< PHY address (unused for internal PHY, but required by API) */
-    uint32_t reset_timeout_ms;      /**< Reset timeout in milliseconds */
-    uint32_t autonego_timeout_ms;   /**< Auto-negotiation timeout in milliseconds */
-    eth_link_t link_status;         /**< Current link status */
-    int reset_gpio_num;             /**< Hardware reset GPIO, or -1 if not used */
-    uint32_t phy_status_reg;        /**< Register address for PHY status (link/speed/duplex) */
-    eth_speed_t speed_when_bit_set;    /**< Speed value when status register speed bit is 1 */
-    eth_speed_t speed_when_bit_clear;  /**< Speed value when status register speed bit is 0 */
-    eth_duplex_t duplex_when_bit_set;  /**< Duplex value when status register duplex bit is 1 */
-    eth_duplex_t duplex_when_bit_clear;/**< Duplex value when status register duplex bit is 0 */
+typedef struct {
+    /* Basic config from esp_phy_config_t */
+    int phy_addr;                       /**< PHY address */
+    uint32_t reset_timeout_ms;          /**< Reset timeout in milliseconds */
+    uint32_t autonego_timeout_ms;       /**< Auto-negotiation timeout in milliseconds */
+    int reset_gpio_num;                 /**< Hardware reset GPIO, or -1 if not used */
+
+    /* PHY status register configuration */
+    uint32_t phy_status_reg;            /**< Register address for PHY status (link/speed/duplex) */
+    eth_speed_t speed_when_bit_set;     /**< Speed value when status register speed bit is 1 */
+    eth_speed_t speed_when_bit_clear;   /**< Speed value when status register speed bit is 0 */
+    eth_duplex_t duplex_when_bit_set;   /**< Duplex value when status register duplex bit is 1 */
+    eth_duplex_t duplex_when_bit_clear; /**< Duplex value when status register duplex bit is 0 */
 
     /* Table-driven get_mode configuration */
     const wiznet_opmode_entry_t *opmode_table;  /**< Table of fixed-mode entries for get_mode lookup */
-    uint8_t opmode_table_size;         /**< Number of entries in opmode_table */
-    uint32_t opmode_status_reg;        /**< Register to read current opmode from */
-    uint8_t opmode_shift;              /**< Bit shift for opmode field in status register */
-    uint8_t opmode_mask;               /**< Mask for opmode field after shifting */
+    uint8_t opmode_table_size;          /**< Number of entries in opmode_table */
+    uint32_t opmode_status_reg;         /**< Register to read current opmode from */
+    uint8_t opmode_shift;               /**< Bit shift for opmode field in status register */
+    uint8_t opmode_mask;                /**< Mask for opmode field after shifting */
 
-    /** @brief Chip-specific: Check if auto-negotiation is enabled */
+    /* Chip-specific function pointers */
     esp_err_t (*is_autoneg_enabled)(phy_wiznet_t *wiznet, bool *enabled);
-    /** @brief Chip-specific: Set PHY mode (autoneg or fixed speed/duplex) */
     esp_err_t (*set_mode)(phy_wiznet_t *wiznet, bool autoneg, eth_speed_t speed, eth_duplex_t duplex);
-};
+
+    /* Chip-specific vtable overrides */
+    esp_err_t (*reset)(esp_eth_phy_t *phy);     /**< Chip-specific reset function */
+    esp_err_t (*pwrctl)(esp_eth_phy_t *phy, bool enable);  /**< Chip-specific power control */
+} phy_wiznet_config_t;
+
+/**
+ * @brief Create a new WIZnet PHY instance (factory function)
+ *
+ * Allocates and initializes a new phy_wiznet_t instance with all common
+ * fields and vtable entries.
+ *
+ * @param config PHY configuration including chip-specific settings
+ * @return Pointer to esp_eth_phy_t vtable, or NULL on failure
+ */
+esp_eth_phy_t *phy_wiznet_new(const phy_wiznet_config_t *config);
 
 /**
  * @brief Set mediator for PHY
@@ -226,6 +231,40 @@ esp_err_t phy_wiznet_set_duplex(esp_eth_phy_t *phy, eth_duplex_t duplex);
  * @return ESP_OK on success
  */
 esp_err_t phy_wiznet_get_mode(phy_wiznet_t *wiznet, bool *autoneg, eth_speed_t *speed, eth_duplex_t *duplex);
+
+/**
+ * @brief Get phy_wiznet_t from esp_eth_phy_t pointer
+ *
+ * Performs __containerof to recover the WIZnet PHY instance from
+ * the ESP-IDF PHY vtable pointer.
+ *
+ * @param phy ESP-IDF PHY instance
+ * @return Pointer to WIZnet PHY instance
+ */
+phy_wiznet_t *phy_wiznet_from_parent(esp_eth_phy_t *phy);
+
+/**
+ * @brief Get Ethernet mediator
+ *
+ * @param wiznet WIZnet PHY instance
+ * @return Pointer to mediator
+ */
+esp_eth_mediator_t *phy_wiznet_get_eth(phy_wiznet_t *wiznet);
+
+/**
+ * @brief Get PHY address as uint32_t
+ *
+ * @param wiznet WIZnet PHY instance
+ * @return PHY address
+ */
+uint32_t phy_wiznet_get_addr_val(phy_wiznet_t *wiznet);
+
+/**
+ * @brief Set link status to ETH_LINK_DOWN
+ *
+ * @param wiznet WIZnet PHY instance
+ */
+void phy_wiznet_set_link_down(phy_wiznet_t *wiznet);
 
 #ifdef __cplusplus
 }

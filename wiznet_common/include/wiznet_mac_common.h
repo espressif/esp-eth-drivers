@@ -8,9 +8,6 @@
 
 #include "esp_eth_mac.h"
 #include "esp_eth_mac_spi.h"
-#include "esp_timer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "wiznet_spi.h"
 
 #ifdef __cplusplus
@@ -113,38 +110,6 @@ typedef struct {
  */
 #define WIZNET_100M_TX_TMO_US (200)
 #define WIZNET_10M_TX_TMO_US  (1500)
-
-/**
- * @brief Common base structure for WIZnet EMAC implementations
- *
- * This structure contains fields common to all WIZnet Ethernet MAC drivers
- * (W5500, W6100, etc.). Chip-specific structures should embed this as their
- * first member to allow safe casting between base and derived types.
- *
- * Usage:
- * @code
- * typedef struct {
- *     emac_wiznet_t base;        // Must be first member
- *     uint8_t chip_specific;     // Chip-specific fields follow
- * } emac_w6100_t;
- * @endcode
- */
-struct emac_wiznet_s {
-    esp_eth_mac_t parent;           /*!< ESP-IDF MAC vtable (must be first for __containerof) */
-    esp_eth_mediator_t *eth;        /*!< Mediator for callbacks to ESP-ETH layer */
-    eth_spi_custom_driver_t spi;    /*!< SPI driver interface */
-    TaskHandle_t rx_task_hdl;       /*!< RX task handle */
-    const char *tag;                /*!< Logging tag (e.g., "w6100.mac") */
-    const wiznet_chip_ops_t *ops;   /*!< Chip-specific operations */
-    uint32_t sw_reset_timeout_ms;   /*!< Software reset timeout */
-    int int_gpio_num;               /*!< Interrupt GPIO number, or -1 for polling mode */
-    esp_timer_handle_t poll_timer;  /*!< Poll timer handle (polling mode only) */
-    uint32_t poll_period_ms;        /*!< Poll period in milliseconds */
-    uint8_t addr[6];                /*!< MAC address (ETH_ADDR_LEN) */
-    bool packets_remain;            /*!< Flag indicating more packets in RX buffer */
-    uint8_t *rx_buffer;             /*!< RX buffer for incoming frames */
-    uint32_t tx_tmo;                /*!< TX timeout in microseconds (speed-dependent) */
-};
 
 /**
  * @brief Set mediator for Ethernet MAC
@@ -460,34 +425,82 @@ typedef struct {
 } eth_wiznet_config_t;
 
 /**
- * @brief Initialize emac_wiznet_t base structure
+ * @brief Create a new WIZnet EMAC instance (factory function)
  *
- * Common initialization for W5500/W6100 constructors. Sets up all common
- * fields in emac_wiznet_t: SPI driver, RX task, poll timer, RX buffer.
+ * Allocates and initializes a new emac_wiznet_t instance with all common
+ * fields: SPI driver, RX task, poll timer, RX buffer.
  *
- * @param emac Pointer to pre-allocated emac_wiznet_t (first member of chip-specific struct)
  * @param wiznet_config WIZnet configuration (can cast from eth_w5500_config_t/eth_w6100_config_t)
  * @param mac_config ESP-IDF MAC configuration
  * @param ops Chip-specific operations table
  * @param tag Logging tag (e.g., "w5500.mac")
  * @param task_name Task name (e.g., "w5500_tsk")
- * @return ESP_OK on success, ESP_ERR_NO_MEM if allocation fails, or other error
+ * @return Pointer to new EMAC instance, or NULL on failure
  */
-esp_err_t emac_wiznet_init_common(emac_wiznet_t *emac,
-                                  const eth_wiznet_config_t *wiznet_config,
-                                  const eth_mac_config_t *mac_config,
-                                  const wiznet_chip_ops_t *ops,
-                                  const char *tag,
-                                  const char *task_name);
+emac_wiznet_t *emac_wiznet_new(const eth_wiznet_config_t *wiznet_config,
+                               const eth_mac_config_t *mac_config,
+                               const wiznet_chip_ops_t *ops,
+                               const char *tag,
+                               const char *task_name);
 
 /**
- * @brief Cleanup after failed emac_wiznet_init_common()
- *
- * Frees resources allocated by emac_wiznet_init_common().
+ * @brief Get pointer to esp_eth_mac_t parent structure
  *
  * @param emac WIZnet EMAC instance
+ * @return Pointer to esp_eth_mac_t vtable
  */
-void emac_wiznet_cleanup_common(emac_wiznet_t *emac);
+esp_eth_mac_t *emac_wiznet_get_parent(emac_wiznet_t *emac);
+
+/**
+ * @brief Get emac_wiznet_t from esp_eth_mac_t pointer
+ *
+ * Performs __containerof to recover the WIZnet EMAC instance from
+ * the ESP-IDF MAC vtable pointer.
+ *
+ * @param mac ESP-IDF MAC instance
+ * @return Pointer to WIZnet EMAC instance
+ */
+emac_wiznet_t *emac_wiznet_from_parent(esp_eth_mac_t *mac);
+
+/**
+ * @brief Get software reset timeout
+ *
+ * @param emac WIZnet EMAC instance
+ * @return Timeout in milliseconds
+ */
+uint32_t emac_wiznet_get_sw_reset_timeout_ms(emac_wiznet_t *emac);
+
+/**
+ * @brief Get IPv4 multicast filter reference count
+ *
+ * @param emac WIZnet EMAC instance
+ * @return Current count
+ */
+uint8_t emac_wiznet_get_mcast_v4_cnt(emac_wiznet_t *emac);
+
+/**
+ * @brief Set IPv4 multicast filter reference count
+ *
+ * @param emac WIZnet EMAC instance
+ * @param cnt New count value
+ */
+void emac_wiznet_set_mcast_v4_cnt(emac_wiznet_t *emac, uint8_t cnt);
+
+/**
+ * @brief Get IPv6 multicast filter reference count
+ *
+ * @param emac WIZnet EMAC instance
+ * @return Current count
+ */
+uint8_t emac_wiznet_get_mcast_v6_cnt(emac_wiznet_t *emac);
+
+/**
+ * @brief Set IPv6 multicast filter reference count
+ *
+ * @param emac WIZnet EMAC instance
+ * @param cnt New count value
+ */
+void emac_wiznet_set_mcast_v6_cnt(emac_wiznet_t *emac, uint8_t cnt);
 
 #ifdef __cplusplus
 }
