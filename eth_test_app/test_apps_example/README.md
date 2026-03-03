@@ -12,6 +12,7 @@ idf.py create-project-from-example "espressif/eth_test_app=*:test_apps_example"
 
 Then open the created project and adapt:
 
+- Rename `pytest_ethernet.py` to the chip-under-test name (e.g. `pytest_dm9051.py`).
 - **TEST_IF** in `pytest_ethernet.py` – host Ethernet interface for L2/heap tests (`ip -c a` to list) or keep empty.
 - **config** and **pytest marks** – set the sdkconfig preset and PHY marker for your chip (e.g. `pytest.mark.eth_dm9051`, `pytest.mark.eth_ip101`).
 

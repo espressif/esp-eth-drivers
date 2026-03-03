@@ -17,10 +17,19 @@ spec:
       type: string
       description: "docker image to use for the test job."
       default: "python:3-slim"
-    before-script:
+    before-pipeline-variables:
       type: array
-      description: "Commands to run before the build job."
+      description: "Commands to run before the pipeline_variables job."
       default: []
+    before-baseline-manifest-sha:
+      type: array
+      description: "Commands to run before the baseline_manifest_sha job."
+      default: []
+    before-generate-build:
+      type: array
+      description: "Commands to run before the generate_build_child_pipeline job."
+      default: []
+
 ---
 include:
   - component: $CI_SERVER_FQDN/ci/actions/changed-files/ci-component@main
@@ -50,6 +59,7 @@ pipeline_variables$[[ inputs.job-suffix ]]:
   timeout: 1h
   needs:
     - changed-files
+  before_script: $[[ inputs.before-pipeline-variables ]]
   script:
     - pip install -U idf-ci
     - idf-ci gitlab pipeline-variables >pipeline.env
@@ -69,6 +79,7 @@ baseline_manifest_sha$[[ inputs.job-suffix ]]:
   tags: $[[ inputs.build-job-tags ]]
   timeout: 1h
   needs: []
+  before_script: $[[ inputs.before-baseline-manifest-sha ]]
   script:
     - pip install -U idf-build-apps
     - |
@@ -116,7 +127,7 @@ generate_build_child_pipeline$[[ inputs.job-suffix ]]:
     - job: pipeline_variables$[[ inputs.job-suffix ]]
     - job: baseline_manifest_sha$[[ inputs.job-suffix ]]
       optional: true
-  before_script: $[[ inputs.before-script ]]
+  before_script: $[[ inputs.before-generate-build ]]
   script:
     - pip install -U idf-ci
     - idf-ci
