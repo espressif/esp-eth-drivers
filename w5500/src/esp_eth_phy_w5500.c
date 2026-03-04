@@ -55,7 +55,7 @@ static const wiznet_opmode_entry_t w5500_opmode_table[] = {
     { W5500_OP_MODE_100BT_FULL_AUTO_DIS, ETH_SPEED_100M, ETH_DUPLEX_FULL },
 };
 
-static esp_err_t w5500_reset(esp_eth_phy_t *phy)
+static esp_err_t w5500_phy_reset(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
     phy_wiznet_t *w5500 = phy_wiznet_from_parent(phy);
@@ -155,7 +155,7 @@ esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
         /* Chip-specific function pointers */
         .is_autoneg_enabled = w5500_is_autoneg_enabled,
         .set_mode = w5500_set_mode,
-        .reset = w5500_reset,
+        .reset = w5500_phy_reset,
         .pwrctl = w5500_pwrctl,
     };
 

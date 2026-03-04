@@ -79,7 +79,7 @@ typedef union {
     uint8_t val;
 } phycr1_reg_t;
 
-static esp_err_t w6100_reset(esp_eth_phy_t *phy)
+static esp_err_t w6100_phy_reset(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
     phy_wiznet_t *w6100 = phy_wiznet_from_parent(phy);
@@ -205,7 +205,7 @@ esp_eth_phy_t *esp_eth_phy_new_w6100(const eth_phy_config_t *config)
         /* Chip-specific function pointers */
         .is_autoneg_enabled = w6100_is_autoneg_enabled,
         .set_mode = w6100_set_mode,
-        .reset = w6100_reset,
+        .reset = w6100_phy_reset,
         .pwrctl = w6100_pwrctl,
     };
 

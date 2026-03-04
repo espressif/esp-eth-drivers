@@ -20,7 +20,7 @@ static const char *TAG = "w5500.mac";
  * Chip-specific ops for W5500
  ******************************************************************************/
 
-static esp_err_t w5500_reset(emac_wiznet_t *emac);
+static esp_err_t w5500_mac_reset(emac_wiznet_t *emac);
 static esp_err_t w5500_verify_id(emac_wiznet_t *emac);
 
 static const wiznet_chip_ops_t w5500_ops = {
@@ -70,12 +70,12 @@ static const wiznet_chip_ops_t w5500_ops = {
     .phy_link_mask = W5500_PHYCFGR_LNK,  /* Check link status bit */
 
     /* Chip-specific functions */
-    .reset = w5500_reset,
+    .reset = w5500_mac_reset,
     .verify_id = w5500_verify_id,
     .setup_default = wiznet_setup_default,
 };
 
-static esp_err_t w5500_reset(emac_wiznet_t *emac)
+static esp_err_t w5500_mac_reset(emac_wiznet_t *emac)
 {
     esp_err_t ret = ESP_OK;
     /* software reset */

@@ -21,7 +21,7 @@ static const char *TAG = "w6100.mac";
  * Chip-specific ops for W6100
  ******************************************************************************/
 
-static esp_err_t w6100_reset(emac_wiznet_t *emac);
+static esp_err_t w6100_mac_reset(emac_wiznet_t *emac);
 static esp_err_t w6100_verify_id(emac_wiznet_t *emac);
 static esp_err_t w6100_setup_default(emac_wiznet_t *emac);
 
@@ -77,22 +77,22 @@ static const wiznet_chip_ops_t w6100_ops = {
     .phy_link_mask = W6100_PHYSR_LNK,
 
     /* Chip-specific functions */
-    .reset = w6100_reset,
+    .reset = w6100_mac_reset,
     .verify_id = w6100_verify_id,
     .setup_default = w6100_setup_default,
 };
 
-static esp_err_t w6100_reset(emac_wiznet_t *emac)
+static esp_err_t w6100_mac_reset(emac_wiznet_t *emac)
 {
     esp_err_t ret = ESP_OK;
     /* software reset - write 0 to RST bit to trigger reset */
     uint8_t sycr0 = 0x00; // Clear RST bit (bit 7) to reset
     ESP_GOTO_ON_ERROR(wiznet_write(emac, W6100_REG_SYCR0, &sycr0, sizeof(sycr0)), err, TAG, "write SYCR0 failed");
 
-    /* Wait for reset to complete - need to wait for chip to stabilize */
-    vTaskDelay(pdMS_TO_TICKS(100));  // W6100 needs ~60.3ms after reset
+    /* Wait for reset to complete. Datasheet specifies T_STA = 60.3ms stabilization time.
+     * SYCR0 is write-only so we cannot poll it. Chip readiness is verified by w6100_verify_id. */
+    vTaskDelay(pdMS_TO_TICKS(emac_wiznet_get_sw_reset_timeout_ms(emac)));
 
-    return ESP_OK;
 err:
     return ret;
 }
