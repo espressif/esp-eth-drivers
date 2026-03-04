@@ -92,7 +92,6 @@ typedef struct {
 
     /* Bit masks for socket mode register */
     uint8_t smr_mac_filter;         /*!< MAC filter enable bit */
-    uint8_t smr_mac_raw;            /*!< MAC RAW mode enable bit */
     uint8_t smr_default;            /*!< Default SOCK0 mode (MACRAW + filter + mcast block) */
 
     /* PHY status checking */

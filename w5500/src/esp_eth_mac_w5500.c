@@ -63,7 +63,6 @@ static const wiznet_chip_ops_t w5500_ops = {
 
     /* Bit masks */
     .smr_mac_filter = W5500_SMR_MAC_FILTER,
-    .smr_mac_raw = W5500_SMR_MAC_RAW,
     .smr_default = W5500_SMR_MAC_RAW | W5500_SMR_MAC_FILTER | W5500_SMR_MAC_BLOCK_MCAST,
 
     /* PHY status register and link mask */

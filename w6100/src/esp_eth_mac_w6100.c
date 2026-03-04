@@ -65,7 +65,6 @@ static const wiznet_chip_ops_t w6100_ops = {
 
     /* Bit masks */
     .smr_mac_filter = W6100_SMR_MF,
-    .smr_mac_raw = W6100_SMR_MACRAW,
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
     /* Block IPv4/IPv6 multicast by default until add_mac_filter is called */
     .smr_default = W6100_SMR_MACRAW | W6100_SMR_MF | W6100_SMR_MMB | W6100_SMR_MMB6,
