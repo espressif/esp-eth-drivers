@@ -2,46 +2,28 @@
 
 This component provides common test utilities and pre-written test cases for ESP-IDF Ethernet drivers. It can be used to test Ethernet MAC behavior with different chips.
 
-## ESP-IDF Usage
-
-Add this component from [IDF Component Manager](https://components.espressif.com/) to your project using `idf.py add-dependency` and include `esp_eth_test_utils.h`:
-
-```c
-#include "esp_eth_test_utils.h"
-```
-
-## Pytest host tests (driver-specific test apps)
-
-!!! TODO !!!
-
-The component provides a common pytest runner so each driver (e.g. DM9051, W5500) can run the same Unity test suite from its own test app.
-
-- **Script:** `eth_test_runner.py` — defines `EthTestRunner` and `EthTestIntf`. The legacy `pytest_esp_eth.py` still exists and delegates to the runner for backward compatibility.
-- **Usage:** In your driver test app (e.g. `dm9051/test_apps/`):
-  1. Add the component directory to `sys.path` in `conftest.py` (from registry it lives in `managed_components/espressif__eth_test_app`; with `override_path` it is at your repo path, e.g. `../../eth_test_app`). See `conftest_example.py` in this component.
-  2. In your test file, use the `eth_test_runner` fixture (or import `EthTestRunner` and instantiate it), then call `run_ethernet_test(dut)`, `run_ethernet_l2_test(dut)`, `run_ethernet_heap_alloc_test(dut)`.
-
-Example test (see `dm9051/test_apps/pytest_dm9051.py` and `conftest_example.py`):
-
-```python
-# conftest.py adds component to path and defines eth_test_runner fixture
-
-def test_eth_dm9051(dut, eth_test_runner):
-    eth_test_runner.run_ethernet_test(dut)
-    dut.serial.hard_reset()
-    eth_test_runner.run_ethernet_l2_test(dut)
-    dut.serial.hard_reset()
-    eth_test_runner.run_ethernet_heap_alloc_test(dut)
-```
-
-**Where the component is loaded from:** When the project uses the component from the registry, it is under `managed_components/espressif__eth_test_app/`. When using `override_path` (e.g. in a monorepo), the component is used from that path. The conftest path logic checks both so the same test app works in either setup.
-
 ## Prerequisites
 
-Install third-party Python packages required by the pytest test script:
+Install third-party Python packages required by the `pytest` test script:
 
 ```bash
 pip install scapy
+```
+
+## Usage
+
+The easiest way is to base your test project on the example:
+
+```bash
+idf.py create-project-from-example "espressif/eth_test_app=*:test_apps_example"
+```
+
+It will crate the whole project structure including `pytest` configuration boiler-plate so you will be able to use Python test scripts without any additional configuration. See [example README](./test_apps_example/README.md) for more information.
+
+If you wanted to start the new test project from scratch manually, add this component from [IDF Component Manager](https://components.espressif.com/) to your project using `idf.py add-dependency` and include `esp_eth_test_utils.h`:
+
+```c
+#include "esp_eth_test_utils.h"
 ```
 
 ## Chip-Specific Configuration

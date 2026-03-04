@@ -76,6 +76,7 @@ menu "esp_eth TEST_APPS Configuration"
         default n
         help
             W5500 always receives IPv6 multicast packets, even if the filter is set to block multicast.
+            It's not documented behavior, but it's observed on the real hardware.
             Enable only when W5500 is under test!!
 
     config ETH_TEST_STRESS_TEST_TASK_PRIO

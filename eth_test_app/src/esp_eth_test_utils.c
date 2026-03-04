@@ -151,7 +151,6 @@ void setUp(void)
     ETH_TEST_ESP_OK(esp_eth_test_eth_init(&s_eth_handle));
     eth_dev_info_t phy_info = ethernet_init_get_dev_info(s_eth_handle);
     ESP_LOGI(TAG, "DUT PHY: %s", phy_info.name);
-    ESP_LOGI(TAG, "CurrentDetail1: %s", Unity.CurrentDetail1);
     if (strstr(Unity.CurrentDetail1, "[esp-netif]") != NULL) {
         esp_netif_init();
         // create TCP/IP netif

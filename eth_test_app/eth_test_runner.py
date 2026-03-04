@@ -1,42 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 """
-Pytest runner for eth_test_app Unity tests.
-
-This module is intended to be used from driver-specific test apps (e.g. dm9051/test_apps,
-w5500/test_apps). The component may be loaded from:
-  - managed_components/espressif__eth_test_app/ (when using the component from the registry)
-  - override_path (e.g. ../../eth_test_app in a monorepo)
-
-Usage in a driver test (e.g. dm9051/test_apps/pytest_dm9051.py):
-
-  1. Ensure the component directory is on sys.path. In your test app's conftest.py:
-       import sys
-       from pathlib import Path
-       project_root = Path(__file__).resolve().parent
-       for name in ('espressif__eth_test_app', 'eth_test_app'):
-           comp = project_root / 'managed_components' / name
-           if comp.exists():
-               sys.path.insert(0, str(comp))
-               break
-       else:
-           # override_path: component at repo level
-           comp = project_root.parent.parent / 'eth_test_app'
-           if comp.exists():
-               sys.path.insert(0, str(comp))
-
-  2. In your test file:
-       from eth_test_runner import EthTestRunner
-
-       @pytest.mark.parametrize('config', ['dm9051'], indirect=True)
-       @idf_parametrize('target', ['esp32'], indirect=['target'])
-       def test_eth_dm9051(dut):
-           runner = EthTestRunner()
-           runner.run_ethernet_test(dut)
-           dut.serial.hard_reset()
-           runner.run_ethernet_l2_test(dut)
-           dut.serial.hard_reset()
-           runner.run_ethernet_heap_alloc_test(dut)
+Pytest runner for eth_test_app Ethernet tests. Also acts as endnode for L2 tests that need to send/receive control/test frames.
 """
 from __future__ import annotations
 
@@ -208,7 +173,8 @@ class EthTestRunner:
         )
         dut_mac = res.group(1).decode('utf-8')
         target_if.recv_resp_poke(mac=dut_mac)
-        for _ in range(5):
+        tx_iterations = int(dut.expect(r'Number of expected iterations: (\d+)').group(1))
+        for _ in range(tx_iterations):
             dut.expect_exact('Filter configured')
             target_if.send_eth_packet('ff:ff:ff:ff:ff:ff')
             target_if.send_eth_packet('01:00:5e:00:00:00')

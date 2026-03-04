@@ -485,9 +485,11 @@ esp_err_t http_event_handle(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_HEADER:
         ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER");
         break;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
     case HTTP_EVENT_ON_HEADERS_COMPLETE:
         ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADERS_COMPLETE");
         break;
+#endif
     case HTTP_EVENT_ON_DATA:
         esp_rom_md5_update(&md5_context, evt->data, evt->data_len);
         break;

@@ -20,7 +20,7 @@ TEST_IF = ''
 @pytest.mark.parametrize(
     'config, target',
     [
-        pytest.param('default_generic', 'esp32', marks=[pytest.mark.eth_ip101]),
+        pytest.param('default', 'esp32', marks=[pytest.mark.eth_ip101]),
     ],
     indirect=['target'],
 )

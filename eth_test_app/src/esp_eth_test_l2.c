@@ -207,11 +207,44 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // starts switching the associated port (e.g. it runs RSTP at first)
     poke_and_wait(eth_handle, NULL, 0, NULL, eth_event_rx_group);
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+    // tell to the test script how many Tx iterations are expected
+    printf("Number of expected iterations: 6\n");
+    // ---------------------------------------
+    printf("Default conditions (multicast disabled)\n");
+    // ---------------------------------------
+    EventBits_t expected_bits;
+    int expected_multicast_rx_cnt;
+// *** W5500 deviation ***
+// Rationale: The W5500 always receives IPv6 multicast packets, even if the filter is set to block multicast.
+//            It's not documented behavior, but it's observed on the real hardware.
+#if CONFIG_ETH_TEST_W5500_IP6_MCAST_DEVIATION_ENABLED
+    expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
+    expected_multicast_rx_cnt = 1; // increase the counter since there will be one (only one) multicast packet received (IPv6)
+#else
+    expected_bits = ETH_BROADCAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
+    expected_multicast_rx_cnt = 0;
+#endif
+
+    s_recv_info.unicast_rx_cnt = 0;
+    s_recv_info.multicast_rx_cnt = 0;
+    s_recv_info.brdcast_rx_cnt = 0;
+    bits = 0;
+    xEventGroupClearBits(eth_event_rx_group, ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT);
+    printf("Filter configured\n");
+    bits = xEventGroupWaitBits(eth_event_rx_group, ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT,
+                               true, true, pdMS_TO_TICKS(1000));
+    printf("bits = 0x%" PRIu32 "\n", (uint32_t)bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT));
+    TEST_ASSERT((bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT)) == expected_bits);
+    TEST_ASSERT_EQUAL(1, s_recv_info.unicast_rx_cnt);
+    TEST_ASSERT_EQUAL(1, s_recv_info.brdcast_rx_cnt);
+    TEST_ASSERT_EQUAL(expected_multicast_rx_cnt, s_recv_info.multicast_rx_cnt);
+
     // ---------------------------------------
     printf("Enable receive all multicast\n");
     // ---------------------------------------
-    EventBits_t expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
-    int expected_multicast_rx_cnt = 2;
+    expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
+    expected_multicast_rx_cnt = 2;
 
     s_recv_info.unicast_rx_cnt = 0;
     s_recv_info.multicast_rx_cnt = 0;
@@ -237,7 +270,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
 //            It's not documented behavior, but it's observed on the real hardware.
 #if CONFIG_ETH_TEST_W5500_IP6_MCAST_DEVIATION_ENABLED
     expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
-    expected_multicast_rx_cnt = 1;
+    expected_multicast_rx_cnt = 1; // increase the counter since there will be one more multicast packet received (IPv6)
 #else
     expected_bits = ETH_BROADCAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
     expected_multicast_rx_cnt = 0;
@@ -338,7 +371,15 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     TEST_ASSERT_EQUAL(1, s_recv_info.unicast_rx_cnt);
     TEST_ASSERT_EQUAL(1, s_recv_info.brdcast_rx_cnt);
     TEST_ASSERT_EQUAL(expected_multicast_rx_cnt, s_recv_info.multicast_rx_cnt);
-
+#else
+    printf("Number of expected iterations: 1\n");
+    printf("Filter configured\n"); // for pytest compatibility
+    bits = xEventGroupWaitBits(eth_event_rx_group, ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT,
+                               true, true, pdMS_TO_TICKS(1000));
+    printf("bits = 0x%" PRIu32 "\n", (uint32_t)bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT));
+    TEST_ASSERT((bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT)) ==
+                (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT));
+#endif
     TEST_ESP_OK(esp_eth_stop(eth_handle));
 }
 
