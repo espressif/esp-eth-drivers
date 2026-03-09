@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -268,6 +268,7 @@ static esp_err_t dm9051_clear_multicast_table(emac_dm9051_t *emac)
     for (int i = 0; i < 8; i++) {
         ESP_GOTO_ON_ERROR(dm9051_register_write(emac, DM9051_MAR + i, 0x00), err, TAG, "write MAR failed");
     }
+    memset(emac->hash_filter_cnt, 0, sizeof(emac->hash_filter_cnt));
     return ESP_OK;
 err:
     return ret;
@@ -291,10 +292,12 @@ static esp_err_t dm9051_hash_filter_modify(emac_dm9051_t *emac, uint8_t *addr, b
         mar |= (1 << hash_bit);
         emac->hash_filter_cnt[hash_value]++;
     } else {
-        emac->hash_filter_cnt[hash_value]--;
-        if (emac->hash_filter_cnt[hash_value] == 0) {
-            // remove address from hash table
-            mar &= ~(1 << hash_bit);
+        if (emac->hash_filter_cnt[hash_value] > 0) {
+            emac->hash_filter_cnt[hash_value]--;
+            if (emac->hash_filter_cnt[hash_value] == 0) {
+                // remove address from hash table
+                mar &= ~(1 << hash_bit);
+            }
         }
     }
     ESP_GOTO_ON_ERROR(dm9051_register_write(emac, (DM9051_MAR + hash_group), mar), err, TAG, "write MAR failed");
