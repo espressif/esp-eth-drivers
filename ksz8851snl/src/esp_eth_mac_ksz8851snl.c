@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * SPDX-FileContributor: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2025-2026 Espressif Systems (Shanghai) CO LTD
  */
 
 #include <string.h>
@@ -320,6 +320,7 @@ static esp_err_t init_set_defaults(emac_ksz8851snl_t *emac)
     ESP_GOTO_ON_ERROR(ksz8851_set_bits(emac, KSZ8851_ISR, ISR_ALL), err, TAG, "ISR write failed");
     ESP_GOTO_ON_ERROR(ksz8851_set_bits(emac, KSZ8851_IER, IER_TXIE | IER_RXIE | IER_LDIE | IER_SPIBEIE | IER_RXOIE), err, TAG, "IER write failed");
     ESP_GOTO_ON_ERROR(ksz8851_set_bits(emac, KSZ8851_TXQCR, TXQCR_AETFE), err, TAG, "TXQCR write failed");
+    memset(emac->hash_filter_cnt, 0, sizeof(emac->hash_filter_cnt));
     return ESP_OK;
 err:
     return ret;
@@ -632,9 +633,13 @@ static esp_err_t ksz8851_hash_filter_modify(emac_ksz8851snl_t *emac, uint8_t *ad
         ESP_GOTO_ON_ERROR(ksz8851_set_bits(emac, mar_reg, 1 << hash_bit), err, TAG, "hash table set bits failed");
         emac->hash_filter_cnt[hash_value]++;
     } else {
-        // remove address from hash table
-        ESP_GOTO_ON_ERROR(ksz8851_clear_bits(emac, mar_reg, 1 << hash_bit), err, TAG, "hash table clear bits failed");
-        emac->hash_filter_cnt[hash_value]--;
+        if (emac->hash_filter_cnt[hash_value] > 0) {
+            emac->hash_filter_cnt[hash_value]--;
+            if (emac->hash_filter_cnt[hash_value] == 0) {
+                // remove address from hash table
+                ESP_GOTO_ON_ERROR(ksz8851_clear_bits(emac, mar_reg, 1 << hash_bit), err, TAG, "hash table clear bits failed");
+            }
+        }
     }
 err:
     return ret;
