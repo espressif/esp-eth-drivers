@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -531,6 +531,7 @@ static esp_err_t lan865x_default_config(emac_lan865x_t *emac)
     ESP_GOTO_ON_ERROR(lan865x_write_reg(emac, 0x4, 0x0055, 0x0000), err, TAG, "Failed to write 0x0055");
     ESP_GOTO_ON_ERROR(lan865x_write_reg(emac, 0x4, 0x0040, 0x0002), err, TAG, "Failed to write 0x0040");
     ESP_GOTO_ON_ERROR(lan865x_write_reg(emac, 0x4, 0x0050, 0x0002), err, TAG, "Failed to write 0x0050");
+    memset(emac->hash_filter_cnt, 0, sizeof(emac->hash_filter_cnt));
 err:
     return ret;
 }
@@ -711,10 +712,12 @@ static esp_err_t lan865x_hash_filter_modify(emac_lan865x_t *emac, uint8_t *addr,
 
         emac->hash_filter_cnt[hash_value]++;
     } else {
-        emac->hash_filter_cnt[hash_value]--;
-        if (emac->hash_filter_cnt[hash_value] == 0) {
-            // remove address from hash table
-            *hash_addr &= ~(1 << hash_bit);
+        if (emac->hash_filter_cnt[hash_value] > 0) {
+            emac->hash_filter_cnt[hash_value]--;
+            if (emac->hash_filter_cnt[hash_value] == 0) {
+                // remove address from hash table
+                *hash_addr &= ~(1 << hash_bit);
+            }
         }
     }
     // Write order matters
