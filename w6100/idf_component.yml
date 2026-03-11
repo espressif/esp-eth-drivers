@@ -1,8 +1,8 @@
-version: 1.0.1
-description: W5500 Ethernet Driver
-url: https://github.com/espressif/esp-eth-drivers/tree/master/w5500
+version: 1.0.0
+description: W6100 Ethernet Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/w6100
 dependencies:
-  idf: '>=6.0'
+  idf: '>=5.3'
   espressif/wiznet_common:
     version: '^1.0.0'
     require: public
