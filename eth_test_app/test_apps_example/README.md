@@ -19,12 +19,11 @@ idf.py create-project-from-example "espressif/eth_test_app=*:test_apps_example"
 
 See the `CONFIGURE FOR YOUR CHIP` block at the top of `pytest_ethernet.py` for details.
 
-3) And run your tests as:
-```python
-def test_eth_example(dut: Dut, eth_test_runner) -> None:
-    eth_test_runner.run_ethernet_test_apps(dut)
-    dut.serial.hard_reset()
-    eth_test_runner.run_ethernet_l2_test(dut, TEST_IF)
-    dut.serial.hard_reset()
-    eth_test_runner.run_ethernet_heap_alloc_test(dut, TEST_IF)
+3) Run your test as:
+```bash
+pytest --target esp32
+```
+or
+```bash
+ pytest 'pytest_ethernet.py::test_eth_example[default-esp32]'
 ```

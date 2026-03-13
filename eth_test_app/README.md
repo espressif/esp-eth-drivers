@@ -10,6 +10,12 @@ Install third-party Python packages required by the `pytest` test script:
 pip install scapy
 ```
 
+Have root permission to run the test app (since RAW socket is used) or set correct capacity through:
+
+```bash
+sudo setcap 'CAP_NET_RAW+eip' $(readlink -f $(which python))
+```
+
 ## Usage
 
 The easiest way is to base your test project on the example:
@@ -197,8 +203,3 @@ TEST_CASE("ethernet basic test", "[ethernet][esp-netif]")
 ## Basic Test Suite
 
 The Ethernet Test App is shipped with basic set of tests to test common Ethernet modes configuration and basic Ethernet functionality with IP stack (like DHCP IP address assignment,...)
-
-## TODO
-
-* describe that the easiest way is to start with example (is there any command to create project based on example => if so use that)
-* maybe move this information at the start of the README as this will be the most common use case. The rest is too specific and boring
