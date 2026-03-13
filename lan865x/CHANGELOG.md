@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.4...lan865x@v0.2.0) (2026-03-13)
+
+
+### Features
+
+* **lan865x:** improvements on hash table reliability ([8514814](https://github.com/espressif/esp-eth-drivers/commit/851481453eb1e0268b33eaacaaf56d6f02a9839c))
+
 ## [0.1.4](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.3...lan865x@v0.1.4) (2026-02-16)
 
 
