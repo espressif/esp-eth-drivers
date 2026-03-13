@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/enc28j60@v1.0.1...enc28j60@v1.1.0) (2026-03-13)
+
+
+### Features
+
+* **enc28j60:** Add mcast filter for enc28j60 ([6fe54c3](https://github.com/espressif/esp-eth-drivers/commit/6fe54c31b3bca73c2a1329f65a0dabdef29c5dab))
+
+
+### Bug Fixes
+
+* **enc28j60:** Fix null pointer, missing set_link ([b3556a4](https://github.com/espressif/esp-eth-drivers/commit/b3556a4a6db3ba9c3653d7273602605973bf6bb1))
+* fixed formatting in all components ([9f0f356](https://github.com/espressif/esp-eth-drivers/commit/9f0f356a4b1402c6c19787619288e0f84310464a))
+* **ksz8863:** fixed previous corrupted component upload ([972933c](https://github.com/espressif/esp-eth-drivers/commit/972933c0c907415fef26d3a1e5cda321b62834f7))
+
 ## [1.0.1](https://github.com/espressif/esp-eth-drivers/compare/enc28j60@v1.0.0...enc28j60@v1.0.1) (2025-04-22)
 
 
