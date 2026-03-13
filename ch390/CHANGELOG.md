@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.3.0...ch390@v0.4.0) (2026-03-13)
+
+
+### Features
+
+* **ch390:** Add mcast MAC filter for ch390 ([efc37ad](https://github.com/espressif/esp-eth-drivers/commit/efc37ad51d5e89d87e3371cd5c9b1e061a041bf0))
+
 ## [0.3.0](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.2.2...ch390@v0.3.0) (2025-09-26)
 
 ### Bug Fixes
