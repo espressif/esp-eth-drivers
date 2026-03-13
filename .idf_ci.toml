@@ -34,3 +34,4 @@ job_template_jinja = """
       --parallel-index ${CI_NODE_INDEX:-1}
 
 """
+runs_per_job = 35

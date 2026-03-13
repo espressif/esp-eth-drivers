@@ -21,6 +21,7 @@ env:
     enc28j60
     ethernet_init
     eth_dummy_phy
+    eth_test_app
     dm9051
     dp83848
     ip101

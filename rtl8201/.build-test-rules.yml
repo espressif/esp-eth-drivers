@@ -1,0 +1,8 @@
+# Build test rules for test_apps
+# This file is used by idf-build-apps to determine which examples to build and test
+
+rtl8201/test_apps:
+  enable:
+    - if: IDF_TARGET == "esp32"
+      temporary: true
+      reason: only ESP32 runner is supported for now

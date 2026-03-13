@@ -207,12 +207,17 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // starts switching the associated port (e.g. it runs RSTP at first)
     poke_and_wait(eth_handle, NULL, 0, NULL, eth_event_rx_group);
 
+    // this variable is used to ensure integrity of the test after the update
+    int32_t test_iteration = 0;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
     // tell to the test script how many Tx iterations are expected
-    printf("Number of expected iterations: 6\n");
+    // Update the expected iterations when a new test step is added
+    const int32_t expected_iterations = 6;
+    printf("Number of expected iterations: %" PRIi32 "\n", expected_iterations);
     // ---------------------------------------
     printf("Default conditions (multicast disabled)\n");
     // ---------------------------------------
+    test_iteration++;
     EventBits_t expected_bits;
     int expected_multicast_rx_cnt;
 // *** W5500 deviation ***
@@ -243,6 +248,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // ---------------------------------------
     printf("Enable receive all multicast\n");
     // ---------------------------------------
+    test_iteration++;
     expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
     expected_multicast_rx_cnt = 2;
 
@@ -265,6 +271,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // ---------------------------------------
     printf("Disable receive all multicast\n");
     // ---------------------------------------
+    test_iteration++;
 // *** W5500 deviation ***
 // Rationale: The W5500 always receives IPv6 multicast packets, even if the filter is set to block multicast.
 //            It's not documented behavior, but it's observed on the real hardware.
@@ -295,6 +302,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // ---------------------------------------
     printf("Add multicast addresses to the filter\n");
     // ---------------------------------------
+    test_iteration++;
     expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
     expected_multicast_rx_cnt = 2;
 
@@ -319,6 +327,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // --------------------------------------------
     printf("Remove one multicast address from the filter\n");
     // --------------------------------------------
+    test_iteration++;
     expected_bits = ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT;
     expected_multicast_rx_cnt = 1;
 
@@ -340,6 +349,7 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     // ----------------------------------------------
     printf("Remove all multicast addresses from the filter\n");
     // ----------------------------------------------
+    test_iteration++;
 // *** W5500 deviation ***
 // Rationale: The W5500 always receives IPv6 multicast packets, even if the filter is set to block multicast.
 //            It's not documented behavior, but it's observed on the real hardware.
@@ -371,14 +381,20 @@ TEST_CASE("ethernet recv_pkt", "[ethernet_l2]")
     TEST_ASSERT_EQUAL(1, s_recv_info.unicast_rx_cnt);
     TEST_ASSERT_EQUAL(1, s_recv_info.brdcast_rx_cnt);
     TEST_ASSERT_EQUAL(expected_multicast_rx_cnt, s_recv_info.multicast_rx_cnt);
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(expected_iterations, test_iteration, "Test iteration count mismatch, this is not device failure but test integrity problem");
 #else
-    printf("Number of expected iterations: 1\n");
+    // Update the expected iterations when a new test step is added
+    const int32_t expected_iterations = 1;
+    printf("Number of expected iterations: %" PRIi32 "\n", expected_iterations);
+    test_iteration++;
     printf("Filter configured\n"); // for pytest compatibility
     bits = xEventGroupWaitBits(eth_event_rx_group, ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT,
                                true, true, pdMS_TO_TICKS(1000));
     printf("bits = 0x%" PRIu32 "\n", (uint32_t)bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT));
     TEST_ASSERT((bits & (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT)) ==
                 (ETH_BROADCAST_RECV_BIT | ETH_MULTICAST_RECV_BIT | ETH_UNICAST_RECV_BIT));
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(expected_iterations, test_iteration, "Test iteration count mismatch, this is not device failure but test integrity problem");
 #endif
     TEST_ESP_OK(esp_eth_stop(eth_handle));
 }
@@ -496,6 +512,14 @@ TEST_CASE("heap utilization", "[ethernet_l2]")
     // ---------------------------------------
     // Loopback greatly simplifies the test !!
     // ---------------------------------------
+    // Disable autonegotiation and set speed/duplex at first
+    bool auto_nego_en = false;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_AUTONEGO, &auto_nego_en));
+    eth_speed_t speed = ETH_SPEED_100M;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &speed));
+    eth_duplex_t duplex = ETH_DUPLEX_FULL;
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
+    // Enable loopback
     bool loopback_en = true;
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_PHY_LOOPBACK, &loopback_en));
     printf("PHY loopback is enabled\n");

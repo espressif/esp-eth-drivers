@@ -5,3 +5,7 @@ dependencies:
   idf: '>=6.0'
 examples:
   - path: ../common_examples/
+files:
+  exclude:
+    - test_apps/**/*
+    - .build-test-rules.yml

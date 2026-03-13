@@ -6,3 +6,7 @@ description: KSZ80xx Ethernet PHY Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ksz80xx
 dependencies:
   idf: '>=6.0'
+files:
+  exclude:
+    - test_apps/**/*
+    - .build-test-rules.yml
