@@ -617,46 +617,59 @@ esp_err_t ethernet_init_all(esp_eth_handle_t *eth_handles_out[], uint8_t *eth_cn
 
     /*
     The SPI Ethernet module(s) might not have a burned factory MAC address, hence use manually configured address(es).
-    In this component, a locally administered MAC address derived from ESP32x base MAC address is used or
-    the MAC address is configured via Kconfig.
+    In this component, the MAC address is either:
+      - Derived as a locally administered address from the ESP32x base ETH MAC address (default, backward compatible), or
+      - Set directly to the ESP32x base ETH MAC address without the locally administered derivation step, or
+      - Configured manually via Kconfig.
+    The locally administered derivation can be disabled per module via ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR0/1.
     Note: The locally administered OUI range should be used only when testing on a LAN under your control!
     */
 
-    uint8_t local_mac_0[ETH_ADDR_LEN];
+    uint8_t mac_addr_0[ETH_ADDR_LEN];
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0 || CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
     uint8_t base_eth_mac_addr[ETH_ADDR_LEN];
     ESP_GOTO_ON_ERROR(esp_read_mac(base_eth_mac_addr, ESP_MAC_ETH), err, TAG, "get ETH MAC failed");
 #endif
 
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
-    esp_derive_local_mac(local_mac_0, base_eth_mac_addr);
+    /* Force local mac derivation when internal EMAC is also present to avoid collision with ESP_MAC_ETH. */
+#if CONFIG_ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR0 || CONFIG_ETHERNET_INTERNAL_SUPPORT
+    esp_derive_local_mac(mac_addr_0, base_eth_mac_addr);
 #else
-    sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR0, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (local_mac_0[0]),
-           (unsigned int *)&local_mac_0[1],
-           (unsigned int *)&local_mac_0[2],
-           (unsigned int *)&local_mac_0[3],
-           (unsigned int *)&local_mac_0[4],
-           (unsigned int *)&local_mac_0[5]);
-    ESP_GOTO_ON_ERROR(esp_iface_mac_addr_set(local_mac_0, ESP_MAC_ETH), err, TAG, "set ETH MAC failed");
-#endif
+    memcpy(mac_addr_0, base_eth_mac_addr, ETH_ADDR_LEN);
+#endif // CONFIG_ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR0 || CONFIG_ETHERNET_INTERNAL_SUPPORT
+#else
+    sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR0, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (mac_addr_0[0]),
+           (unsigned int *)&mac_addr_0[1],
+           (unsigned int *)&mac_addr_0[2],
+           (unsigned int *)&mac_addr_0[3],
+           (unsigned int *)&mac_addr_0[4],
+           (unsigned int *)&mac_addr_0[5]);
+    ESP_GOTO_ON_ERROR(esp_iface_mac_addr_set(mac_addr_0, ESP_MAC_ETH), err, TAG, "set ETH MAC failed");
+#endif // CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
     INIT_SPI_ETH_MODULE_CONFIG(spi_eth_module_config, 0);
-    spi_eth_module_config[0].mac_addr = local_mac_0;
+    spi_eth_module_config[0].mac_addr = mac_addr_0;
 
 #if ETHERNET_SPI_NUMBER > 1
-    uint8_t local_mac_1[ETH_ADDR_LEN];
+    uint8_t mac_addr_1[ETH_ADDR_LEN];
 #if CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
     base_eth_mac_addr[ETH_ADDR_LEN - 1] += 1;
-    esp_derive_local_mac(local_mac_1, base_eth_mac_addr);
+    /* Force local mac derivation when internal EMAC is also present to avoid collision with ESP_MAC_ETH. */
+#if CONFIG_ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR1 || CONFIG_ETHERNET_INTERNAL_SUPPORT
+    esp_derive_local_mac(mac_addr_1, base_eth_mac_addr);
 #else
-    sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR1, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (local_mac_1[0]),
-           (unsigned int *)&local_mac_1[1],
-           (unsigned int *)&local_mac_1[2],
-           (unsigned int *)&local_mac_1[3],
-           (unsigned int *)&local_mac_1[4],
-           (unsigned int *)&local_mac_1[5]);
-#endif
+    memcpy(mac_addr_1, base_eth_mac_addr, ETH_ADDR_LEN);
+#endif // CONFIG_ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR1 || CONFIG_ETHERNET_INTERNAL_SUPPORT
+#else
+    sscanf(CONFIG_ETHERNET_SPI_MAC_ADDR1, "%2x:%2x:%2x:%2x:%2x:%2x", (unsigned int *) & (mac_addr_1[0]),
+           (unsigned int *)&mac_addr_1[1],
+           (unsigned int *)&mac_addr_1[2],
+           (unsigned int *)&mac_addr_1[3],
+           (unsigned int *)&mac_addr_1[4],
+           (unsigned int *)&mac_addr_1[5]);
+#endif // CONFIG_ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
     INIT_SPI_ETH_MODULE_CONFIG(spi_eth_module_config, 1);
-    spi_eth_module_config[1].mac_addr = local_mac_1;
+    spi_eth_module_config[1].mac_addr = mac_addr_1;
 #endif
 
 #if ETHERNET_SPI_NUMBER > 2

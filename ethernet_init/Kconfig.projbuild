@@ -562,14 +562,34 @@ menu "Ethernet Configuration"
                 Set the first SPI Ethernet module PHY address according your board schematic.
 
         config ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
-            bool "Auto-configure MAC address of SPI Ethernet #1"
+            bool "Auto-configure MAC address of SPI Ethernet module #1"
             default y
             select ETH_SPI_CONFIG_ENABLE_MAC_ADDR0
             help
-                Auto-configure mac address for SPI Ethernet
+                Automatically derive the MAC address for the first SPI Ethernet module from
+                the ESP32 base ETH MAC address instead of using a manually entered address.
+
+        config ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR0
+            bool "Use locally administered MAC address for SPI Ethernet module #1"
+            depends on ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0 && !ETHERNET_INTERNAL_SUPPORT && ESP_MAC_ADDR_UNIVERSE_ETH
+            default y
+            help
+                When enabled (default), a locally administered MAC address is derived from
+                the ESP32 base ETH MAC address using esp_derive_local_mac(). This guarantees
+                the address is unique and does not conflict with manufacturer-assigned addresses.
+
+                When disabled, the ESP_MAC_ETH base address is used directly without the
+                locally administered derivation step. Note that ESP_MAC_ETH returns the
+                address for a single Ethernet interface; use with care when multiple SPI
+                Ethernet modules are present.
+
+                Note: This option is only available when the chip has a dedicated ETH MAC
+                address slot (ESP_MAC_ADDR_UNIVERSE_ETH) and internal EMAC is not enabled.
+                When internal EMAC is also configured, locally administered derivation is
+                always applied to prevent MAC address collision.
 
         config ETHERNET_SPI_MAC_ADDR0
-            string "MAC address of SPI Ethernet #1"
+            string "MAC address of SPI Ethernet module #1"
             default "5a:bf:25:e0:41:00"
             depends on !ETHERNET_SPI_AUTOCONFIG_MAC_ADDR0
 
@@ -623,13 +643,34 @@ menu "Ethernet Configuration"
 
         config ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1
             depends on !ETHERNET_SPI_DEV1_NONE
-            bool "Auto-configure MAC address of SPI Ethernet #2"
+            bool "Auto-configure MAC address of SPI Ethernet module #2"
             default y
             help
-                Auto-configure mac address for SPI Ethernet
+                Automatically derive the MAC address for the second SPI Ethernet module from
+                the ESP32 base ETH MAC address instead of using a manually entered address.
+
+        config ETHERNET_SPI_LOCAL_ADMIN_MAC_ADDR1
+            bool "Use locally administered MAC address for SPI Ethernet module #2"
+            depends on ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1 && !ETHERNET_SPI_DEV1_NONE && !ETHERNET_INTERNAL_SUPPORT && ESP_MAC_ADDR_UNIVERSE_ETH
+            default y
+            help
+                When enabled (default), a locally administered MAC address is derived from
+                the ESP32 base ETH MAC address (incremented by one) using esp_derive_local_mac().
+                This guarantees the address is unique and does not conflict with
+                manufacturer-assigned addresses.
+
+                When disabled, the incremented base ETH MAC address is used directly without
+                the locally administered derivation step. Note that ESP_MAC_ETH returns the
+                address for a single Ethernet interface; use with care when multiple SPI
+                Ethernet modules are present.
+
+                Note: This option is only available when the chip has a dedicated ETH MAC
+                address slot (ESP_MAC_ADDR_UNIVERSE_ETH) and internal EMAC is not enabled.
+                When internal EMAC is also configured, locally administered derivation is
+                always applied to prevent MAC address collision.
 
         config ETHERNET_SPI_MAC_ADDR1
-            string "MAC address of SPI Ethernet #2"
+            string "MAC address of SPI Ethernet module #2"
             default "5a:bf:25:e0:41:01"
             depends on (!ETHERNET_SPI_AUTOCONFIG_MAC_ADDR1) && (!ETHERNET_SPI_DEV1_NONE)
 
