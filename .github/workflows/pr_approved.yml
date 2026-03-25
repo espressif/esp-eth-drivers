@@ -19,6 +19,10 @@ jobs:
     if: (github.event.label.name == 'PR-Sync-Merge')   ||
         (github.event.label.name == 'PR-Sync-Rebase')  ||
         (github.event.label.name == 'PR-Sync-Update')
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
 
