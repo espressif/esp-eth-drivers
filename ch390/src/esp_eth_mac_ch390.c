@@ -424,7 +424,13 @@ static esp_err_t ch390_setup_default(emac_ch390_t *emac)
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR, 0x00), err, TAG, "write TCR failed");
     /* stop receiving, no promiscuous mode, no runt packet(size < 64bytes), multicast receive disabled by default */
     /* discard long packet(size > 1522bytes) and crc error packet, enable watchdog */
-    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, RCR_DIS_CRC), err, TAG, "write RCR failed");
+    uint8_t rcr = RCR_DIS_CRC;
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 5, 0)
+    /* receive all multicast packets */
+    rcr |= RCR_ALL;
+#endif // ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 5, 0)
+    ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_RCR, rcr), err, TAG, "write RCR failed");
+
     /* retry late collision packet, at most two transmit command can be issued before transmit complete */
     ESP_GOTO_ON_ERROR(ch390_io_register_write(emac, CH390_TCR2, TCR2_RLCP), err, TAG, "write TCR2 failed");
     /* generate checksum for UDP, TCP and IPv4 packets */
