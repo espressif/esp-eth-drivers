@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
-          pip install -U idf-ci
+          pip install -U 'idf-ci>=1,<2'
       - name: Build ESP-IDF Projects
         id: build-esp-idf-projects
         shell: bash

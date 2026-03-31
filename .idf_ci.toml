@@ -1,4 +1,4 @@
-[gitlab.artifacts]
+[gitlab.artifacts.native]
 build_job_filepatterns = [
     "**/build*/*.bin",
     "**/build*/flasher_args.json",
@@ -19,13 +19,13 @@ job_template_jinja = """
   timeout: "1h"
   artifacts:
     paths:
-    {%- for path in settings.gitlab.artifacts.build_job_filepatterns %}
+    {%- for path in settings.gitlab.artifacts.native.build_job_filepatterns %}
       - "{{ path }}"
     {%- endfor %}
     expire_in: "1 week"
     when: "always"
   before_script:
-    - pip install -U 'idf-ci<1'
+    - pip install -U 'idf-ci>=1,<2'
     - pip install -r .ci/requirements.txt
   script:
     - python tools/overwrite_component_path.py . .
