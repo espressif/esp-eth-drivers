@@ -5,3 +5,4 @@ Warning: Deprecated: Command 'sign_data' is deprecated. Use 'sign-data' instead.
 Warning: Deprecated: Command 'extract_public_key' is deprecated. Use 'extract-public-key' instead.
 WARNING: The following Kconfig variables were used in "if" clauses
 warning: unknown kconfig symbol 'ETHERNET_OPENETH_SUPPORT' assigned to
+UserWarning: Pydantic serializer warnings

@@ -14,6 +14,7 @@
 #include "esp_eth_test_utils.h"
 #include "esp_check.h"
 #include "ethernet_init.h"
+#include "esp_netif.h"
 
 // Local override of TEST_ASSERT and TEST_ESP_OK to fix Unity file name reporting
 // when assertions are in a different file than the test. This temporarily sets Unity.
@@ -305,6 +306,47 @@ void eth_test_default_event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
+/**
+ * Set public DNS servers as backup and fallback
+ *
+ * Priority used by lwIP:
+ *   DNS_MAIN (0)     - assigned by DHCP lease (kept as primary)
+ *   DNS_BACKUP (1)   - Google Public DNS 8.8.8.8  (used if main fails)
+ *   DNS_FALLBACK (2) - Google Public DNS 8.8.4.4  (last resort)
+ */
+static void eth_test_set_dns_fallback(esp_netif_t *netif)
+{
+    esp_netif_dns_info_t dns = {0};
+    dns.ip.type = ESP_IPADDR_TYPE_V4;
+
+    /* Check what DNS the DHCP lease provided in slot 0 */
+    esp_netif_dns_info_t dhcp_dns = {0};
+    esp_err_t ret = esp_netif_get_dns_info(netif, ESP_NETIF_DNS_MAIN, &dhcp_dns);
+    bool has_dhcp_dns = (ret == ESP_OK && dhcp_dns.ip.u_addr.ip4.addr != 0);
+
+    if (has_dhcp_dns) {
+        ESP_LOGI(TAG, "DHCP DNS: " IPSTR " (keeping as primary)", IP2STR(&dhcp_dns.ip.u_addr.ip4));
+        /* Keep DHCP DNS as primary, add Google DNS as backup and fallback */
+        dns.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 8, 8);
+        esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns);
+        ESP_LOGI(TAG, "Backup DNS set: 8.8.8.8");
+
+        dns.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 4, 4);
+        esp_netif_set_dns_info(netif, ESP_NETIF_DNS_FALLBACK, &dns);
+        ESP_LOGI(TAG, "Fallback DNS set: 8.8.4.4");
+    } else {
+        /* No DNS from DHCP, set Google DNS as primary so lwIP uses it immediately */
+        ESP_LOGW(TAG, "No DNS received from DHCP — setting 8.8.8.8 as primary DNS");
+        dns.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 8, 8);
+        esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns);
+        ESP_LOGI(TAG, "Primary DNS set: 8.8.8.8");
+
+        dns.ip.u_addr.ip4.addr = ESP_IP4TOADDR(8, 8, 4, 4);
+        esp_netif_set_dns_info(netif, ESP_NETIF_DNS_BACKUP, &dns);
+        ESP_LOGI(TAG, "Backup DNS set: 8.8.4.4");
+    }
+}
+
 /** Event handler for IP_EVENT_ETH_GOT_IP */
 void eth_test_got_ip_event_handler(void *arg, esp_event_base_t event_base,
                                    int32_t event_id, void *event_data)
@@ -318,5 +360,6 @@ void eth_test_got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
+    eth_test_set_dns_fallback(event->esp_netif);
     xEventGroupSetBits(eth_event_group, ETH_GOT_IP_BIT);
 }
