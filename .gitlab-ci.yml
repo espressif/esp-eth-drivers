@@ -14,6 +14,7 @@ include:
   - local: '.gitlab/ci/pre-check.yml'
   - local: '.gitlab/ci/build.yml'
   - local: '.gitlab/ci/deploy.yml'
+  - local: '.gitlab/ci/prebuild_report.yml'
 
 variables:
   FORCE_COLOR: "1"
