@@ -869,7 +869,7 @@ static esp_err_t emac_lan865x_receive(esp_eth_mac_t *mac, uint8_t *buf, uint32_t
         ESP_LOGD(TAG, "No receive blocks available");
         return ESP_ERR_NO_MEM;
     }
-    uint32_t frame_len = ETH_MAX_PACKET_SIZE;
+    uint32_t frame_len = LAN865X_RX_BUFFER_SIZE;
     ESP_GOTO_ON_ERROR(lan865x_frame_receive(emac, emac->rx_buffer, &frame_len, NULL), err, TAG, "frame receive failed at SPI");
     if (frame_len > 0) {
         uint32_t copy_len = frame_len;
@@ -918,7 +918,7 @@ static void emac_lan865x_task(void *arg)
 
         uint8_t remain = 0;
         do {
-            uint32_t frame_len = ETH_MAX_PACKET_SIZE;
+            uint32_t frame_len = LAN865X_RX_BUFFER_SIZE;
             if (lan865x_frame_receive(emac, emac->rx_buffer, &frame_len, &remain) == ESP_OK) {
                 if (frame_len > 0) {
                     uint8_t *buffer = malloc(frame_len);
