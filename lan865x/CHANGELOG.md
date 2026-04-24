@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.4...lan865x@v0.2.0) (2026-04-24)
+
+
+### Features
+
+* **lan865x:** improvements on hash table reliability ([8514814](https://github.com/espressif/esp-eth-drivers/commit/851481453eb1e0268b33eaacaaf56d6f02a9839c))
+
+
+### Bug Fixes
+
+* **lan865x:** fixed error when max ETH frame size received [#150](https://github.com/espressif/esp-eth-drivers/issues/150) ([ecf1ae2](https://github.com/espressif/esp-eth-drivers/commit/ecf1ae2826cb12f0718e2dd64e7189cfa88d8901))
+
 ## [0.1.4](https://github.com/espressif/esp-eth-drivers/compare/lan865x@v0.1.3...lan865x@v0.1.4) (2026-02-16)
 
 
