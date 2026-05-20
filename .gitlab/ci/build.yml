@@ -9,7 +9,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v6.1:1"
+      build-job-image: "espressif/idf:latest"
       test-job-image: "$CI_REGISTRY/ci/images/idf-v6.1-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.1"
@@ -19,7 +19,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v6.0:1"
+      build-job-image: "espressif/idf:release-v6.0"
       test-job-image: "$CI_REGISTRY/ci/images/idf-v6.0-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.0"
@@ -29,7 +29,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v5.5:1"
+      build-job-image: "espressif/idf:release-v5.5"
       test-job-image: "$CI_REGISTRY/ci/images/idf-v5.5-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v5.5"
@@ -39,7 +39,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v5.4:1"
+      build-job-image: "espressif/idf:release-v5.4"
       test-job-image: "$CI_REGISTRY/ci/images/idf-v5.4-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v5.4"
@@ -53,7 +53,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v6.1:1"
+      build-job-image: "espressif/idf:latest"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.1"
       max-apps-per-node: 40
@@ -61,7 +61,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v6.0:1"
+      build-job-image: "espressif/idf:release-v6.0"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.0"
       max-apps-per-node: 40
@@ -69,7 +69,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v5.5:1"
+      build-job-image: "espressif/idf:release-v5.5"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v5.5"
       max-apps-per-node: 40
@@ -77,7 +77,7 @@ include:
     rules:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
-      build-job-image: "$CI_REGISTRY/ci/images/idf-v5.4:1"
+      build-job-image: "espressif/idf:release-v5.4"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v5.4"
       max-apps-per-node: 40
