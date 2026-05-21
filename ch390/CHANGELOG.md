@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.4.0...ch390@v0.4.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* **ch390:** reenabled multicast recv all in IDF&lt;5.5 ([dbf7128](https://github.com/espressif/esp-eth-drivers/commit/dbf712863491d926e8288271058342b66f4a1382))
+
 ## [0.4.0](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.3.0...ch390@v0.4.0) (2026-04-10)
 
 
