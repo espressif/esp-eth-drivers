@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.3.0...ethernet_init@v1.4.0) (2026-05-21)
+
+
+### Features
+
+* **ethernet_init:** make locally administered MAC derivation optional per SPI module ([babaa8c](https://github.com/espressif/esp-eth-drivers/commit/babaa8cf6e0d4a9c18f6c4aef65d6b99381d8d91))
+
+
+### Bug Fixes
+
+* **ethernet_init:** added dev_name when generic PHY selected ([1d1abd6](https://github.com/espressif/esp-eth-drivers/commit/1d1abd61ad41aab3e916c776d6cad2894146469c))
+
 ## [1.3.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.2.0...ethernet_init@v1.3.0) (2026-01-29)
 
 
