@@ -38,6 +38,11 @@ menu "Ethernet Configuration"
         default 1 if ETHERNET_SPI_DEV0_W5500 || ETHERNET_SPI_DEV1_W5500
         default 0
 
+    config ETHERNET_SPI_USE_W6100
+        int
+        default 1 if ETHERNET_SPI_DEV0_W6100 || ETHERNET_SPI_DEV1_W6100
+        default 0
+
     config ETHERNET_SPI_USE_CH390
         int
         default 1 if ETHERNET_SPI_DEV0_CH390 || ETHERNET_SPI_DEV1_CH390
@@ -407,6 +412,9 @@ menu "Ethernet Configuration"
                 bool "W5500 Module"
                 select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
 
+            config ETHERNET_SPI_DEV0_W6100
+                bool "W6100 Module"
+
             config ETHERNET_SPI_DEV0_CH390
                 bool "CH390 Module"
 
@@ -440,6 +448,9 @@ menu "Ethernet Configuration"
                 bool "W5500 Module"
                 select ETH_SPI_ETHERNET_W5500 # for backward compatibility with IDF<6.0
 
+            config ETHERNET_SPI_DEV1_W6100
+                bool "W6100 Module"
+
             config ETHERNET_SPI_DEV1_CH390
                 bool "CH390 Module"
 
@@ -458,6 +469,7 @@ menu "Ethernet Configuration"
             default 3 if ETHERNET_SPI_DEV0_CH390
             default 4 if ETHERNET_SPI_DEV0_ENC28J60
             default 5 if ETHERNET_SPI_DEV0_LAN865X
+            default 6 if ETHERNET_SPI_DEV0_W6100
 
         config ETHERNET_SPI_DEV1_ID
             depends on !ETHERNET_SPI_DEV1_NONE
@@ -468,6 +480,7 @@ menu "Ethernet Configuration"
             default 3 if ETHERNET_SPI_DEV1_CH390
             default 4 if ETHERNET_SPI_DEV1_ENC28J60
             default 5 if ETHERNET_SPI_DEV1_LAN865X
+            default 6 if ETHERNET_SPI_DEV1_W6100
 
         config ETHERNET_SPI_HOST
             int "SPI Host Number"

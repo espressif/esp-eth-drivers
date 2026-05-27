@@ -25,10 +25,10 @@ spi_device_interface_config_t spi_devcfg = {
 };
 
 eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_TCPSERVER_ETH_SPI_HOST,&spi_devcfg);
-w5500_config.int_gpio_num = CONFIG_TCPSERVER_ETH_SPI_INT_GPIO;
+w5500_config.base.int_gpio_num = CONFIG_TCPSERVER_ETH_SPI_INT_GPIO;
 
 #if CONFIG_TCPSERVER_ETH_SPI_INT_GPIO < 0
-w5500_config.poll_period_ms = CONFIG_TCPSERVER_ETH_SPI_POLLING_MS_VAL;
+w5500_config.base.poll_period_ms = CONFIG_TCPSERVER_ETH_SPI_POLLING_MS_VAL;
 #endif
 ```
 

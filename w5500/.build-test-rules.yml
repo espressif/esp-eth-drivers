@@ -6,3 +6,6 @@ w5500/test_apps:
     - if: IDF_TARGET == "esp32"
       temporary: true
       reason: only ESP32 runner is supported for now
+  disable:
+    - if: IDF_VERSION < "6.0"
+      reason: skip w5500 on IDF < 6.0; registry driver lacks base config API used by ethernet_init

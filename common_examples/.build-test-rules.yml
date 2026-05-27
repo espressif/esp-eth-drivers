@@ -12,6 +12,9 @@ common_examples/simple-ethernet:
     - if: IDF_TARGET in ["esp32", "esp32p4"]
       temporary: true
       reason: to save build time, build for Extensa and RISC-V
+  disable:
+    - if: CONFIG_NAME == "w5500" and IDF_VERSION < "6.0"
+      reason: skip w5500 on IDF < 6.0; registry driver lacks base config API used by ethernet_init
 
 common_examples/tcp_server:
   enable:

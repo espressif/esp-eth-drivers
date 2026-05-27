@@ -6,28 +6,25 @@ Target test using EthTestRunner from eth_test_app component.
 
 import pytest
 
-from idf_build_apps.constants import IDF_VERSION
-from packaging.version import Version
 from pytest_embedded import Dut
 
-TEST_IF = ''
+# W6100 hardware is not yet available in CI; skip the whole module at collection
+# time so the dynamic pipeline does not schedule a stuck job. Remove this skip
+# once a CI runner with the `eth_w6100` tag exists.
+pytest.skip('W6100 hardware not yet available in CI', allow_module_level=True)
 
-# W5500 driver v2 requires IDF >= 6.0.
-_W5500_REQUIRES_IDF6 = pytest.mark.skipif(
-    IDF_VERSION < Version('6.0'),
-    reason='W5500 driver v2 requires IDF >= 6.0',
-)
+TEST_IF = ''
 
 
 @pytest.mark.parametrize(
     'config, target',
     [
-        pytest.param('default_w5500', 'esp32', marks=[pytest.mark.eth_w5500, _W5500_REQUIRES_IDF6]),
-        pytest.param('poll_w5500', 'esp32', marks=[pytest.mark.eth_w5500, _W5500_REQUIRES_IDF6]),
+        pytest.param('default_w6100', 'esp32', marks=[pytest.mark.eth_w6100]),
+        pytest.param('poll_w6100', 'esp32', marks=[pytest.mark.eth_w6100]),
     ],
     indirect=['target'],
 )
-def test_eth_w5500(dut: Dut, eth_test_runner) -> None:
+def test_eth_w6100(dut: Dut, eth_test_runner) -> None:
     eth_test_runner.run_ethernet_test_apps(dut)
     dut.serial.hard_reset()
     eth_test_runner.run_ethernet_l2_test(dut, TEST_IF)

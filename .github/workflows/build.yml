@@ -27,6 +27,7 @@ jobs:
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
+          python tools/overwrite_component_path.py . .
           idf-ci build run
       - name: Upload Artifact
         # We want to store artifact even when build fails for analysis

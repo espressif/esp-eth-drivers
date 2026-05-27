@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -16,19 +16,19 @@ extern "C" {
 #endif
 
 /**
- * @brief W5500 specific configuration
+ * @brief W6100 specific configuration
  *
  */
 typedef struct {
     eth_wiznet_config_t base;                           /*!< Common WIZnet configuration */
-    // Additional W5500 specific configuration should be added here.
-} eth_w5500_config_t;
+    // Additional W6100 specific configuration should be added here.
+} eth_w6100_config_t;
 
 /**
- * @brief Default W5500 specific configuration
+ * @brief Default W6100 specific configuration
  *
  */
-#define ETH_W5500_DEFAULT_CONFIG(spi_host, spi_devcfg_p) \
+#define ETH_W6100_DEFAULT_CONFIG(spi_host, spi_devcfg_p) \
     {                                                  \
         .base = {                                      \
             .int_gpio_num = 4,                         \
@@ -40,16 +40,16 @@ typedef struct {
     }
 
 /**
-* @brief Create W5500 Ethernet MAC instance
+* @brief Create W6100 Ethernet MAC instance
 *
-* @param w5500_config: W5500 specific configuration
+* @param w6100_config: W6100 specific configuration
 * @param mac_config: Ethernet MAC configuration
 *
 * @return
 *      - instance: create MAC instance successfully
 *      - NULL: create MAC instance failed because some error occurred
 */
-esp_eth_mac_t *esp_eth_mac_new_w5500(const eth_w5500_config_t *w5500_config, const eth_mac_config_t *mac_config);
+esp_eth_mac_t *esp_eth_mac_new_w6100(const eth_w6100_config_t *w6100_config, const eth_mac_config_t *mac_config);
 
 #ifdef __cplusplus
 }

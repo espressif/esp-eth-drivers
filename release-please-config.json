@@ -79,6 +79,14 @@
           "component": "w5500",
           "release-type": "go"
         },
+        "w6100": {
+          "component": "w6100",
+          "release-type": "go"
+        },
+        "wiznet_common": {
+          "component": "wiznet_common",
+          "release-type": "go"
+        },
         "eth_test_app": {
           "component": "eth_test_app",
           "release-type": "go"

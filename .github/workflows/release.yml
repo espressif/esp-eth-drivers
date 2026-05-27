@@ -30,6 +30,8 @@ env:
     lan87xx
     rtl8201
     w5500
+    w6100
+    wiznet_common
 
 jobs:
   release-please:
