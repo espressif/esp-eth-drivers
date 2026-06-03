@@ -23,6 +23,16 @@ menu "Ethernet Configuration"
             by default.
 
     # Hidden variables to drive Conditional Dependencies
+    config ETHERNET_SOC_EMAC_SUPPORTED
+        int
+        default 1 if SOC_EMAC_SUPPORTED
+        default 0
+
+    config ETHERNET_SOC_EMAC_SUPPORT_1000M
+        int
+        default 1 if SOC_EMAC_SUPPORT_1000M
+        default 0
+
     config ETHERNET_SPI_USE_DM9051
         int
         default 1 if ETHERNET_SPI_DEV0_DM9051 || ETHERNET_SPI_DEV1_DM9051
@@ -88,6 +98,16 @@ menu "Ethernet Configuration"
         default 1 if ETHERNET_PHY_RTL8201
         default 0
 
+    config ETHERNET_PHY_USE_VSC8541
+        int
+        default 1 if ETHERNET_PHY_VSC8541
+        default 0
+
+    config ETHERNET_PHY_USE_YT8531
+        int
+        default 1 if ETHERNET_PHY_YT8531
+        default 0
+
     menuconfig ETHERNET_INTERNAL_SUPPORT
         depends on SOC_EMAC_SUPPORTED && !ETHERNET_INIT_OVERRIDE_DISABLE
         select ETH_USE_ESP32_EMAC
@@ -111,6 +131,10 @@ menu "Ethernet Configuration"
 
             config ETHERNET_PHY_INTERFACE_RMII
                 bool "Reduced Media Independent Interface (RMII)"
+
+            config ETHERNET_PHY_INTERFACE_RGMII
+                depends on SOC_EMAC_SUPPORT_1000M
+                bool "Reduced Gigabit Media Independent Interface (RGMII)"
         endchoice
 
         if ETHERNET_PHY_INTERFACE_RMII
@@ -154,11 +178,12 @@ menu "Ethernet Configuration"
             config ETHERNET_RMII_CLK_EXT_LOOPBACK_IN_GPIO
                 depends on ETHERNET_RMII_CLK_EXT_LOOPBACK_EN
                 int "RMII CLK loopback input GPIO"
-                range ENV_GPIO_RANGE_MIN ENV_GPIO_RANGE_MAX
+                range -1 ENV_GPIO_RANGE_MAX
                 default 32 if IDF_TARGET_ESP32P4
                 default 0
                 help
                     Set GPIO number used by RMII REF CLK input to loopback internally generated RMII CLK output.
+                    You can set -1 to use internal CLK routing if target supports it.
                     See datasheet for available GPIOs.
 
             if SOC_EMAC_USE_MULTI_IO_MUX
@@ -219,6 +244,115 @@ menu "Ethernet Configuration"
             endif # SOC_EMAC_USE_MULTI_IO_MUX
 
         endif # ETHERNET_PHY_INTERFACE_RMII
+
+        if ETHERNET_PHY_INTERFACE_RGMII
+            config ETHERNET_RGMII_RX_CLK_GPIO
+                int "RGMII RX_CLK GPIO number"
+                range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                default 14
+                help
+                    Set the GPIO number used by RGMII RX clock input.
+                    See datasheet for available GPIOs.
+
+            config ETHERNET_RGMII_TX_CLK_GPIO
+                int "RGMII TX_CLK GPIO number"
+                range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                default 13
+                help
+                    Set the GPIO number used by RGMII TX clock output.
+                    See datasheet for available GPIOs.
+
+            config ETHERNET_RGMII_PHY_REF_CLK_GPIO
+                int "RGMII PHY REF CLK GPIO number"
+                range -1 ENV_GPIO_RANGE_MAX
+                default -1
+                help
+                    Set the GPIO number used for optional 50 MHz RGMII PHY REF clock.
+                    This can be used to clock external PHY without crystal or oscillator.
+                    Set to -1 to disable the clock output.
+
+            if SOC_EMAC_USE_MULTI_IO_MUX
+                config ETHERNET_RGMII_TX_CTL_GPIO
+                    int "RGMII TX_CTL GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                    default 12
+                    help
+                        Set the GPIO number used by RGMII TX_CTL signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_TXD0_GPIO
+                    int "RGMII TXD0 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                    default 8
+                    help
+                        Set the GPIO number used by RGMII TXD0 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_TXD1_GPIO
+                    int "RGMII TXD1 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                    default 9
+                    help
+                        Set the GPIO number used by RGMII TXD1 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_TXD2_GPIO
+                    int "RGMII TXD2 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                    default 10
+                    help
+                        Set the GPIO number used by RGMII TXD2 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_TXD3_GPIO
+                    int "RGMII TXD3 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
+                    default 11
+                    help
+                        Set the GPIO number used by RGMII TXD3 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_RX_CTL_GPIO
+                    int "RGMII RX_CTL GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                    default 15
+                    help
+                        Set the GPIO number used by RGMII RX_CTL signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_RXD0_GPIO
+                    int "RGMII RXD0 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                    default 19
+                    help
+                        Set the GPIO number used by RGMII RXD0 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_RXD1_GPIO
+                    int "RGMII RXD1 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                    default 18
+                    help
+                        Set the GPIO number used by RGMII RXD1 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_RXD2_GPIO
+                    int "RGMII RXD2 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                    default 17
+                    help
+                        Set the GPIO number used by RGMII RXD2 signal.
+                        See datasheet for available GPIOs.
+
+                config ETHERNET_RGMII_RXD3_GPIO
+                    int "RGMII RXD3 GPIO number"
+                    range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
+                    default 16
+                    help
+                        Set the GPIO number used by RGMII RXD3 signal.
+                        See datasheet for available GPIOs.
+            endif # SOC_EMAC_USE_MULTI_IO_MUX
+        endif # ETHERNET_PHY_INTERFACE_RGMII
 
         choice ETHERNET_PHY_MODEL
             prompt "Ethernet PHY Device"
@@ -281,6 +415,19 @@ menu "Ethernet Configuration"
                     The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for
                     10 Mbit/s half-duplex networking over a single pair of conductors
                     Goto https://www.microchip.com for more information about them.
+
+            config ETHERNET_PHY_VSC8541
+                bool "VSC8541"
+                help
+                    VSC8541 is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from Microchip.
+                    Link, speed and duplex can be negotiated over MII/GMII/RMII/RGMII depending on hardware.
+
+            config ETHERNET_PHY_YT8531
+                bool "YT8531"
+                depends on SOC_EMAC_SUPPORT_1000M
+                help
+                    YT8531S/YT8531SC is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from
+                    Motorcomm (裕太微电子). Supports RGMII and SGMII MAC interfaces.
         endchoice # ETHERNET_PHY_MODEL
 
         config ETHERNET_MDC_GPIO
@@ -288,6 +435,7 @@ menu "Ethernet Configuration"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
             default 23 if IDF_TARGET_ESP32
             default 31 if IDF_TARGET_ESP32P4
+            default 5 if IDF_TARGET_ESP32S31
             help
                 Set the GPIO number used by SMI MDC.
 
@@ -296,6 +444,7 @@ menu "Ethernet Configuration"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
             default 18 if IDF_TARGET_ESP32
             default 52 if IDF_TARGET_ESP32P4
+            default 6 if IDF_TARGET_ESP32S31
             help
                 Set the GPIO number used by SMI MDIO.
 
@@ -304,6 +453,7 @@ menu "Ethernet Configuration"
             range -1 ENV_GPIO_OUT_RANGE_MAX
             default 5 if IDF_TARGET_ESP32
             default 51 if IDF_TARGET_ESP32P4
+            default 7 if IDF_TARGET_ESP32S31
             help
                 Set the GPIO number used to reset PHY chip.
                 Set to -1 to disable PHY chip hardware reset.
@@ -311,9 +461,64 @@ menu "Ethernet Configuration"
         config ETHERNET_PHY_ADDR
             int "PHY Address"
             range -1 31
-            default 1
+            default -1
             help
                 Set PHY address according your board schematic.
+                Set to -1 to driver try to find the address automatically.
+
+        config ETHERNET_PHY_VSC8541_RGMII_RX_CLK_DELAY
+            depends on ETHERNET_PHY_VSC8541
+            int "VSC8541 RGMII RX clock delay"
+            range 0 7
+            default 4
+            help
+                Configure VSC8541 RGMII RX clock delay index (register 20E2 bits [6:4]).
+                Valid values are 0..7 according to the PHY datasheet delay table.
+
+        config ETHERNET_PHY_VSC8541_RGMII_TX_CLK_DELAY
+            depends on ETHERNET_PHY_VSC8541
+            int "VSC8541 RGMII TX clock delay"
+            range 0 7
+            default 4
+            help
+                Configure VSC8541 RGMII TX clock delay index (register 20E2 bits [2:0]).
+                Valid values are 0..7 according to the PHY datasheet delay table.
+
+        config ETHERNET_PHY_YT8531_RGMII_RXC_DLY_EN
+            depends on ETHERNET_PHY_YT8531
+            bool "YT8531 RGMII RX clock 2 ns coarse delay enable"
+            default y
+            help
+                Enable the ~2 ns coarse RX clock delay built into the YT8531
+                (Chip_Config EXT_0xA001 bit[8]).
+                Typically enabled when the MAC does not add its own RX clock delay.
+
+        config ETHERNET_PHY_YT8531_RGMII_RX_DELAY_SEL
+            depends on ETHERNET_PHY_YT8531
+            int "YT8531 RGMII RX clock fine delay (steps)"
+            range 0 15
+            default 0
+            help
+                Fine delay added to the RGMII RX clock, approximately 150 ps per step
+                (RGMII_Config1 EXT_0xA003 bits[13:10]).
+
+        config ETHERNET_PHY_YT8531_RGMII_TX_DELAY_SEL
+            depends on ETHERNET_PHY_YT8531
+            int "YT8531 RGMII TX clock delay at 1000 Mbps (steps)"
+            range 0 15
+            default 15
+            help
+                TX clock delay applied when operating at 1000 Mbps, approximately 150 ps per step
+                (RGMII_Config1 EXT_0xA003 bits[3:0]).
+
+        config ETHERNET_PHY_YT8531_RGMII_TX_DELAY_SEL_FE
+            depends on ETHERNET_PHY_YT8531
+            int "YT8531 RGMII TX clock delay at 100/10 Mbps (steps)"
+            range 0 15
+            default 15
+            help
+                TX clock delay applied when operating at 100 or 10 Mbps, approximately 150 ps per step
+                (RGMII_Config1 EXT_0xA003 bits[7:4]).
 
         choice ETHERNET_DMA_BURST_LEN
             prompt "EMAC DMA Burst Length"
@@ -345,6 +550,7 @@ menu "Ethernet Configuration"
                 bool "EMAC DMA Burst Length 16 beats"
 
             config ETHERNET_DMA_BURST_LEN_32
+                depends on !IDF_TARGET_ESP32S31
                 bool "EMAC DMA Burst Length 32 beats"
         endchoice #ETHERNET_DMA_BURST_LEN
 

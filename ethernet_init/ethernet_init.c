@@ -79,6 +79,16 @@
 #endif // CONFIG_ETHERNET_PHY_KSZ80XX
 #endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+#if CONFIG_ETHERNET_PHY_VSC8541
+#include "esp_eth_phy_vsc8541.h"
+#endif // CONFIG_ETHERNET_PHY_VSC8541
+
+#if CONFIG_ETHERNET_PHY_YT8531
+#include "esp_eth_phy_yt8531.h"
+#endif // CONFIG_ETHERNET_PHY_YT8531
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+
 #define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                   \
     do {                                                                                     \
         eth_module_config[num].dev = CONFIG_ETHERNET_SPI_DEV ##num## _ID;                   \
@@ -278,7 +288,29 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
     esp32_emac_config.emac_dataif_gpio.rmii.rxd0_num = CONFIG_ETHERNET_RMII_RXD0_GPIO;
     esp32_emac_config.emac_dataif_gpio.rmii.rxd1_num = CONFIG_ETHERNET_RMII_RXD1_GPIO;
 #endif // SOC_EMAC_USE_MULTI_IO_MUX
-#endif // CONFIG_ETHERNET_PHY_INTERFACE_RMII
+#elif CONFIG_ETHERNET_PHY_INTERFACE_RGMII
+    // Configure RGMII based on Kconfig when non-default configuration selected
+    esp32_emac_config.interface = EMAC_DATA_INTERFACE_RGMII;
+
+    // Configure RGMII clock GPIOs
+    esp32_emac_config.clock_config.rgmii.clock_rx_gpio = CONFIG_ETHERNET_RGMII_RX_CLK_GPIO;
+    esp32_emac_config.clock_config.rgmii.clock_tx_gpio = CONFIG_ETHERNET_RGMII_TX_CLK_GPIO;
+    esp32_emac_config.clock_config.rgmii.clock_phy_ref_gpio = CONFIG_ETHERNET_RGMII_PHY_REF_CLK_GPIO;
+
+#if SOC_EMAC_USE_MULTI_IO_MUX
+    // Configure RGMII dataplane GPIOs
+    esp32_emac_config.emac_dataif_gpio.rgmii.tx_ctl_num = CONFIG_ETHERNET_RGMII_TX_CTL_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.txd0_num = CONFIG_ETHERNET_RGMII_TXD0_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.txd1_num = CONFIG_ETHERNET_RGMII_TXD1_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.txd2_num = CONFIG_ETHERNET_RGMII_TXD2_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.txd3_num = CONFIG_ETHERNET_RGMII_TXD3_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.rx_ctl_num = CONFIG_ETHERNET_RGMII_RX_CTL_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.rxd0_num = CONFIG_ETHERNET_RGMII_RXD0_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.rxd1_num = CONFIG_ETHERNET_RGMII_RXD1_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.rxd2_num = CONFIG_ETHERNET_RGMII_RXD2_GPIO;
+    esp32_emac_config.emac_dataif_gpio.rgmii.rxd3_num = CONFIG_ETHERNET_RGMII_RXD3_GPIO;
+#endif // SOC_EMAC_USE_MULTI_IO_MUX
+#endif // CONFIG_ETHERNET_PHY_INTERFACE_RMII || CONFIG_ETHERNET_PHY_INTERFACE_RGMII
 
 #if CONFIG_ETHERNET_DMA_BURST_LEN_1
     esp32_emac_config.dma_burst_len = ETH_DMA_BURST_LEN_1;
@@ -336,6 +368,12 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
 #elif CONFIG_ETHERNET_PHY_LAN867X
     phy = esp_eth_phy_new_lan867x(&phy_config);
     (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "LAN867X");
+#elif CONFIG_ETHERNET_PHY_VSC8541
+    phy = esp_eth_phy_new_vsc8541(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "VSC8541");
+#elif CONFIG_ETHERNET_PHY_YT8531
+    phy = esp_eth_phy_new_yt8531(&phy_config);
+    (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "YT8531");
 #endif
 
     // Init Ethernet driver to default and install it
@@ -345,6 +383,28 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
     ESP_GOTO_ON_FALSE(esp_eth_driver_install(&config, &eth_handle) == ESP_OK, NULL,
                       err, TAG, "Ethernet driver install failed");
 
+#if CONFIG_ETHERNET_PHY_VSC8541
+    vsc8541_rgmii_clk_delay_config_t cfg_delay = {
+        .rx_clk_delay = CONFIG_ETHERNET_PHY_VSC8541_RGMII_RX_CLK_DELAY,
+        .tx_clk_delay = CONFIG_ETHERNET_PHY_VSC8541_RGMII_TX_CLK_DELAY,
+    };
+    ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, VSC8541_ETH_CMD_S_RGMII_CLK_DELAY, &cfg_delay) == ESP_OK, NULL,
+                      err, TAG, "set RGMII clock delay failed");
+#endif
+#if CONFIG_ETHERNET_PHY_YT8531
+    yt8531_rgmii_clk_delay_config_t yt8531_cfg_delay = {
+#ifdef CONFIG_ETHERNET_PHY_YT8531_RGMII_RXC_DLY_EN
+        .rxc_dly_en      = true,
+#else
+        .rxc_dly_en      = false,
+#endif
+        .rx_delay_sel    = CONFIG_ETHERNET_PHY_YT8531_RGMII_RX_DELAY_SEL,
+        .tx_delay_sel    = CONFIG_ETHERNET_PHY_YT8531_RGMII_TX_DELAY_SEL,
+        .tx_delay_sel_fe = CONFIG_ETHERNET_PHY_YT8531_RGMII_TX_DELAY_SEL_FE,
+    };
+    ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, YT8531_ETH_CMD_S_RGMII_CLK_DELAY, &yt8531_cfg_delay) == ESP_OK, NULL,
+                      err, TAG, "set YT8531 RGMII clock delay failed");
+#endif
     return eth_handle;
 err:
     if (eth_handle != NULL) {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,10 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 #include "eth_common.h"
+
+#if CONFIG_ETHERNET_PHY_YT8531
+#include "esp_eth_phy_yt8531.h"
+#endif // CONFIG_ETHERNET_PHY_YT8531
 
 static const char *TAG = "ethernet_fncs";
 
@@ -183,6 +187,22 @@ esp_err_t loopback_far_end_en(esp_eth_handle_t *eth_handle, phy_id_t phy_id, boo
             reg_val &= ~(1 << 7);
         }
         break;
+    case PHY_VSC8541:
+        reg.reg_addr = 0x17; // Extended PHY Control 1
+        esp_eth_ioctl(eth_handle, ETH_CMD_READ_PHY_REG, &reg);
+        if (enable) {
+            reg_val |= 1 << 3;
+        } else {
+            reg_val &= ~(1 << 3);
+        }
+        break;
+    case PHY_YT8531:
+#if CONFIG_ETHERNET_PHY_YT8531
+        esp_eth_ioctl(eth_handle, YT8531_ETH_CMD_S_FAREND_LOOPBACK, &enable);
+        break;
+#else
+        return ESP_ERR_INVALID_ARG;
+#endif // CONFIG_ETHERNET_PHY_YT8531
     case PHY_RTL8201:
     case PHY_DP83848: // TODO DP83848 offers BIST => investigate if could be used instead
         ESP_LOGE(TAG, "far-end loopback is not supported by selected PHY");

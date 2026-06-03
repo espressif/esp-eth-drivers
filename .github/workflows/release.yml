@@ -29,9 +29,11 @@ env:
     ksz8851snl
     lan87xx
     rtl8201
+    vsc8541
     w5500
     w6100
     wiznet_common
+    yt8531
 
 jobs:
   release-please:

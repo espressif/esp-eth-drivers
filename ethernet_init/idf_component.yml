@@ -44,7 +44,7 @@ dependencies:
       - if: $CONFIG{ETHERNET_SPI_USE_W6100} == 1
   espressif/dp83848:
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_DP83848} == 1
     matches:
       - if: idf_version >=6.0
@@ -52,7 +52,7 @@ dependencies:
     override_path: ../dp83848/
   espressif/ip101:
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_IP101} == 1
     matches:
       - if: idf_version >=6.0
@@ -60,7 +60,7 @@ dependencies:
     override_path: ../ip101/
   espressif/ksz80xx:
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_KSZ80XX} == 1
     matches:
       - if: idf_version >=6.0
@@ -69,12 +69,12 @@ dependencies:
   espressif/lan867x:
     version: '>=2.0.0'
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_LAN867X} == 1
     override_path: ../lan867x/
   espressif/lan87xx:
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_LAN87XX} == 1
     matches:
       - if: idf_version >=6.0
@@ -82,12 +82,29 @@ dependencies:
     override_path: ../lan87xx/
   espressif/rtl8201:
     rules:
-      - if: target in [esp32, esp32p4]
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
       - if: $CONFIG{ETHERNET_PHY_USE_RTL8201} == 1
     matches:
       - if: idf_version >=6.0
         version: ^1.0.0
     override_path: ../rtl8201/
+  espressif/vsc8541:
+    rules:
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_VSC8541} == 1
+    matches:
+      - if: idf_version >=6.1
+        version: ^0.1.0
+    override_path: ../vsc8541/
+  espressif/yt8531:
+    rules:
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORTED} == 1
+      - if: $CONFIG{ETHERNET_SOC_EMAC_SUPPORT_1000M} == 1
+      - if: $CONFIG{ETHERNET_PHY_USE_YT8531} == 1
+    matches:
+      - if: idf_version >=6.1
+        version: ^0.1.0
+    override_path: ../yt8531/
 examples:
   - path: ../common_examples/
 description: >-

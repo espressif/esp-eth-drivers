@@ -282,7 +282,11 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
 #endif
 
     eth_duplex_t duplex_modes[] = {ETH_DUPLEX_HALF, ETH_DUPLEX_FULL};
+#if SOC_EMAC_SUPPORT_1000M
+    eth_speed_t speeds[] = {ETH_SPEED_1000M, ETH_SPEED_100M, ETH_SPEED_10M};
+#else
     eth_speed_t speeds[] = {ETH_SPEED_100M, ETH_SPEED_10M};
+#endif
     emac_frame_t* test_packet = (emac_frame_t*)eth_test_alloc(LOOPBACK_TEST_PACKET_SIZE);
     esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, test_packet->src);
     esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, test_packet->dest);

@@ -9,7 +9,7 @@ common_examples/iperf:
 
 common_examples/simple-ethernet:
   enable:
-    - if: IDF_TARGET in ["esp32", "esp32p4"]
+    - if: IDF_TARGET in ["esp32", "esp32p4", "esp32s31"]
       temporary: true
       reason: to save build time, build for Extensa and RISC-V
   disable:

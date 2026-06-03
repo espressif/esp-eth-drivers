@@ -77,6 +77,10 @@
           "component": "rtl8201",
           "release-type": "go"
         },
+        "vsc8541": {
+          "component": "vsc8541",
+          "release-type": "go"
+        },
         "w5500": {
           "component": "w5500",
           "release-type": "go"
@@ -87,6 +91,10 @@
         },
         "wiznet_common": {
           "component": "wiznet_common",
+          "release-type": "go"
+        },
+        "yt8531": {
+          "component": "yt8531",
           "release-type": "go"
         },
         "eth_test_app": {

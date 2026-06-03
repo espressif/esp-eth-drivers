@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -31,7 +31,9 @@ static char *supported_phys[PHY_ID_END] = {
     "KSZ80XX",      /* PHY_KSZ80XX */
     "RTL8201",      /* PHY_RTL8201 */
     "DP83848",      /* PHY_DP83848 */
-    "LAN867x"       /* PHY_LAN867X */
+    "LAN867x",      /* PHY_LAN867X */
+    "VSC8541",      /* PHY_VSC8541 */
+    "YT8531",       /* PHY_YT8531 */
 };
 
 static struct {
@@ -207,6 +209,10 @@ static int phy_mode_control(int argc, char **argv)
                     speed = ETH_SPEED_10M;
                 } else if (phy_mode_args.speed->ival[0] == 100) {
                     speed = ETH_SPEED_100M;
+#if SOC_EMAC_SUPPORT_1000M
+                } else if (phy_mode_args.speed->ival[0] == 1000) {
+                    speed = ETH_SPEED_1000M;
+#endif // SOC_EMAC_SUPPORT_1000M
                 } else {
                     ESP_LOGE(TAG, "Invalid speed.");
                     return -1;

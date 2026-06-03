@@ -12,6 +12,8 @@ Ethernet PHYs:
 - [LAN87XX](lan87xx/README.md)
 - [LAN867X](lan867x/README.md) (10BASE-T1S)
 - [RTL8201](rtl8201/README.md)
+- [VSC8541](vsc8541/README.md) (1000BASE-T)
+- [YT8531](yt8531/README.md) (1000BASE-T)
 
 SPI Ethernet modules:
 - [CH390](ch390/README.md)

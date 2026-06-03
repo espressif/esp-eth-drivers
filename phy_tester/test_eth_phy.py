@@ -570,6 +570,7 @@ def ethernet_phy_test(dut: Dut, test_pc_nic: str, always_run_all_tests: bool) ->
 @pytest.mark.parametrize('target', [
     'esp32',
     'esp32p4',
+    'esp32s31',
 ], indirect=True)
 def test_esp_ethernet(dut: Dut,
                       eth_nic: str,

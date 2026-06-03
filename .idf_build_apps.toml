@@ -14,6 +14,11 @@ ignore_warning_files = [
 ]
 keep_going = true
 
+# required for `preview` targets builds
+additional_build_targets = [
+    'esp32s31',
+]
+
 build_dir = "build_@t_@w"
 build_log_filename = "build.log"
 size_json_filename = "size.json"

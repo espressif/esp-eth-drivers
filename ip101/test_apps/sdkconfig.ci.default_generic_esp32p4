@@ -1,2 +1,4 @@
 ## Inherits shared settings from sdkconfig.defaults
 CONFIG_IDF_TARGET="esp32p4"
+# ESP32P4 has smaller internal Rx FIFO, hence more Rx buffers is used by default
+CONFIG_ETH_TEST_FILL_RX_BUFFER_ITERATIONS=20

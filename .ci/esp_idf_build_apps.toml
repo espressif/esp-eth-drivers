@@ -12,6 +12,11 @@ common_components = [
     "log",
 ]
 
+# required for `preview` targets builds
+additional_build_targets = [
+    'esp32s31',
+]
+
 config_rules = [
     'sdkconfig.ci=default',
     'sdkconfig.ci.*=',
