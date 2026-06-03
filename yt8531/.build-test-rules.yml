@@ -1,0 +1,11 @@
+# Build test rules for test_apps
+# This file is used by idf-build-apps to determine which examples to build and test
+
+yt8531/test_apps:
+  enable:
+    - if: IDF_TARGET == "esp32s31"
+      reason: ESP32-S31 supports Gigabit Ethernet now
+  disable:
+    - if: IDF_VERSION < "6.1.0"
+      temporary: true
+      reason: ESP32-S31 not supported before IDF 6.1

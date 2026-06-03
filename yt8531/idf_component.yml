@@ -1,0 +1,9 @@
+version: 0.1.0
+description: YT8531 Ethernet PHY Driver
+url: https://github.com/espressif/esp-eth-drivers/tree/master/yt8531
+dependencies:
+  idf: '>=6.1'
+files:
+  exclude:
+    - test_apps/**/*
+    - .build-test-rules.yml

@@ -1,0 +1,9 @@
+## Inherits shared settings from sdkconfig.defaults
+CONFIG_IDF_TARGET="esp32s31"
+
+# ESP32S31 has smaller internal Rx FIFO, hence more Rx buffers is used by default
+CONFIG_ETH_TEST_FILL_RX_BUFFER_ITERATIONS=20
+
+# ESP32S31 provides only two universally administered MAC addresses in eFuse, so the internal EMAC
+# gets a locally administered ETH MAC by default (see CONFIG_ESP32S31_UNIVERSAL_MAC_ADDRESSES).
+CONFIG_ETH_TEST_MAC_ADDR_UI=n
