@@ -10,6 +10,16 @@ include:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
       build-job-image: "espressif/idf:latest"
+      test-job-image: "$CI_REGISTRY/ci/images/idf-v6.2-target-test:1"
+      build-job-tags: ["brew", "build"]
+      job-suffix: ":idf-latest"
+      generate-build-child-pipeline-before-script:
+        - pip install -r .ci/requirements.txt
+  - component: $CI_SERVER_FQDN/ci/actions/idf-dynamic-pipeline/ci-component@main
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    inputs:
+      build-job-image: "espressif/idf:release-v6.1"
       test-job-image: "$CI_REGISTRY/ci/images/idf-v6.1-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.1"
