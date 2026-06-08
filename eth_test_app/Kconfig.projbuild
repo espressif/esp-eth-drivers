@@ -27,6 +27,12 @@ menu "esp_eth TEST_APPS Configuration"
             Disable PHY address testing.
             This should be disabled for SPI Ethernet devices.
 
+    config ETH_TEST_PHY_1000M_CAPABLE
+        bool "PHY supports 1000 Mbps operation"
+        default n
+        help
+            Enable when the PHY under test supports 1000 Mbps speed.
+
     config ETH_TEST_LOOPBACK_DISABLED
         bool "Disable loopback test"
         default n

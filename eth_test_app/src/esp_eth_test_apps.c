@@ -101,7 +101,12 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
     esp_eth_ioctl(eth_handle, ETH_CMD_G_SPEED, &exp_speed);
     // verify autonegotiation result (expecting the best link configuration)
     TEST_ASSERT_EQUAL(ETH_DUPLEX_FULL, exp_duplex);
+// *** 1000 Mbps PHY under test ***
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)) && CONFIG_ETH_TEST_PHY_1000M_CAPABLE
+    TEST_ASSERT_EQUAL(ETH_SPEED_1000M, exp_speed);
+#else
     TEST_ASSERT_EQUAL(ETH_SPEED_100M, exp_speed);
+#endif
 
     bool exp_autoneg_en;
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_AUTONEGO, &exp_autoneg_en));
@@ -124,7 +129,7 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &speed));
 
     // Disable autonegotiation and change speed to 10 Mbps and duplex to half
-    ESP_LOGI(TAG, "disable the autonegotiation and change the speed/duplex...");
+    ESP_LOGI(TAG, "disable the autonegotiation and change the speed/duplex to 10 Mbps/half...");
     auto_nego_en = false;
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_AUTONEGO, &auto_nego_en));
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_AUTONEGO, &exp_autoneg_en));
@@ -155,7 +160,7 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 
     // Change speed back to 100 Mbps
     esp_eth_stop(eth_handle);
-    ESP_LOGI(TAG, "change speed again...");
+    ESP_LOGI(TAG, "change speed to 100 Mbps again...");
     speed = ETH_SPEED_100M;
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &speed));
 
@@ -170,7 +175,7 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 
     // Change duplex back to full
     esp_eth_stop(eth_handle);
-    ESP_LOGI(TAG, "change duplex again...");
+    ESP_LOGI(TAG, "change duplex to full again...");
     duplex = ETH_DUPLEX_FULL;
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
 
@@ -196,6 +201,47 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 
     TEST_ASSERT_EQUAL(ETH_DUPLEX_FULL, exp_duplex);
     TEST_ASSERT_EQUAL(ETH_SPEED_100M, exp_speed);
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+    esp_eth_stop(eth_handle);
+    ESP_LOGI(TAG, "change speed to 1000 Mbps...");
+    speed = ETH_SPEED_1000M;
+    duplex = ETH_DUPLEX_FULL;
+// *** 1000 Mbps PHY under test ***
+#if CONFIG_ETH_TEST_PHY_1000M_CAPABLE
+    // Before selecting the 1000 Mbps forced speed mode, we need to manually configure the PHY as master or slave
+    // by setting the PHY_CTRL register. Set to Master mode as the default is slave mode so it's expected that
+    // the link partner is in slave mode.
+    // IDF-15765 - use esp_eth_ioctl()
+    TEST_ESP_OK(eth_test_set_phy_reg_bits(eth_handle, 9, BIT(11), 1));
+
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &speed));
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_DUPLEX_MODE, &duplex));
+    esp_eth_start(eth_handle);
+
+    // IDF-15765 - link partner must disable autonegotiation and set 1000M
+    //bits = xEventGroupWaitBits(eth_event_group, ETH_CONNECT_BIT, true, true, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS));
+    //TEST_ASSERT((bits & ETH_CONNECT_BIT) == ETH_CONNECT_BIT);
+    //TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_SPEED, &exp_speed));
+    //TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_DUPLEX_MODE, &exp_duplex));
+    //TEST_ASSERT_EQUAL(ETH_DUPLEX_FULL, exp_duplex);
+    //TEST_ASSERT_EQUAL(ETH_SPEED_1000M, exp_speed);
+    esp_eth_stop(eth_handle);
+    TEST_ESP_OK(eth_test_clear_phy_reg_bits(eth_handle, 9, BIT(11), 1));
+#else
+    ESP_LOGI(TAG, "1000 Mbps not supported by driver");
+    eth_speed_t exp_speed_prev = exp_speed;
+    eth_speed_t exp_duplex_prev = exp_duplex;
+    TEST_ASSERT_EQUAL(ESP_ERR_NOT_SUPPORTED, esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &speed));
+    esp_eth_start(eth_handle);
+    bits = xEventGroupWaitBits(eth_event_group, ETH_CONNECT_BIT, true, true, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS));
+    TEST_ASSERT((bits & ETH_CONNECT_BIT) == ETH_CONNECT_BIT);
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_DUPLEX_MODE, &exp_duplex));
+    TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_SPEED, &exp_speed));
+    TEST_ASSERT_EQUAL(exp_speed_prev, exp_speed);
+    TEST_ASSERT_EQUAL(exp_duplex_prev, exp_duplex);
+#endif // CONFIG_ETH_TEST_PHY_1000M_CAPABLE
+#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
 
     ESP_LOGI(TAG, "change the speed/duplex to 10 Mbps/half and then enable autonegotiation...");
     esp_eth_stop(eth_handle);
@@ -240,7 +286,12 @@ TEST_CASE("ethernet io speed/duplex/autonegotiation", "[ethernet]")
 
     // verify autonegotiation result (expecting the best link configuration)
     TEST_ASSERT_EQUAL(ETH_DUPLEX_FULL, exp_duplex);
+// *** 1000 Mbps PHY under test ***
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)) && CONFIG_ETH_TEST_PHY_1000M_CAPABLE
+    TEST_ASSERT_EQUAL(ETH_SPEED_1000M, exp_speed);
+#else
     TEST_ASSERT_EQUAL(ETH_SPEED_100M, exp_speed);
+#endif
 
     // stop Ethernet driver
     TEST_ESP_OK(esp_eth_stop(eth_handle));
@@ -282,7 +333,8 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
 #endif
 
     eth_duplex_t duplex_modes[] = {ETH_DUPLEX_HALF, ETH_DUPLEX_FULL};
-#if SOC_EMAC_SUPPORT_1000M
+// *** 1000 Mbps PHY under test ***
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)) && CONFIG_ETH_TEST_PHY_1000M_CAPABLE
     eth_speed_t speeds[] = {ETH_SPEED_1000M, ETH_SPEED_100M, ETH_SPEED_10M};
 #else
     eth_speed_t speeds[] = {ETH_SPEED_100M, ETH_SPEED_10M};
@@ -299,14 +351,20 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
         eth_speed_t expected_speed = speeds[i];
         for (int j = 0; j < sizeof(duplex_modes) / sizeof(eth_duplex_t); j++) {
             eth_duplex_t expected_duplex = duplex_modes[j];
-            ESP_LOGI(TAG, "Test with %s Mbps %s duplex.", expected_speed == ETH_SPEED_10M ? "10" : "100", expected_duplex == ETH_DUPLEX_HALF ? "half" : "full");
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+            const char *speed_str = expected_speed == ETH_SPEED_10M ? "10" :
+                                    expected_speed == ETH_SPEED_100M ? "100" : "1000";
+#else
+            const char *speed_str = expected_speed == ETH_SPEED_10M ? "10" : "100";
+#endif
+            ESP_LOGI(TAG, "Test with %s Mbps %s duplex.", speed_str, expected_duplex == ETH_DUPLEX_HALF ? "half" : "full");
 // *** 10 Mbps loopback disabled deviation ***
 // Rationale: Some PHYs do not support loopback at 10 Mbps
 #if CONFIG_ETH_TEST_10MB_LOOPBACK_DISABLED
             if ((expected_speed == ETH_SPEED_10M)) {
                 TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &expected_speed));
                 continue;
-            } else if (expected_speed == ETH_SPEED_100M) {
+            } else {
                 TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_SPEED, &expected_speed));
             }
 #else
@@ -321,6 +379,7 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
 
             TEST_ESP_OK(esp_eth_start(eth_handle));
             bits = xEventGroupWaitBits(eth_event_group, ETH_CONNECT_BIT, true, true, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS));
+            TEST_ASSERT((bits & ETH_CONNECT_BIT) == ETH_CONNECT_BIT);
 
             eth_speed_t actual_speed = -1;
             TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_G_SPEED, &actual_speed));
@@ -343,6 +402,7 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
                         TEST_ASSERT((bits & ETH_STOP_BIT) == ETH_STOP_BIT);
                         TEST_ESP_OK(esp_eth_start(eth_handle));
                         bits = xEventGroupWaitBits(eth_event_group, ETH_CONNECT_BIT, true, true, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS));
+                        TEST_ASSERT((bits & ETH_CONNECT_BIT) == ETH_CONNECT_BIT);
                         TEST_ESP_OK(esp_eth_transmit(eth_handle, test_packet, LOOPBACK_TEST_PACKET_SIZE));
                     } else {
                         break;
@@ -383,6 +443,7 @@ TEST_CASE("ethernet io loopback", "[ethernet]")
     TEST_ESP_OK(esp_eth_ioctl(eth_handle, ETH_CMD_S_AUTONEGO, &auto_nego_en));
     TEST_ESP_OK(esp_eth_start(eth_handle));
     bits = xEventGroupWaitBits(eth_event_group, ETH_CONNECT_BIT, true, true, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS));
+    TEST_ASSERT((bits & ETH_CONNECT_BIT) == ETH_CONNECT_BIT);
 
     TEST_ESP_OK(esp_eth_transmit(eth_handle, test_packet, LOOPBACK_TEST_PACKET_SIZE));
     TEST_ASSERT(xSemaphoreTake(loopback_test_case_data_received, pdMS_TO_TICKS(ETH_CONNECT_TIMEOUT_MS)) == pdTRUE);

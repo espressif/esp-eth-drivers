@@ -15,6 +15,9 @@ common_examples/simple-ethernet:
   disable:
     - if: CONFIG_NAME == "w5500" and IDF_VERSION < "6.0"
       reason: skip w5500 on IDF < 6.0; registry driver lacks base config API used by ethernet_init
+    - if: IDF_TARGET == "esp32s31" and CONFIG_NAME == "openeth"
+      temporary: true
+      reason: OpenETH not supported on ESP32-S31
 
 common_examples/tcp_server:
   enable:
