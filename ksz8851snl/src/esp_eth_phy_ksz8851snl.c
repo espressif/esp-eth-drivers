@@ -302,6 +302,8 @@ static esp_err_t phy_ksz8851_set_speed(esp_eth_phy_t *phy, eth_speed_t speed)
     phy_ksz8851snl_t *ksz8851 = __containerof(phy, phy_ksz8851snl_t, parent);
     esp_eth_mediator_t *eth   = ksz8851->eth;
 
+    ESP_GOTO_ON_FALSE(speed == ETH_SPEED_10M || speed == ETH_SPEED_100M, ESP_ERR_NOT_SUPPORTED, err, TAG, "not supported speed");
+
     /* Since the link is going to be reconfigured, consider it down to be status updated once the driver re-started */
     ksz8851->link_status = ETH_LINK_DOWN;
 
