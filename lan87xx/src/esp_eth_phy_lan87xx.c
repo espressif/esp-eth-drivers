@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -229,9 +229,10 @@ static esp_err_t lan87xx_update_link_duplex_speed(phy_lan87xx_t *lan87xx)
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_ANLPAR_REG_ADDR, &(anlpar.val)), err, TAG, "read ANLPAR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMSR_REG_ADDR, &(bmsr.val)), err, TAG, "read BMSR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
-    /* link status is forced up because LAN87xx reports link down when loopback is enabled and cable is unplugged */
     eth_link_t link;
-    if (bmcr.en_loopback) {
+    if (bmcr.power_down) {
+        link = ETH_LINK_DOWN;
+    } else if (bmcr.en_loopback) {
         link = ETH_LINK_UP;
     } else {
         link = bmsr.link_status ? ETH_LINK_UP : ETH_LINK_DOWN;
