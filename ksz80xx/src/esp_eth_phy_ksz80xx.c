@@ -64,9 +64,11 @@ static esp_err_t ksz80xx_update_link_duplex_speed(phy_ksz80xx_t * ksz80xx)
     uint32_t peer_pause_ability = false;
     anlpar_reg_t anlpar;
     bmsr_reg_t bmsr;
+    bmcr_reg_t bmcr;
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_ANLPAR_REG_ADDR, &(anlpar.val)), err, TAG, "read ANLPAR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMSR_REG_ADDR, &(bmsr.val)), err, TAG, "read BMSR failed");
-    eth_link_t link = bmsr.link_status ? ETH_LINK_UP : ETH_LINK_DOWN;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
+    eth_link_t link = (bmsr.link_status && !bmcr.power_down) ? ETH_LINK_UP : ETH_LINK_DOWN;
     /* check if link status changed */
     if (ksz80xx->phy_802_3.link_status != link) {
         /* when link up, read negotiation result */
