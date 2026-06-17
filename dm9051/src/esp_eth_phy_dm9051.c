@@ -104,12 +104,12 @@ static esp_err_t dm9051_update_link_duplex_speed(phy_dm9051_t *dm9051)
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMSR_REG_ADDR, &(bmsr.val)), err, TAG, "read BMSR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMSR_REG_ADDR, &(bmsr.val)), err, TAG, "read BMSR failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_ANLPAR_REG_ADDR, &(anlpar.val)), err, TAG, "read ANLPAR failed");
-    eth_link_t link = bmsr.link_status ? ETH_LINK_UP : ETH_LINK_DOWN;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
+    eth_link_t link = (bmsr.link_status && !bmcr.power_down) ? ETH_LINK_UP : ETH_LINK_DOWN;
     /* check if link status changed */
     if (dm9051->phy_802_3.link_status != link) {
         /* when link up, read negotiation result */
         if (link == ETH_LINK_UP) {
-            ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_BMCR_REG_ADDR, &(bmcr.val)), err, TAG, "read BMCR failed");
             speed = bmcr.speed_select == 1 ? ETH_SPEED_100M : ETH_SPEED_10M;
             duplex = bmcr.duplex_mode == 1 ? ETH_DUPLEX_FULL : ETH_DUPLEX_HALF;
             ESP_GOTO_ON_ERROR(eth->on_state_changed(eth, ETH_STATE_SPEED, (void *)speed), err, TAG, "change speed failed");
