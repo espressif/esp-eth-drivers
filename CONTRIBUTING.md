@@ -58,3 +58,17 @@ We use [Release Please](https://github.com/googleapis/release-please/tree/main) 
 
 > [!IMPORTANT]
 > Do **not** use empty commits (`git commit --allow-empty`) to trigger or nudge a release. Release Please copies empty commits into *every* component, so they pollute the changelog of unrelated components (especially the initial release of newly added components). If you need to force a release for a specific component, make a real change inside that component's path instead (e.g. touch its `README.md` or `idf_component.yml`) so the commit is correctly scoped.
+
+### `eth_test_app` Release Checklist
+
+`eth_test_app` is consumed by ESP-IDF test pipelines that pin to a specific `eth_test_app` version. Because the IDF Component Manager resolves dependencies at build time, a range constraint on `ethernet_init` (e.g. `^1.x`) would allow a newly published, potentially broken `ethernet_init` release to silently break those pipelines even though they pin `eth_test_app` to an older, stable version.
+
+To prevent this, **`ethernet_init` must always be pinned to an exact version** in `eth_test_app/idf_component.yml`. Before merging a Release Please bump PR for `eth_test_app`:
+
+1. Identify the exact `ethernet_init` version that was used during CI testing (check `ethernet_init/idf_component.yml` → `version` field).
+2. Update `eth_test_app/idf_component.yml` so the `ethernet_init` dependency specifies that exact version (no `^` or `~` prefix):
+   ```yaml
+   espressif/ethernet_init:
+     version: '1.x.y'   # exact version tested with this eth_test_app release
+   ```
+3. Include this change as part of the release bump commit so it is captured in the published component.
