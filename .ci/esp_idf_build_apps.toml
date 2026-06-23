@@ -6,6 +6,12 @@ paths = [
 
 target = "all"
 
+common_components = [
+    "esp_common",
+    "cxx",
+    "log",
+]
+
 config_rules = [
     'sdkconfig.ci=default',
     'sdkconfig.ci.*=',
