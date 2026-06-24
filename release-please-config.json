@@ -37,7 +37,8 @@
         },
         "ethernet_init": {
           "component": "ethernet_init",
-          "release-type": "go"
+          "release-type": "go",
+          "release-as": "1.4.0"
         },
         "ip101": {
           "component": "ip101",
