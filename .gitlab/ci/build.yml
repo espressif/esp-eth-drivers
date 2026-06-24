@@ -65,6 +65,14 @@ include:
     inputs:
       build-job-image: "espressif/idf:latest"
       build-job-tags: ["brew", "build"]
+      job-suffix: ":idf-latest"
+      max-apps-per-node: 40
+  - local: '.ci/build_idf_dynamic_pipeline.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    inputs:
+      build-job-image: "espressif/idf:release-v6.1"
+      build-job-tags: ["brew", "build"]
       job-suffix: ":idf-v6.1"
       max-apps-per-node: 40
   - local: '.ci/build_idf_dynamic_pipeline.yml'
