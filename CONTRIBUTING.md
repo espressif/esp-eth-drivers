@@ -55,3 +55,6 @@ We use [Release Please](https://github.com/googleapis/release-please/tree/main) 
 1. **Automatic version bump PRs**: They are contiguously created and updated with each releasable version commit automatically by Release Please action.
 2. **Component is ready for release**: Once component is ready to be released, the bump PR is merged by repository maintainer using the same process as described in [Merging the Pull Request section](#merging-the-pull-request-pr). Since linear history, which may require rebase, is used, internal repository `master` branch is temporarily locked during the merge process to bump commits SHAs match and so release step work correctly. DO NOT rebase during this step!
 3. **Github release and tag**: Release Please action automatically creates Github Release and adds version tag to the bump PR commit.
+
+> [!IMPORTANT]
+> Do **not** use empty commits (`git commit --allow-empty`) to trigger or nudge a release. Release Please copies empty commits into *every* component, so they pollute the changelog of unrelated components (especially the initial release of newly added components). If you need to force a release for a specific component, make a real change inside that component's path instead (e.g. touch its `README.md` or `idf_component.yml`) so the commit is correctly scoped.

@@ -1,4 +1,5 @@
 {
+    "last-release-sha": "5cd660d1b7404f2dfb2cd30d9126b4af2147b526",
     "include-component-in-tag": true,
     "separate-pull-requests": true,
     "include-v-in-tag": true,
