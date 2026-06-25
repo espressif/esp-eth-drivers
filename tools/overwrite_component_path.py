@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 """Utility to overwrite managed component override paths in IDF manifests."""
@@ -124,16 +124,45 @@ def extract_app_name(manifest_path: Path) -> str:
     return parent.name
 
 
-def create_dependency_entry(entry: dict | str | None, override_path: str) -> dict:
-    """Create a dependency entry with the override_path and version set to '*'."""
+def copy_rules_matches(entry: dict) -> dict:
+    """Return a shallow copy of entry with rules/matches list items copied."""
+    new_entry = dict(entry)
+    for key in ('rules', 'matches'):
+        items = new_entry.get(key)
+        if isinstance(items, list):
+            new_entry[key] = [
+                dict(item) if isinstance(item, dict) else item for item in items
+            ]
+    return new_entry
+
+
+def update_dependency_entry(entry: dict | str | None, override_path: str) -> tuple[dict, bool]:
+    """Update override_path and set all version fields (including rules/matches) to '*'."""
     if isinstance(entry, dict):
-        new_entry = dict(entry)
+        new_entry = copy_rules_matches(entry)
     else:
         new_entry = {}
 
-    new_entry['override_path'] = override_path
-    new_entry['version'] = '*'
-    return new_entry
+    updated = False
+
+    if new_entry.get('override_path') != override_path:
+        new_entry['override_path'] = override_path
+        updated = True
+
+    if new_entry.get('version') != '*':
+        new_entry['version'] = '*'
+        updated = True
+
+    for key in ('rules', 'matches'):
+        items = new_entry.get(key)
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if isinstance(item, dict) and item.get('version') is not None and item['version'] != '*':
+                item['version'] = '*'
+                updated = True
+
+    return new_entry, updated
 
 
 def update_manifest(
@@ -162,13 +191,9 @@ def update_manifest(
         if isinstance(entry, dict) and entry.get('path') is not None:
             break
 
-        # Check if already has the correct override_path
-        if isinstance(entry, dict) and entry.get('override_path') == override_path:
-            break
+        new_entry, entry_updated = update_dependency_entry(entry, override_path)
 
-        new_entry = create_dependency_entry(entry, override_path)
-
-        if new_entry != entry:
+        if entry_updated:
             dependencies[key] = new_entry
             updated = True
         # only update the first applicable key
