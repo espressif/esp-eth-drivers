@@ -4,7 +4,7 @@ url: https://github.com/espressif/esp-eth-drivers/tree/master/w6100
 dependencies:
   idf: '>=5.3'
   espressif/wiznet_common:
-    version: '^1.0.0'
+    version: ^1.0.0
     require: public
     override_path: ../wiznet_common
 examples:
