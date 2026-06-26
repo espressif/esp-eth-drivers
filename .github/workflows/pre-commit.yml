@@ -3,9 +3,15 @@ name: pre-commit
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  # release-please PRs are created via GITHUB_TOKEN; pull_request workflows then
+  # require manual approval. Push events on these branches run pre-commit instead.
+  push:
+    branches:
+      - 'release-please--**'
 
 jobs:
   pre-commit:
+    if: github.event_name == 'push' || !startsWith(github.head_ref, 'release-please')
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
