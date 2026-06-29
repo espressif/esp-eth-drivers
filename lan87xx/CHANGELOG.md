@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/espressif/esp-eth-drivers/compare/lan87xx@v1.0.0...lan87xx@v1.0.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **lan87xx:** force link down while BMCR.power_down is set ([2b16293](https://github.com/espressif/esp-eth-drivers/commit/2b16293611c4235240cc2e0be1a9d5cc327db309)), closes [#154](https://github.com/espressif/esp-eth-drivers/issues/154)
+
 ## 1.0.0 (2025-09-24)
 
 
