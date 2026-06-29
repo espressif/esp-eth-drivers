@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/espressif/esp-eth-drivers/compare/dm9051@v1.1.0...dm9051@v1.1.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **dm9051:** force link down while BMCR.power_down is set ([866f4a9](https://github.com/espressif/esp-eth-drivers/commit/866f4a9b8cdd73d66e258338ec545561dbea03cd))
+
 ## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/dm9051@v1.0.0...dm9051@v1.1.0) (2026-04-09)
 
 
