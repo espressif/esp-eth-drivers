@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.3.0...ethernet_init@v1.4.0) (2026-06-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **w6100:** eth_w5500_config_t layout changed. The fields int_gpio_num, poll_period_ms, spi_host_id, spi_devcfg and custom_spi_driver are now nested inside a .base member of type eth_wiznet_config_t.
+
+### Features
+
+* **ethernet_init:** make locally administered MAC derivation optional per SPI module ([babaa8c](https://github.com/espressif/esp-eth-drivers/commit/babaa8cf6e0d4a9c18f6c4aef65d6b99381d8d91))
+* **w6100:** add W6100 Ethernet driver support ([a3396df](https://github.com/espressif/esp-eth-drivers/commit/a3396dfaae9b57f0df40ff7add5c2b55de11a5d1))
+
+
+### Bug Fixes
+
+* **ethernet_init:** added dev_name when generic PHY selected ([1d1abd6](https://github.com/espressif/esp-eth-drivers/commit/1d1abd61ad41aab3e916c776d6cad2894146469c))
+
 ## [1.3.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.2.0...ethernet_init@v1.3.0) (2026-01-29)
 
 
