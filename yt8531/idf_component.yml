@@ -1,4 +1,4 @@
-version: 0.1.0
+version: 0.2.0
 description: YT8531 Ethernet PHY Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/yt8531
 dependencies:
