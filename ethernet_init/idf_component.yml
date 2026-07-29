@@ -94,7 +94,7 @@ dependencies:
       - if: $CONFIG{ETHERNET_PHY_USE_VSC8541} == 1
     matches:
       - if: idf_version >=6.1
-        version: ^0.1.0
+        version: ^0.2.0
     override_path: ../vsc8541/
   espressif/yt8531:
     rules:
@@ -103,7 +103,7 @@ dependencies:
       - if: $CONFIG{ETHERNET_PHY_USE_YT8531} == 1
     matches:
       - if: idf_version >=6.1
-        version: ^0.1.0
+        version: ^0.2.0
     override_path: ../yt8531/
 examples:
   - path: ../common_examples/
@@ -111,4 +111,4 @@ description: >-
   This component initializes Ethernet driver based on Espressif IoT Development
   Framework Configuration.
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ethernet_init
-version: 1.3.0
+version: 1.4.0
