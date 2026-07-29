@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/espressif/esp-eth-drivers/compare/lan867x@v2.0.0...lan867x@v2.1.0) (2026-07-29)
+
+
+### Features
+
+* **eth_phys:** add ESP32-S31 target to existing PHY components ([d85bbe2](https://github.com/espressif/esp-eth-drivers/commit/d85bbe2041cea3bded0968c58479c64c81fbcafe))
+
 ## [2.0.0](https://github.com/espressif/esp-eth-drivers/compare/lan867x@v1.0.3...lan867x@v2.0.0) (2025-07-18)
 
 
