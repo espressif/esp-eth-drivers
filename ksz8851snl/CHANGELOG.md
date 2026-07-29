@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/espressif/esp-eth-drivers/compare/ksz8851snl@v1.1.0...ksz8851snl@v1.2.0) (2026-07-29)
+
+
+### Features
+
+* **ksz8851snl:** added check that valid speed to be set ([2b5136e](https://github.com/espressif/esp-eth-drivers/commit/2b5136ed87fdbc518e7de81ceb4e25a86521f0e1))
+
+
 ## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/ksz8851snl@v1.0.0...ksz8851snl@v1.1.0) (2026-06-25)
 
 
