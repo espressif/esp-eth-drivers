@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/lan87xx@v1.0.0...lan87xx@v1.1.0) (2026-07-29)
+
+
+### Features
+
+* **eth_phys:** add ESP32-S31 target to existing PHY components ([d85bbe2](https://github.com/espressif/esp-eth-drivers/commit/d85bbe2041cea3bded0968c58479c64c81fbcafe))
+
+
+### Bug Fixes
+
+* **lan87xx:** force link down while BMCR.power_down is set ([2b16293](https://github.com/espressif/esp-eth-drivers/commit/2b16293611c4235240cc2e0be1a9d5cc327db309)), closes [#154](https://github.com/espressif/esp-eth-drivers/issues/154)
+
 ## 1.0.0 (2025-09-24)
 
 
