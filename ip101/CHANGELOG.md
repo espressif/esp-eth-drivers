@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/ip101@v1.0.0...ip101@v1.1.0) (2026-07-29)
+
+
+### Features
+
+* **ci:** removed ci-component, disable p4 test o 5.4 ([22cee4d](https://github.com/espressif/esp-eth-drivers/commit/22cee4d5f6a80f05e837501788d9efa69ac727fa))
+* **eth_phys:** add ESP32-S31 target to existing PHY components ([d85bbe2](https://github.com/espressif/esp-eth-drivers/commit/d85bbe2041cea3bded0968c58479c64c81fbcafe))
+* **eth_test_app:** initial commit of ETH test app ([7902cf2](https://github.com/espressif/esp-eth-drivers/commit/7902cf2376c36d761d49c3b74ea0f28ca2b359bb))
+* **ethernet_init:** integrate VSC8541 and YT8531 gigabit PHYs ([053bbb5](https://github.com/espressif/esp-eth-drivers/commit/053bbb511351f80503edfcd0f65012bbfe5034ca))
+
 ## 1.0.0 (2025-09-24)
 
 
