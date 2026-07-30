@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.4.0...ethernet_init@v1.4.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **ethernet_init:** fixed corrupted initialization of W5500 on IDF&lt;6 ([ed7342c](https://github.com/espressif/esp-eth-drivers/commit/ed7342c79f9920a66eb2facf28e1925b77cbd194))
+
 ## [1.4.0](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.3.0...ethernet_init@v1.4.0) (2026-07-29)
 
 
