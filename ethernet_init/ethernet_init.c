@@ -536,8 +536,13 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_W5500) {
 #if CONFIG_ETHERNET_SPI_USE_W5500
         eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
         w5500_config.base.int_gpio_num = spi_eth_module_config->int_gpio;
         w5500_config.base.poll_period_ms = spi_eth_module_config->poll_period_ms;
+#else
+        w5500_config.int_gpio_num = spi_eth_module_config->int_gpio;
+        w5500_config.poll_period_ms = spi_eth_module_config->poll_period_ms;
+#endif
         mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
         phy = esp_eth_phy_new_w5500(&phy_config);
         (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "W5500");
