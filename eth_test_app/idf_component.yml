@@ -4,7 +4,7 @@ url: https://github.com/espressif/esp-eth-drivers/tree/master/eth_test_app
 dependencies:
   idf: '>=5.4.3'
   espressif/ethernet_init:
-    version: 1.3.0
+    version: 1.4.1
 examples:
   - path: test_apps_example/
 files:
