@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/espressif/esp-eth-drivers/compare/eth_test_app@v0.3.0...eth_test_app@v0.4.0) (2026-08-05)
+
+
+### Features
+
+* **eth_test_app:** set to use Ethernet init v1.4.1 ([17796c2](https://github.com/espressif/esp-eth-drivers/commit/17796c29e6056842473ae37ceda4dbc159a2a443))
+
 ## [0.3.0](https://github.com/espressif/esp-eth-drivers/compare/eth_test_app@v0.2.0...eth_test_app@v0.3.0) (2026-07-30)
 
 

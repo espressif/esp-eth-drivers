@@ -1,4 +1,4 @@
-version: 0.3.0
+version: 0.4.0
 description: Common Ethernet test utilities and test cases for ESP-IDF Ethernet drivers
 url: https://github.com/espressif/esp-eth-drivers/tree/master/eth_test_app
 dependencies:
