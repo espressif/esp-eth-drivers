@@ -1077,6 +1077,7 @@ menu "Ethernet Configuration"
 
     config ETHERNET_DEFAULT_EVENT_HANDLER
         bool "Enable Default Ethernet Event Handler"
+        depends on ETHERNET_INTERNAL_SUPPORT || ETHERNET_SPI_SUPPORT || ETHERNET_OPENETH_SUPPORT
         default y
         help
             Enable default Ethernet event handler which logs basic Ethernet link statuses.
