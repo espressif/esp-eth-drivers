@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * SPDX-FileContributor: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileContributor: 2025-2026 Espressif Systems (Shanghai) CO LTD
  */
 #include <stdlib.h>
 #include "esp_eth_phy.h"
@@ -11,12 +11,16 @@
 #include "esp_check.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "driver/gpio.h"
 #include "esp_private/gpio.h"
 #include "soc/io_mux_reg.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ksz8851.h"
+
+/* RSTN must be held low for at least 10 ms after 3.3V is stable (datasheet Reset Timing, tSR) */
+#define KSZ8851_PHY_RESET_ASSERTION_TIME_US 10000
 
 typedef struct {
     esp_eth_phy_t parent;
@@ -26,9 +30,25 @@ typedef struct {
     uint32_t autonego_timeout_ms;
     eth_link_t link_status;
     int reset_gpio_num;
+    uint32_t hw_reset_assert_time_us;
+    int32_t post_hw_reset_delay_ms;
 } phy_ksz8851snl_t;
 
 static const char *TAG = "ksz8851snl-phy";
+
+/* Delays for at least delay_us. Anything shorter than a FreeRTOS tick has to be busy waited since
+   the scheduler cannot express it. Longer delays are slept off by a single vTaskDelay which returns
+   after n-1 to n tick periods, because the call is placed somewhere inside an already running tick,
+   hence one extra tick is requested to not undershoot the delay. */
+static void ksz8851_delay_us(uint32_t delay_us)
+{
+    uint32_t tick_period_us = portTICK_PERIOD_MS * 1000;
+    if (delay_us < tick_period_us) {
+        esp_rom_delay_us(delay_us);
+    } else {
+        vTaskDelay((delay_us + tick_period_us - 1) / tick_period_us + 1);
+    }
+}
 
 static esp_err_t ksz8851_update_link_duplex_speed(phy_ksz8851snl_t *ksz8851)
 {
@@ -85,9 +105,11 @@ static esp_err_t phy_ksz8851_reset(esp_eth_phy_t *phy)
     ksz8851->link_status      = ETH_LINK_DOWN;
     esp_eth_mediator_t *eth   = ksz8851->eth;
     ESP_LOGD(TAG, "soft reset");
-    // NOTE(v.chistyakov): PHY_RESET bit is self-clearing
+    // PHYRR[0] is write-only and self-clearing. The datasheet does not define a completion time or a
+    // readable status bit, so wait reset_timeout_ms without undershooting a FreeRTOS tick.
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, ksz8851->addr, KSZ8851_PHYRR, PHYRR_PHY_RESET), err, TAG, "PHYRR write failed");
-    vTaskDelay(pdMS_TO_TICKS(ksz8851->reset_timeout_ms));
+    ksz8851_delay_us(ksz8851->reset_timeout_ms * 1000);
+
     return ESP_OK;
 err:
     return ret;
@@ -96,14 +118,17 @@ err:
 static esp_err_t phy_ksz8851_reset_hw(esp_eth_phy_t *phy)
 {
     phy_ksz8851snl_t *ksz8851 = __containerof(phy, phy_ksz8851snl_t, parent);
-    // NOTE(v.chistyakov): set reset_gpio_num to a negative value can skip hardware reset phy chip
+    // set reset_gpio_num to a negative value to skip hardware reset
     if (ksz8851->reset_gpio_num >= 0) {
         ESP_LOGD(TAG, "hard reset");
         gpio_func_sel(ksz8851->reset_gpio_num, PIN_FUNC_GPIO);
         gpio_set_level(ksz8851->reset_gpio_num, 0);
         gpio_output_enable(ksz8851->reset_gpio_num);
-        esp_rom_delay_us(ksz8851->reset_timeout_ms * 1000);
+        ksz8851_delay_us(ksz8851->hw_reset_assert_time_us);
         gpio_set_level(ksz8851->reset_gpio_num, 1);
+        if (ksz8851->post_hw_reset_delay_ms > 0) {
+            ksz8851_delay_us((uint32_t)ksz8851->post_hw_reset_delay_ms * 1000);
+        }
     }
     return ESP_OK;
 }
@@ -370,6 +395,16 @@ esp_eth_phy_t *esp_eth_phy_new_ksz8851snl(const eth_phy_config_t *config)
     ksz8851->reset_gpio_num                 = config->reset_gpio_num;
     ksz8851->link_status                    = ETH_LINK_DOWN;
     ksz8851->autonego_timeout_ms            = config->autonego_timeout_ms;
+    if (config->hw_reset_assert_time_us > 0) {
+        ksz8851->hw_reset_assert_time_us = config->hw_reset_assert_time_us;
+    } else {
+        ksz8851->hw_reset_assert_time_us = KSZ8851_PHY_RESET_ASSERTION_TIME_US;
+    }
+    if (config->post_hw_reset_delay_ms > 0) {
+        ksz8851->post_hw_reset_delay_ms = config->post_hw_reset_delay_ms;
+    } else {
+        ksz8851->post_hw_reset_delay_ms = ESP_ETH_NO_POST_HW_RESET_DELAY;
+    }
     ksz8851->parent.set_mediator            = phy_ksz8851_set_mediator;
     ksz8851->parent.reset                   = phy_ksz8851_reset;
     ksz8851->parent.reset_hw                = phy_ksz8851_reset_hw;
