@@ -6,3 +6,4 @@ Warning: Deprecated: Command 'extract_public_key' is deprecated. Use 'extract-pu
 WARNING: The following Kconfig variables were used in "if" clauses
 warning: unknown kconfig symbol 'ETHERNET_OPENETH_SUPPORT' assigned to
 UserWarning: Pydantic serializer warnings
+warning: 'esp_eth_transmit_ctrl_vargs' is deprecated

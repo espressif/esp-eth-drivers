@@ -25,7 +25,9 @@ job_template_jinja = """
     expire_in: "1 week"
     when: "always"
   before_script:
-    - pip install -U 'idf-ci>=1,<2'
+    - CONSTRAINT_FILE="$(ls -1 ${IDF_TOOLS_PATH}/espidf.constraints.v*.txt 2>/dev/null | tail -1)"
+    - test -f $CONSTRAINT_FILE
+    - pip install -U 'idf-ci>=1.2.2,<2' -c ${CONSTRAINT_FILE}
     - pip install -r .ci/requirements.txt
   script:
     - python tools/overwrite_component_path.py . .
