@@ -22,6 +22,9 @@
 
 #define CH390_INFO_MODEL                     0x01
 
+// CH390DS1 v1.8, Table 9-7-2: RSTB must be low for at least 1 ms.
+#define CH390_RESET_ASSERTION_TIME_US         1000
+
 typedef struct {
     phy_802_3_t phy_802_3;
 } phy_ch390_t;
@@ -139,7 +142,12 @@ esp_eth_phy_t *esp_eth_phy_new_ch390(const eth_phy_config_t *config)
     esp_eth_phy_t *ret = NULL;
     phy_ch390_t *ch390 = calloc(1, sizeof(phy_ch390_t));
     ESP_GOTO_ON_FALSE(ch390, NULL, err, TAG, "calloc ch390 failed");
-    ESP_GOTO_ON_FALSE(esp_eth_phy_802_3_obj_config_init(&ch390->phy_802_3, config) == ESP_OK,
+    ESP_GOTO_ON_FALSE(config, NULL, err, TAG, "can't set phy config to null");
+    eth_phy_config_t ch390_config = *config;
+    if (ch390_config.hw_reset_assert_time_us == 0) {
+        ch390_config.hw_reset_assert_time_us = CH390_RESET_ASSERTION_TIME_US;
+    }
+    ESP_GOTO_ON_FALSE(esp_eth_phy_802_3_obj_config_init(&ch390->phy_802_3, &ch390_config) == ESP_OK,
                       NULL, err, TAG, "configuration initialization of PHY 802.3 failed");
 
     // override functions which need to be customized for sake of ch390

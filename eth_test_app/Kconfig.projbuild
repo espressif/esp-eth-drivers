@@ -95,4 +95,17 @@ menu "esp_eth TEST_APPS Configuration"
             the Rx task to be able to preempt the Rx task.
             This option should be set for SPI Ethernet modules (>15), otherwise set -1 to use default priority.
 
+    config ETH_TEST_PHY_DEFAULTS
+        bool "Test PHY reset timing defaults and overrides"
+        default n
+        help
+            Requires an esp_eth_phy_802_3-based PHY and an esp_eth_test_phy_new()
+            implementation in the test application. No hardware is required.
+
+    config ETH_TEST_PHY_RESET_ASSERTION_US
+        depends on ETH_TEST_PHY_DEFAULTS
+        int "Expected reset assertion setting (us, 0 to skip)"
+        range 0 1000000
+        default 0
+
 endmenu
