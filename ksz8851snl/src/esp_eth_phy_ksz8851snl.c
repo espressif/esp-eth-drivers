@@ -138,13 +138,20 @@ static esp_err_t phy_ksz8851_pwrctl(esp_eth_phy_t *phy, bool enable)
     esp_err_t ret = ESP_OK;
     phy_ksz8851snl_t *ksz8851 = __containerof(phy, phy_ksz8851snl_t, parent);
     esp_eth_mediator_t *eth   = ksz8851->eth;
+
+    uint32_t pmecr;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, ksz8851->addr, KSZ8851_PMECR, &pmecr), err, TAG, "PMECR read failed");
+
+    // wake-up event bits are Write-1-To-Clear, mask them out so a set event is not cleared by the write back
+    pmecr &= ~(PMECR_PME_MODE_MASK | PMECR_WAKEUP_EVENT_MASK);
     if (enable) {
         ESP_LOGD(TAG, "normal mode");
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, ksz8851->addr, KSZ8851_PMECR, PMECR_PME_MODE_POWER_SAVING), err, TAG, "PMECR write failed");
+        pmecr |= PMECR_PME_MODE_NORMAL;
     } else {
         ESP_LOGD(TAG, "power saving mode");
-        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, ksz8851->addr, KSZ8851_PMECR, PMECR_PME_MODE_NORMAL), err, TAG, "PMECR write failed");
+        pmecr |= PMECR_PME_MODE_POWER_SAVING;
     }
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, ksz8851->addr, KSZ8851_PMECR, pmecr), err, TAG, "PMECR write failed");
     return ESP_OK;
 err:
     return ret;
@@ -154,8 +161,9 @@ static esp_err_t phy_ksz8851_init(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
     ESP_LOGD(TAG, "initializing PHY");
-    ESP_GOTO_ON_ERROR(phy_ksz8851_pwrctl(phy, true), err, TAG, "power control failed");
+    // PHYRR clears PMECR, so the power mode has to be selected after the reset or it is lost
     ESP_GOTO_ON_ERROR(phy_ksz8851_reset(phy), err, TAG, "reset failed");
+    ESP_GOTO_ON_ERROR(phy_ksz8851_pwrctl(phy, true), err, TAG, "power control failed");
     return ESP_OK;
 err:
     return ret;
