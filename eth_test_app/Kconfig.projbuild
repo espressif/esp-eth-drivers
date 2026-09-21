@@ -108,4 +108,13 @@ menu "esp_eth TEST_APPS Configuration"
         range 0 1000000
         default 0
 
+    config ETH_TEST_PHY_POST_RESET_DELAY_MS
+        depends on ETH_TEST_PHY_DEFAULTS
+        int "Expected post-reset setting (ms, 0 to skip)"
+        range -1 1000
+        default 0
+        help
+            Expected stored value.
+            Use -1 to expect no delay.
+
 endmenu

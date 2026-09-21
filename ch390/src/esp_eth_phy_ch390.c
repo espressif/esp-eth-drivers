@@ -24,6 +24,8 @@
 
 // CH390DS1 v1.8, Table 9-7-2: RSTB must be low for at least 1 ms.
 #define CH390_RESET_ASSERTION_TIME_US         1000
+// CH390DS1 v1.8, Table 9-7-2, Note 3 recommends 4 ms before host access after RSTB reset.
+#define CH390_POST_RESET_DELAY_MS             4
 
 typedef struct {
     phy_802_3_t phy_802_3;
@@ -146,6 +148,9 @@ esp_eth_phy_t *esp_eth_phy_new_ch390(const eth_phy_config_t *config)
     eth_phy_config_t ch390_config = *config;
     if (ch390_config.hw_reset_assert_time_us == 0) {
         ch390_config.hw_reset_assert_time_us = CH390_RESET_ASSERTION_TIME_US;
+    }
+    if (ch390_config.post_hw_reset_delay_ms == 0) {
+        ch390_config.post_hw_reset_delay_ms = CH390_POST_RESET_DELAY_MS;
     }
     ESP_GOTO_ON_FALSE(esp_eth_phy_802_3_obj_config_init(&ch390->phy_802_3, &ch390_config) == ESP_OK,
                       NULL, err, TAG, "configuration initialization of PHY 802.3 failed");
