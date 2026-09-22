@@ -185,6 +185,13 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Ethernet(%s[%d,%d]) Link Up", dev_info.name, pin1, pin2);
         ESP_LOGI(TAG, "Ethernet(%s[%d,%d]) HW Addr %02x:%02x:%02x:%02x:%02x:%02x", dev_info.name, pin1, pin2,
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+        eth_speed_t speed;
+        esp_eth_ioctl(eth_handle, ETH_CMD_G_SPEED, &speed);
+        eth_duplex_t duplex;
+        esp_eth_ioctl(eth_handle, ETH_CMD_G_DUPLEX_MODE, &duplex);
+        ESP_LOGI(TAG, "Ethernet Speed: %iMbps, %s duplex", speed == ETH_SPEED_10M ? 10 : speed == ETH_SPEED_100M ? 100 : 1000,
+                 duplex == ETH_DUPLEX_HALF ? "half" : "full");
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "Ethernet(%s[%d,%d]) Link Down", dev_info.name, pin1, pin2);
@@ -384,12 +391,23 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
                       err, TAG, "Ethernet driver install failed");
 
 #if CONFIG_ETHERNET_PHY_VSC8541
+#if CONFIG_ETHERNET_PHY_VSC8541_SW_MAC_IFACE
+#if CONFIG_ETHERNET_PHY_INTERFACE_RMII
+    vsc8541_mac_interface_sel_t vsc8541_mac_iface = VSC8541_MAC_INTF_SEL_RMII;
+#else
+    vsc8541_mac_interface_sel_t vsc8541_mac_iface = VSC8541_MAC_INTF_SEL_RGMII;
+#endif
+    ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, VSC8541_ETH_CMD_S_MAC_IFACE, &vsc8541_mac_iface) == ESP_OK, NULL,
+                      err, TAG, "set VSC8541 MAC interface failed");
+#endif
+#if CONFIG_ETHERNET_PHY_INTERFACE_RGMII
     vsc8541_rgmii_clk_delay_config_t cfg_delay = {
         .rx_clk_delay = CONFIG_ETHERNET_PHY_VSC8541_RGMII_RX_CLK_DELAY,
         .tx_clk_delay = CONFIG_ETHERNET_PHY_VSC8541_RGMII_TX_CLK_DELAY,
     };
     ESP_GOTO_ON_FALSE(esp_eth_ioctl(eth_handle, VSC8541_ETH_CMD_S_RGMII_CLK_DELAY, &cfg_delay) == ESP_OK, NULL,
                       err, TAG, "set RGMII clock delay failed");
+#endif
 #endif
 #if CONFIG_ETHERNET_PHY_YT8531
     yt8531_rgmii_clk_delay_config_t yt8531_cfg_delay = {

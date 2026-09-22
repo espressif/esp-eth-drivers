@@ -164,6 +164,7 @@ menu "Ethernet Configuration"
                 int "RMII CLK GPIO"
                 range ENV_GPIO_RANGE_MIN ENV_GPIO_RANGE_MAX
                 default 50 if IDF_TARGET_ESP32P4
+                default 13 if IDF_TARGET_ESP32S31
                 default 0
                 help
                     RMII CLK input or output GPIO. See datasheet for available GPIOs.
@@ -191,6 +192,7 @@ menu "Ethernet Configuration"
                     int "RMII TX_EN GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
                     default 49 if IDF_TARGET_ESP32P4
+                    default 12 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII TX_EN signal.
@@ -200,6 +202,7 @@ menu "Ethernet Configuration"
                     int "RMII TXD0 GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
                     default 34 if IDF_TARGET_ESP32P4
+                    default 8 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII TXD0 signal.
@@ -209,6 +212,7 @@ menu "Ethernet Configuration"
                     int "RMII TXD1 GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
                     default 35 if IDF_TARGET_ESP32P4
+                    default 9 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII TXD1 signal.
@@ -218,6 +222,7 @@ menu "Ethernet Configuration"
                     int "RMII CRS_DV GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
                     default 28 if IDF_TARGET_ESP32P4
+                    default 15 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII CRS_DV signal.
@@ -227,6 +232,7 @@ menu "Ethernet Configuration"
                     int "RMII RXD0 GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
                     default 29 if IDF_TARGET_ESP32P4
+                    default 19 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII RXD0 signal.
@@ -236,6 +242,7 @@ menu "Ethernet Configuration"
                     int "RMII RXD1 GPIO number"
                     range ENV_GPIO_RANGE_MIN ENV_GPIO_IN_RANGE_MAX
                     default 30 if IDF_TARGET_ESP32P4
+                    default 18 if IDF_TARGET_ESP32S31
                     default 0
                     help
                         Set the GPIO number used by RMII RXD1 signal.
@@ -354,82 +361,6 @@ menu "Ethernet Configuration"
             endif # SOC_EMAC_USE_MULTI_IO_MUX
         endif # ETHERNET_PHY_INTERFACE_RGMII
 
-        choice ETHERNET_PHY_MODEL
-            prompt "Ethernet PHY Device"
-            default ETHERNET_PHY_IP101
-            help
-                Select the Ethernet PHY device to use.
-
-            config ETHERNET_PHY_GENERIC
-                bool "Generic 802.3 PHY"
-                help
-                    Any Ethernet PHY chip compliant with IEEE 802.3 can be used. However, while
-                    basic functionality should always work, some specific features might be limited,
-                    even if the PHY meets IEEE 802.3 standard. A typical example is loopback
-                    functionality, where certain PHYs may require setting a specific speed mode to
-                    operate correctly.
-
-            config ETHERNET_PHY_IP101
-                bool "IP101"
-                help
-                    IP101 is a single port 10/100 MII/RMII/TP/Fiber Fast Ethernet Transceiver.
-                    Goto http://www.icplus.com.tw/pp-IP101G.html for more information about it.
-
-            config ETHERNET_PHY_RTL8201
-                bool "RTL8201/SR8201"
-                help
-                    RTL8201F/SR8201F is a single port 10/100Mb Ethernet Transceiver with auto MDIX.
-                    Goto http://www.corechip-sz.com/productsview.asp?id=22 for more information about it.
-
-            config ETHERNET_PHY_LAN87XX
-                bool "LAN87xx"
-                help
-                    Below chips are supported:
-                    LAN8710A is a small footprint MII/RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
-                        flexPWR® Technology.
-                    LAN8720A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX Support.
-                    LAN8740A/LAN8741A is a small footprint MII/RMII 10/100 Energy Efficient Ethernet Transceiver
-                        with HP Auto-MDIX and flexPWR® Technology.
-                    LAN8742A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
-                        flexPWR® Technology.
-                    Goto https://www.microchip.com for more information about them.
-
-            config ETHERNET_PHY_DP83848
-                bool "DP83848"
-                help
-                    DP83848 is a single port 10/100Mb/s Ethernet Physical Layer Transceiver.
-                    Goto http://www.ti.com/product/DP83848J for more information about it.
-
-            config ETHERNET_PHY_KSZ80XX
-                bool "KSZ80xx"
-                help
-                    With the KSZ80xx series, Microchip offers single-chip 10BASE-T/100BASE-TX
-                    Ethernet Physical Layer Transceivers (PHY).
-                    The following chips are supported: KSZ8001, KSZ8021, KSZ8031, KSZ8041,
-                        KSZ8051, KSZ8061, KSZ8081, KSZ8091
-                    Goto https://www.microchip.com for more information about them.
-
-            config ETHERNET_PHY_LAN867X
-                bool "LAN867x"
-                help
-                    The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for
-                    10 Mbit/s half-duplex networking over a single pair of conductors
-                    Goto https://www.microchip.com for more information about them.
-
-            config ETHERNET_PHY_VSC8541
-                bool "VSC8541"
-                help
-                    VSC8541 is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from Microchip.
-                    Link, speed and duplex can be negotiated over MII/GMII/RMII/RGMII depending on hardware.
-
-            config ETHERNET_PHY_YT8531
-                bool "YT8531"
-                depends on SOC_EMAC_SUPPORT_1000M
-                help
-                    YT8531S/YT8531SC is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from
-                    Motorcomm (裕太微电子). Supports RGMII and SGMII MAC interfaces.
-        endchoice # ETHERNET_PHY_MODEL
-
         config ETHERNET_MDC_GPIO
             int "SMI MDC GPIO number"
             range ENV_GPIO_RANGE_MIN ENV_GPIO_OUT_RANGE_MAX
@@ -466,8 +397,100 @@ menu "Ethernet Configuration"
                 Set PHY address according your board schematic.
                 Set to -1 to driver try to find the address automatically.
 
-        config ETHERNET_PHY_VSC8541_RGMII_RX_CLK_DELAY
+        choice ETHERNET_PHY_MODEL
+            prompt "Ethernet PHY Device"
+            default ETHERNET_PHY_IP101
+            help
+                Select the Ethernet PHY device to use.
+
+            config ETHERNET_PHY_GENERIC
+                bool "Generic 802.3 PHY"
+                help
+                    Any Ethernet PHY chip compliant with IEEE 802.3 can be used. However, while
+                    basic functionality should always work, some specific features might be limited,
+                    even if the PHY meets IEEE 802.3 standard. A typical example is loopback
+                    functionality, where certain PHYs may require setting a specific speed mode to
+                    operate correctly.
+
+            config ETHERNET_PHY_IP101
+                bool "IP101"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    IP101 is a single port 10/100 MII/RMII/TP/Fiber Fast Ethernet Transceiver.
+                    Goto http://www.icplus.com.tw/pp-IP101G.html for more information about it.
+
+            config ETHERNET_PHY_RTL8201
+                bool "RTL8201/SR8201"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    RTL8201F/SR8201F is a single port 10/100Mb Ethernet Transceiver with auto MDIX.
+                    Goto http://www.corechip-sz.com/productsview.asp?id=22 for more information about it.
+
+            config ETHERNET_PHY_LAN87XX
+                bool "LAN87xx"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    Below chips are supported:
+                    LAN8710A is a small footprint MII/RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
+                        flexPWR® Technology.
+                    LAN8720A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX Support.
+                    LAN8740A/LAN8741A is a small footprint MII/RMII 10/100 Energy Efficient Ethernet Transceiver
+                        with HP Auto-MDIX and flexPWR® Technology.
+                    LAN8742A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
+                        flexPWR® Technology.
+                    Goto https://www.microchip.com for more information about them.
+
+            config ETHERNET_PHY_DP83848
+                bool "DP83848"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    DP83848 is a single port 10/100Mb/s Ethernet Physical Layer Transceiver.
+                    Goto http://www.ti.com/product/DP83848J for more information about it.
+
+            config ETHERNET_PHY_KSZ80XX
+                bool "KSZ80xx"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    With the KSZ80xx series, Microchip offers single-chip 10BASE-T/100BASE-TX
+                    Ethernet Physical Layer Transceivers (PHY).
+                    The following chips are supported: KSZ8001, KSZ8021, KSZ8031, KSZ8041,
+                        KSZ8051, KSZ8061, KSZ8081, KSZ8091
+                    Goto https://www.microchip.com for more information about them.
+
+            config ETHERNET_PHY_LAN867X
+                bool "LAN867x"
+                depends on !ETHERNET_PHY_INTERFACE_RGMII
+                help
+                    The LAN8670/1/2 is a high-performance 10BASE-T1S single-pair Ethernet PHY transceiver for
+                    10 Mbit/s half-duplex networking over a single pair of conductors
+                    Goto https://www.microchip.com for more information about them.
+
+            config ETHERNET_PHY_VSC8541
+                bool "VSC8541"
+                help
+                    VSC8541 is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from Microchip.
+                    Link, speed and duplex can be negotiated over MII/GMII/RMII/RGMII depending on hardware.
+
+            config ETHERNET_PHY_YT8531
+                bool "YT8531"
+                depends on SOC_EMAC_SUPPORT_1000M && !ETHERNET_PHY_INTERFACE_RMII
+                help
+                    YT8531S/YT8531SC is a single-port 10/100/1000BASE-T Gigabit Ethernet transceiver from
+                    Motorcomm (裕太微电子). Supports RGMII and SGMII MAC interfaces.
+        endchoice # ETHERNET_PHY_MODEL
+
+        config ETHERNET_PHY_VSC8541_SW_MAC_IFACE
+            bool "Override VSC8541 MAC interface by software"
             depends on ETHERNET_PHY_VSC8541
+            depends on ETHERNET_PHY_INTERFACE_RMII || ETHERNET_PHY_INTERFACE_RGMII
+            default n
+            help
+                Force the VSC8541 MAC interface in software to match the selected PHY interface,
+                instead of using the bootstrap pins. Intended for debug, for example RMII on a
+                board strapped for RGMII. Leave disabled under normal conditions.
+
+        config ETHERNET_PHY_VSC8541_RGMII_RX_CLK_DELAY
+            depends on ETHERNET_PHY_VSC8541 && !ETHERNET_PHY_INTERFACE_RMII
             int "VSC8541 RGMII RX clock delay"
             range 0 7
             default 4
@@ -476,7 +499,7 @@ menu "Ethernet Configuration"
                 Valid values are 0..7 according to the PHY datasheet delay table.
 
         config ETHERNET_PHY_VSC8541_RGMII_TX_CLK_DELAY
-            depends on ETHERNET_PHY_VSC8541
+            depends on ETHERNET_PHY_VSC8541 && !ETHERNET_PHY_INTERFACE_RMII
             int "VSC8541 RGMII TX clock delay"
             range 0 7
             default 4
