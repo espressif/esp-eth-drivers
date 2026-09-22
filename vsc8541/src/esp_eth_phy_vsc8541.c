@@ -21,13 +21,6 @@ static const char *TAG = "vsc8541";
 
 #define VSC8541_PHY_OUI 0x0001C1 /* Microchip/Vitesse */
 
-typedef enum {
-    VSC8541_MAC_INTF_SEL_GMII_MII = 0x0,
-    VSC8541_MAC_INTF_SEL_RMII     = 0x1,
-    VSC8541_MAC_INTF_SEL_RGMII    = 0x2,
-    VSC8541_MAC_INTF_SEL_RESERVED = 0x3,
-} vsc8541_mac_interface_sel_t;
-
 /***************Vendor Specific Register***************/
 typedef enum {
     VSC8541_PAGE_STANDARD        = 0x00,
@@ -111,6 +104,25 @@ typedef union {
 #define ETH_PHY_RCR_REG_ADDR (0x14)
 
 /**
+ * @brief WMICR (Wake-on-LAN and MAC Interface Control Register), page 0x02, Address 0x1B (Register 27E2)
+ *
+ */
+typedef union {
+    struct {
+        uint32_t mdint_cmos_drive : 1;          /* 1: MDINT CMOS drive enabled */
+        uint32_t reserved1 : 3;                 /* Reserved */
+        uint32_t rmii_clkout_en : 1;            /* 1: RMII CLKOUT enabled (RX_CLK pin in RMII mode) */
+        uint32_t pad_edge_rate : 3;             /* MAC interface edge rate control */
+        uint32_t magic_pkt_addr_rep_cnt : 4;    /* Address repetition count in Magic packet */
+        uint32_t reserved2 : 2;                 /* Reserved */
+        uint32_t secure_on_pwd_len : 1;         /* 0: 6 byte password, 1: 4 byte password */
+        uint32_t secure_on_en : 1;              /* 1: Secure-On enabled */
+    };
+    uint32_t val;
+} wmicr_reg_t;
+#define ETH_PHY_WMICR_REG_ADDR (0x1B)
+
+/**
  * @brief GC2R (GPIO Control 2 Register), page 0x10, address 0x0E
  *
  */
@@ -130,6 +142,8 @@ typedef union {
 
 typedef struct {
     phy_802_3_t phy_802_3;
+    bool mac_iface_sw_override;                 /* true once VSC8541_ETH_CMD_S_MAC_IFACE has been used */
+    vsc8541_mac_interface_sel_t mac_iface;      /* software-selected MAC interface, valid if override is set */
 } phy_vsc8541_t;
 
 static esp_err_t vsc8541_page_select(phy_vsc8541_t *vsc8541, vsc8541_page_t page)
@@ -140,6 +154,70 @@ static esp_err_t vsc8541_page_select(phy_vsc8541_t *vsc8541, vsc8541_page_t page
         .register_page_select = (uint16_t)page
     };
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, vsc8541->phy_802_3.addr, ETH_PHY_PCR_REG_ADDR, pcr.val), err, TAG, "write PCR failed");
+    return ESP_OK;
+err:
+    return ret;
+}
+
+/**
+ * @brief Apply software MAC interface selection.
+ *
+ * Writes Extended PHY Control, then software-resets so the new interface is latched.
+ */
+static esp_err_t vsc8541_apply_sw_mac_iface(phy_vsc8541_t *vsc8541)
+{
+    esp_err_t ret = ESP_OK;
+    if (!vsc8541->mac_iface_sw_override) {
+        return ESP_OK;
+    }
+
+    phy_802_3_t *phy_802_3 = &vsc8541->phy_802_3;
+    esp_eth_mediator_t *eth = phy_802_3->eth;
+    uint32_t addr = phy_802_3->addr;
+    epc_reg_t epc;
+
+    ESP_GOTO_ON_ERROR(vsc8541_page_select(vsc8541, VSC8541_PAGE_STANDARD), err, TAG, "select page 0 failed");
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_EPC_REG_ADDR, &epc.val), err, TAG, "read EPC failed");
+    epc.mac_interface_sel = vsc8541->mac_iface;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, ETH_PHY_EPC_REG_ADDR, epc.val), err, TAG, "write EPC failed");
+    /* MAC interface selection takes effect only after a software reset */
+    ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_reset(phy_802_3), err, TAG, "reset PHY failed");
+
+    epc.val = 0;
+    ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_EPC_REG_ADDR, &epc.val), err, TAG, "read EPC failed");
+    ESP_GOTO_ON_FALSE(epc.mac_interface_sel == vsc8541->mac_iface, ESP_ERR_INVALID_STATE, err, TAG, "MAC interface selection failed");
+
+    if (vsc8541->mac_iface == VSC8541_MAC_INTF_SEL_RMII) {
+        gbcr_reg_t gbcr;
+        ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_GBCR_REG_ADDR, &gbcr.val), err, TAG, "read GBCR failed");
+        gbcr.base1000_t = 0;
+        gbcr.base1000_t_fd = 0;
+        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, ETH_PHY_GBCR_REG_ADDR, gbcr.val), err, TAG, "write GBCR failed");
+    }
+
+    return ESP_OK;
+err:
+    return ret;
+}
+
+static esp_err_t vsc8541_reset(esp_eth_phy_t *phy)
+{
+    phy_vsc8541_t *vsc8541 = __containerof(esp_eth_phy_into_phy_802_3(phy), phy_vsc8541_t, phy_802_3);
+    if (vsc8541->mac_iface_sw_override) {
+        /* Interface select and reset */
+        return vsc8541_apply_sw_mac_iface(vsc8541);
+    }
+    return esp_eth_phy_802_3_reset(&vsc8541->phy_802_3);
+}
+
+static esp_err_t vsc8541_reset_hw(esp_eth_phy_t *phy)
+{
+    esp_err_t ret = ESP_OK;
+    phy_vsc8541_t *vsc8541 = __containerof(esp_eth_phy_into_phy_802_3(phy), phy_vsc8541_t, phy_802_3);
+
+    ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_reset_hw(&vsc8541->phy_802_3), err, TAG, "hardware reset failed");
+    /* Interface select must be written again after reset so strap does not win */
+    ESP_GOTO_ON_ERROR(vsc8541_apply_sw_mac_iface(vsc8541), err, TAG, "re-apply MAC interface failed");
     return ESP_OK;
 err:
     return ret;
@@ -218,6 +296,7 @@ static esp_err_t vsc8541_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
     esp_eth_mediator_t *eth = phy_802_3->eth;
     epc_reg_t epc;
     rcr_reg_t rcr;
+    wmicr_reg_t wmicr;
 
     switch (cmd) {
     case VSC8541_ETH_CMD_S_RGMII_CLK_DELAY: {
@@ -236,7 +315,29 @@ static esp_err_t vsc8541_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
         rcr.tx_clk_delay = cfg->tx_clk_delay;
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_RCR_REG_ADDR, rcr.val), err, TAG, "write 20E2 failed");
         ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, phy_802_3->addr, ETH_PHY_RCR_REG_ADDR, &rcr.val), err, TAG, "read 20E2 failed");
+        break;
+    }
+    case VSC8541_ETH_CMD_S_MAC_IFACE: {
+        ESP_GOTO_ON_FALSE(data != NULL, ESP_ERR_INVALID_ARG, err, TAG, "data can't be null");
+        vsc8541_mac_interface_sel_t iface = *(vsc8541_mac_interface_sel_t *)data;
+        ESP_GOTO_ON_FALSE(iface < VSC8541_MAC_INTF_SEL_RESERVED, ESP_ERR_INVALID_ARG, err, TAG, "invalid MAC interface");
+        vsc8541->mac_iface = iface;
+        vsc8541->mac_iface_sw_override = true;
+        ESP_GOTO_ON_ERROR(vsc8541_apply_sw_mac_iface(vsc8541), err, TAG, "set MAC interface failed");
+        break;
+    }
+    case VSC8541_ETH_CMD_S_RMII_CLKOUT: {
+        ESP_GOTO_ON_FALSE(data != NULL, ESP_ERR_INVALID_ARG, err, TAG, "data can't be null");
+        bool enable = *(bool *)data;
+
         ESP_GOTO_ON_ERROR(vsc8541_page_select(vsc8541, VSC8541_PAGE_STANDARD), err, TAG, "select page 0 failed");
+        ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, phy_802_3->addr, ETH_PHY_EPC_REG_ADDR, &epc.val), err, TAG, "read EPC failed");
+        ESP_GOTO_ON_FALSE(epc.mac_interface_sel == VSC8541_MAC_INTF_SEL_RMII, ESP_ERR_INVALID_STATE, err, TAG, "RMII mode is required");
+
+        ESP_GOTO_ON_ERROR(vsc8541_page_select(vsc8541, VSC8541_PAGE_EXTENDED_2), err, TAG, "select page 2 failed");
+        ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, phy_802_3->addr, ETH_PHY_WMICR_REG_ADDR, &wmicr.val), err, TAG, "read 27E2 failed");
+        wmicr.rmii_clkout_en = enable ? 1 : 0;
+        ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, phy_802_3->addr, ETH_PHY_WMICR_REG_ADDR, wmicr.val), err, TAG, "write 27E2 failed");
         break;
     }
     default:
@@ -244,8 +345,6 @@ static esp_err_t vsc8541_custom_ioctl(esp_eth_phy_t *phy, int cmd, void *data)
         break;
     }
 
-    ESP_GOTO_ON_ERROR(vsc8541_page_select(vsc8541, VSC8541_PAGE_STANDARD), err, TAG, "restore page 0 failed");
-    return ESP_OK;
 err:
     vsc8541_page_select(vsc8541, VSC8541_PAGE_STANDARD);
     return ret;
@@ -255,11 +354,6 @@ static esp_err_t vsc8541_init(esp_eth_phy_t *phy)
 {
     esp_err_t ret = ESP_OK;
     phy_802_3_t *phy_802_3 = esp_eth_phy_into_phy_802_3(phy);
-
-    /* Detect PHY address */
-    if (phy_802_3->addr == ESP_ETH_PHY_ADDR_AUTO) {
-        ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_detect_phy_addr(phy_802_3->eth, &phy_802_3->addr), err, TAG, "Detect PHY address failed");
-    }
 
     /* Basic PHY init */
     ESP_GOTO_ON_ERROR(esp_eth_phy_802_3_basic_phy_init(phy_802_3), err, TAG, "failed to init PHY");
@@ -274,8 +368,10 @@ static esp_err_t vsc8541_init(esp_eth_phy_t *phy)
     phy_vsc8541_t *vsc8541 = __containerof(phy_802_3, phy_vsc8541_t, phy_802_3);
     esp_eth_mediator_t *eth = vsc8541->phy_802_3.eth;
     uint32_t addr = vsc8541->phy_802_3.addr;
-    gc2r_reg_t gc2r;
 
+    ESP_GOTO_ON_ERROR(vsc8541_apply_sw_mac_iface(vsc8541), err, TAG, "re-apply MAC interface failed");
+
+    gc2r_reg_t gc2r;
     ESP_GOTO_ON_ERROR(vsc8541_page_select(vsc8541, VSC8541_PAGE_GPIO), err, TAG, "select GPIO register space page failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, ETH_PHY_GC2R_REG_ADDR, &gc2r.val), err, TAG, "read GC2R failed");
     if (gc2r.coma_mode_input_pin_data) {
@@ -310,6 +406,8 @@ esp_eth_phy_t *esp_eth_phy_new_vsc8541(const eth_phy_config_t *config)
 
     // redefine functions which need to be customized for sake of VSC8541
     vsc8541->phy_802_3.parent.init = vsc8541_init;
+    vsc8541->phy_802_3.parent.reset = vsc8541_reset;
+    vsc8541->phy_802_3.parent.reset_hw = vsc8541_reset_hw;
     vsc8541->phy_802_3.parent.get_link = vsc8541_get_link;
     vsc8541->phy_802_3.parent.custom_ioctl = vsc8541_custom_ioctl;
 
