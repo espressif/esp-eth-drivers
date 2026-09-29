@@ -491,6 +491,7 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
 
     esp_eth_mac_t *mac = NULL;
     esp_eth_phy_t *phy = NULL;
+    esp_eth_handle_t eth_handle = NULL;
 
     // Init common MAC and PHY configs to default
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
@@ -598,7 +599,6 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
     }
 
     // Init Ethernet driver to default and install it
-    esp_eth_handle_t eth_handle = NULL;
     esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac, phy);
     ESP_GOTO_ON_FALSE(esp_eth_driver_install(&eth_config_spi, &eth_handle) == ESP_OK, NULL, err, TAG, "SPI Ethernet driver install failed");
 
