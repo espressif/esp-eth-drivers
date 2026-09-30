@@ -16,6 +16,8 @@
 #include "wiznet_phy_common.h"
 
 #define W5500_WAIT_FOR_RESET_MS (10) // wait for W5500 internal PLL to be Locked after reset assert
+#define W5500_HW_RESET_ASSERT_TIME_US (500) // TRC
+#define W5500_POST_HW_RESET_DELAY_MS  (1)   // TPL
 
 static const char *TAG = "w5500.phy";
 
@@ -205,6 +207,8 @@ esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
         .reset_timeout_ms = config->reset_timeout_ms,
         .autonego_timeout_ms = config->autonego_timeout_ms,
         .reset_gpio_num = config->reset_gpio_num,
+        .hw_reset_assert_time_us = W5500_HW_RESET_ASSERT_TIME_US,
+        .post_hw_reset_delay_ms = W5500_POST_HW_RESET_DELAY_MS,
         /* W5500 PHY status register bit interpretation:
          * - speed bit: 1 = 100Mbps, 0 = 10Mbps
          * - duplex bit: 1 = full, 0 = half */

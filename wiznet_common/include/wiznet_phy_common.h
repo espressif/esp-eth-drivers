@@ -39,6 +39,8 @@ typedef struct {
     uint32_t reset_timeout_ms;          /**< Reset timeout in milliseconds */
     uint32_t autonego_timeout_ms;       /**< Auto-negotiation timeout in milliseconds */
     int reset_gpio_num;                 /**< Hardware reset GPIO, or -1 if not used */
+    uint32_t hw_reset_assert_time_us;   /**< RSTn low pulse width in microseconds */
+    uint32_t post_hw_reset_delay_ms;    /**< Delay after releasing RSTn before first SPI access */
 
     /* PHY status register configuration */
     uint32_t phy_status_reg;            /**< Register address for PHY status (link/speed/duplex) */
@@ -142,7 +144,8 @@ esp_err_t phy_wiznet_loopback(esp_eth_phy_t *phy, bool enable);
 /**
  * @brief Hardware reset PHY chip via GPIO
  *
- * Asserts reset pin low for 100us then releases.
+ * Asserts RSTn for hw_reset_assert_time_us, then waits post_hw_reset_delay_ms
+ * after release so the chip can finish coming out of reset.
  * If reset_gpio_num is negative, this is a no-op.
  *
  * @param phy Ethernet PHY instance

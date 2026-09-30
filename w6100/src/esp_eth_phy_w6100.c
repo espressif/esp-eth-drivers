@@ -16,6 +16,8 @@
 #include "wiznet_phy_common.h"
 
 #define W6100_WAIT_FOR_RESET_MS (2) // datasheet §8.4.1 TPRST min 0.6 ms after PHYCR1[RST]
+#define W6100_HW_RESET_ASSERT_TIME_US (2)  // TRST
+#define W6100_POST_HW_RESET_DELAY_MS  (70) // TSTA
 
 static const char *TAG = "w6100.phy";
 
@@ -219,6 +221,8 @@ esp_eth_phy_t *esp_eth_phy_new_w6100(const eth_phy_config_t *config)
         .reset_timeout_ms = config->reset_timeout_ms,
         .autonego_timeout_ms = config->autonego_timeout_ms,
         .reset_gpio_num = config->reset_gpio_num,
+        .hw_reset_assert_time_us = W6100_HW_RESET_ASSERT_TIME_US,
+        .post_hw_reset_delay_ms = W6100_POST_HW_RESET_DELAY_MS,
         /* W6100 PHY status register bit interpretation (inverted from W5500):
          * - speed bit: 1 = 10Mbps, 0 = 100Mbps
          * - duplex bit: 1 = half, 0 = full */

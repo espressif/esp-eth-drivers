@@ -16,6 +16,8 @@
 #include "esp_rom_gpio.h"
 #endif
 #include "esp_rom_sys.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "wiznet_phy_common.h"
 
 static const char *TAG = "wiznet.phy";
@@ -35,6 +37,8 @@ struct phy_wiznet_s {
     uint32_t autonego_timeout_ms;   /**< Auto-negotiation timeout in milliseconds */
     eth_link_t link_status;         /**< Current link status */
     int reset_gpio_num;             /**< Hardware reset GPIO, or -1 if not used */
+    uint32_t hw_reset_assert_time_us; /**< RSTn low pulse width in microseconds */
+    uint32_t post_hw_reset_delay_ms;  /**< Delay after releasing RSTn before first SPI access */
     uint32_t phy_status_reg;        /**< Register address for PHY status (link/speed/duplex) */
     eth_speed_t speed_when_bit_set;    /**< Speed value when status register speed bit is 1 */
     eth_speed_t speed_when_bit_clear;  /**< Speed value when status register speed bit is 0 */
@@ -118,6 +122,19 @@ esp_err_t phy_wiznet_loopback(esp_eth_phy_t *phy, bool enable)
     return ESP_ERR_NOT_SUPPORTED;
 }
 
+/* Delay for at least delay_us. Delays shorter than a FreeRTOS tick must be busy
+ * waited. For longer delays, request one extra tick because vTaskDelay() starts
+ * partway through the current tick. */
+static void phy_wiznet_delay_us(uint32_t delay_us)
+{
+    uint32_t tick_period_us = portTICK_PERIOD_MS * 1000;
+    if (delay_us < tick_period_us) {
+        esp_rom_delay_us(delay_us);
+    } else {
+        vTaskDelay((delay_us + tick_period_us - 1) / tick_period_us + 1);
+    }
+}
+
 esp_err_t phy_wiznet_reset_hw(esp_eth_phy_t *phy)
 {
     phy_wiznet_t *wiznet = __containerof(phy, phy_wiznet_t, parent);
@@ -134,8 +151,11 @@ esp_err_t phy_wiznet_reset_hw(esp_eth_phy_t *phy)
         gpio_set_direction(wiznet->reset_gpio_num, GPIO_MODE_OUTPUT);
         gpio_set_level(wiznet->reset_gpio_num, 0);
 #endif
-        esp_rom_delay_us(100); // insert min input assert time
+        phy_wiznet_delay_us(wiznet->hw_reset_assert_time_us);
         gpio_set_level(wiznet->reset_gpio_num, 1);
+        if (wiznet->post_hw_reset_delay_ms > 0) {
+            phy_wiznet_delay_us(wiznet->post_hw_reset_delay_ms * 1000);
+        }
     }
     return ESP_OK;
 }
@@ -413,6 +433,8 @@ esp_eth_phy_t *phy_wiznet_new(const phy_wiznet_config_t *config)
     wiznet->addr = config->phy_addr;
     wiznet->reset_timeout_ms = config->reset_timeout_ms;
     wiznet->reset_gpio_num = config->reset_gpio_num;
+    wiznet->hw_reset_assert_time_us = config->hw_reset_assert_time_us;
+    wiznet->post_hw_reset_delay_ms = config->post_hw_reset_delay_ms;
     wiznet->link_status = ETH_LINK_DOWN;
     wiznet->autonego_timeout_ms = config->autonego_timeout_ms;
     wiznet->phy_status_reg = config->phy_status_reg;
