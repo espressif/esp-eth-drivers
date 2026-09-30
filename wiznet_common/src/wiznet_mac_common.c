@@ -138,7 +138,7 @@ err:
     return ret;
 }
 
-static esp_err_t wiznet_drain_rx_buffer(emac_wiznet_t *emac);
+static esp_err_t wiznet_reset_rx_buffer(emac_wiznet_t *emac);
 
 esp_err_t emac_wiznet_start(esp_eth_mac_t *mac)
 {
@@ -181,7 +181,7 @@ esp_err_t emac_wiznet_stop(esp_eth_mac_t *mac)
     }
 
     /* Discard pending RX so the next OPEN starts on a clean boundary. */
-    if (wiznet_drain_rx_buffer(emac) != ESP_OK) {
+    if (wiznet_reset_rx_buffer(emac) != ESP_OK) {
         ESP_LOGW(emac->tag, "RX drain failed, continuing with CLOSE");
     }
 
@@ -561,7 +561,7 @@ typedef struct {
 #define WIZNET_ETH_MAC_RX_BUF_SIZE_AUTO (0)
 
 /* Reset RX buffer by syncing RX_RD to chip-managed RX_WR. */
-static esp_err_t wiznet_drain_rx_buffer(emac_wiznet_t *emac)
+static esp_err_t wiznet_reset_rx_buffer(emac_wiznet_t *emac)
 {
     esp_err_t ret = ESP_OK;
     const wiznet_chip_ops_t *ops = emac->ops;
@@ -768,7 +768,7 @@ void emac_wiznet_task(void *arg)
                 } else if (ret == ESP_ERR_INVALID_SIZE) {
                     /* Corrupt header; drain RX buffer to resync. */
                     ESP_LOGE(emac->tag, "RX buffer corruption detected, draining");
-                    wiznet_drain_rx_buffer(emac);
+                    wiznet_reset_rx_buffer(emac);
                 } else {
                     ESP_LOGE(emac->tag, "unexpected error 0x%x", ret);
                 }
