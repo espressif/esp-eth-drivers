@@ -21,7 +21,10 @@ jobs:
         shell: bash
         run: |
           . ${IDF_PATH}/export.sh
-          pip install -U 'idf-ci>=1,<2'
+          CONSTRAINT_FILE="$(ls -1 ${IDF_TOOLS_PATH}/espidf.constraints.v*.txt 2>/dev/null | tail -1)"
+          test -f $CONSTRAINT_FILE
+          pip install -U 'idf-ci>=1.2.2,<2' -c ${CONSTRAINT_FILE}
+          pip install -r .ci/requirements.txt
       - name: Build ESP-IDF Projects
         id: build-esp-idf-projects
         shell: bash
