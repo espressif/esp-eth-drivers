@@ -254,6 +254,7 @@ typedef enum {
     PMECR_SIGNAL_ENERGY_DETECTED   = 0x0100U, ///< RW Wake-on-LAN to PME Output Enable energy detected
     PMECR_AUTO_WAKEUP_ENABLE       = 0x0080U, ///< RW Auto Wake-Up Enable
     PMECR_WAKEUP_TO_NORMAL         = 0x0040U, ///< RW Wake-Up to Normal Operation Mode
+    PMECR_WAKEUP_EVENT_MASK        = 0x003CU, ///< RO (W1C) Wake-Up Event Indication Mask
     PMECR_WAKEUP_FRAME_EVENT       = 0x0020U, ///< RO (W1C) Wake-Up Event Indication wakeup frame event detected
     PMECR_WAKEUP_MAGIC_PACKET      = 0x0010U, ///< RO (W1C) Wake-Up Event Indication magic packet event detected
     PMECR_WAKEUP_LINK              = 0x0008U, ///< RO (W1C) Wake-Up Event Indication link up event detected
