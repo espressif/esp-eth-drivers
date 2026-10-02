@@ -131,3 +131,8 @@ void eth_test_free(void *ptr);
  * @return void
  */
 void eth_test_free_all(void);
+
+/** @brief Construct an esp_eth_phy_802_3-based PHY for the optional defaults test.
+ * Implement in the test application when CONFIG_ETH_TEST_PHY_DEFAULTS is enabled.
+ */
+esp_eth_phy_t *esp_eth_test_phy_new(const eth_phy_config_t *config);
