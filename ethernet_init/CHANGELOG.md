@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.2](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.4.1...ethernet_init@v1.4.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ethernet_init:** fix varibale declaration in eth_init_spi function. ([6c6e77f](https://github.com/espressif/esp-eth-drivers/commit/6c6e77f97ed4c56142140ee14e9ef7f3a4451b7b))
+* **ethernet_init:** hide ETHERNET_DEFAULT_EVENT_HANDLER  when not ETH is enabled ([587d3bb](https://github.com/espressif/esp-eth-drivers/commit/587d3bb90718b29954cafa34e116e21897bb4bcd))
+
 ## [1.4.1](https://github.com/espressif/esp-eth-drivers/compare/ethernet_init@v1.4.0...ethernet_init@v1.4.1) (2026-07-30)
 
 
