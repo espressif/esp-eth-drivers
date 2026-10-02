@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/espressif/esp-eth-drivers/compare/ksz8851snl@v1.2.0...ksz8851snl@v1.2.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **ksz8851snl:** use configured PHY reset timing and avoid delay undershoot ([f01f48b](https://github.com/espressif/esp-eth-drivers/commit/f01f48bffa0c7c98785f43a320f1b0cdb4560f16))
+
 ## [1.2.0](https://github.com/espressif/esp-eth-drivers/compare/ksz8851snl@v1.1.0...ksz8851snl@v1.2.0) (2026-07-29)
 
 
