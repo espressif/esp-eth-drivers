@@ -194,6 +194,10 @@ err:
     return ret;
 }
 
+// W5500 datasheet v1.1.0, 5.5.1 Reset Timing: RSTn low for at least 500 us (TRC), then up to 1 ms until the internal PLL locks (TPL)
+#define W5500_HW_RESET_ASSERT_TIME_US 500
+#define W5500_POST_HW_RESET_DELAY_MS  1
+
 esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
 {
     esp_eth_phy_t *ret = NULL;
@@ -205,6 +209,9 @@ esp_eth_phy_t *esp_eth_phy_new_w5500(const eth_phy_config_t *config)
         .reset_timeout_ms = config->reset_timeout_ms,
         .autonego_timeout_ms = config->autonego_timeout_ms,
         .reset_gpio_num = config->reset_gpio_num,
+        /* 0 selects the datasheet value, -1 skips the post-reset wait (same meaning as in eth_phy_config_t) */
+        .hw_reset_assert_time_us = config->hw_reset_assert_time_us > 0 ? config->hw_reset_assert_time_us : W5500_HW_RESET_ASSERT_TIME_US,
+        .post_hw_reset_delay_ms = config->post_hw_reset_delay_ms != 0 ? config->post_hw_reset_delay_ms : W5500_POST_HW_RESET_DELAY_MS,
         /* W5500 PHY status register bit interpretation:
          * - speed bit: 1 = 100Mbps, 0 = 10Mbps
          * - duplex bit: 1 = full, 0 = half */

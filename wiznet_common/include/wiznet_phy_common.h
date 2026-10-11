@@ -39,6 +39,8 @@ typedef struct {
     uint32_t reset_timeout_ms;          /**< Reset timeout in milliseconds */
     uint32_t autonego_timeout_ms;       /**< Auto-negotiation timeout in milliseconds */
     int reset_gpio_num;                 /**< Hardware reset GPIO, or -1 if not used */
+    uint32_t hw_reset_assert_time_us;   /**< Time RSTn is held low (us), from the chip datasheet */
+    int32_t post_hw_reset_delay_ms;     /**< Time to wait after releasing RSTn before the first SPI access (ms), 0 or negative for no wait */
 
     /* PHY status register configuration */
     uint32_t phy_status_reg;            /**< Register address for PHY status (link/speed/duplex) */

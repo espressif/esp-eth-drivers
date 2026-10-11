@@ -10,6 +10,7 @@
 #include "esp_eth_phy_w6100.h"
 #include "esp_log.h"
 #include "esp_check.h"
+#include "esp_idf_version.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "w6100.h"
@@ -208,6 +209,11 @@ err:
     return ret;
 }
 
+// W6100 datasheet v1.0.5, 8.4.1 Reset Timing: RSTn low for at least 1.0 us (TRST), then up to 60.3 ms until the chip is stable (TSTA).
+// The assert time keeps the previous 100 us, which is well above the minimum.
+#define W6100_HW_RESET_ASSERT_TIME_US 100
+#define W6100_POST_HW_RESET_DELAY_MS  61
+
 esp_eth_phy_t *esp_eth_phy_new_w6100(const eth_phy_config_t *config)
 {
     esp_eth_phy_t *ret = NULL;
@@ -219,6 +225,14 @@ esp_eth_phy_t *esp_eth_phy_new_w6100(const eth_phy_config_t *config)
         .reset_timeout_ms = config->reset_timeout_ms,
         .autonego_timeout_ms = config->autonego_timeout_ms,
         .reset_gpio_num = config->reset_gpio_num,
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+        /* 0 selects the datasheet value, -1 skips the post-reset wait (same meaning as in eth_phy_config_t) */
+        .hw_reset_assert_time_us = config->hw_reset_assert_time_us > 0 ? config->hw_reset_assert_time_us : W6100_HW_RESET_ASSERT_TIME_US,
+        .post_hw_reset_delay_ms = config->post_hw_reset_delay_ms != 0 ? config->post_hw_reset_delay_ms : W6100_POST_HW_RESET_DELAY_MS,
+#else
+        .hw_reset_assert_time_us = W6100_HW_RESET_ASSERT_TIME_US,
+        .post_hw_reset_delay_ms = W6100_POST_HW_RESET_DELAY_MS,
+#endif
         /* W6100 PHY status register bit interpretation (inverted from W5500):
          * - speed bit: 1 = 10Mbps, 0 = 100Mbps
          * - duplex bit: 1 = half, 0 = full */
