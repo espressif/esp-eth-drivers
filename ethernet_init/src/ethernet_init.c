@@ -13,8 +13,8 @@
 #include "esp_check.h"
 #include "esp_mac.h"
 #include "driver/gpio.h"
-#include "esp_idf_version.h"
 #include "sdkconfig.h"
+#include "ethernet_init_supported_features.h"
 #if CONFIG_ETHERNET_SPI_SUPPORT
 #include "driver/spi_master.h"
 #endif // CONFIG_ETHERNET_SPI_SUPPORT
@@ -42,7 +42,7 @@
 #include "esp_eth_phy_w6100.h"
 #endif // CONFIG_ETHERNET_SPI_USE_W6100
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#if defined(ETH_INIT_SUPPORTED_FEATURE_IDF_V6_PHY_SPI_DRIVERS)
 #if CONFIG_ETHERNET_SPI_USE_DM9051
 #include "esp_eth_mac_dm9051.h"
 #include "esp_eth_phy_dm9051.h"
@@ -77,9 +77,9 @@
 #if CONFIG_ETHERNET_PHY_KSZ80XX
 #include "esp_eth_phy_ksz80xx.h"
 #endif // CONFIG_ETHERNET_PHY_KSZ80XX
-#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#endif // ETH_INIT_SUPPORTED_FEATURE_IDF_V6_PHY_SPI_DRIVERS
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+#if defined(ETH_INIT_SUPPORTED_FEATURE_PHY_1000M)
 #if CONFIG_ETHERNET_PHY_VSC8541
 #include "esp_eth_phy_vsc8541.h"
 #endif // CONFIG_ETHERNET_PHY_VSC8541
@@ -87,7 +87,7 @@
 #if CONFIG_ETHERNET_PHY_YT8531
 #include "esp_eth_phy_yt8531.h"
 #endif // CONFIG_ETHERNET_PHY_YT8531
-#endif // ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+#endif // ETH_INIT_SUPPORTED_FEATURE_PHY_1000M
 
 #define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                   \
     do {                                                                                     \
@@ -336,11 +336,18 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
 #if CONFIG_ETHERNET_SPI_SUPPORT && !(CONFIG_ETHERNET_DMA_BURST_LEN_1 || CONFIG_ETHERNET_DMA_BURST_LEN_2 || CONFIG_ETHERNET_DMA_BURST_LEN_4 || CONFIG_ETHERNET_DMA_BURST_LEN_8)
 #warning "SPI Ethernet is used along with internal EMAC, consider lowering EMAC DMA burst length to 1, 2, 4 or 8 beats"
 #endif
+
+#if defined(ETH_INIT_SUPPORTED_FEATURE_EMAC_SLEEP_MODE) && defined(CONFIG_ETHERNET_EMAC_SLEEP_MODE)
+    // Configure EMAC Light-sleep policy from Kconfig (available on SoCs with EMAC retention)
+    esp32_emac_config.sleep_mode = CONFIG_ETHERNET_EMAC_SLEEP_MODE;
+    ESP_LOGI(TAG, "EMAC Light-sleep mode: %d", esp32_emac_config.sleep_mode);
+#endif
     esp_eth_mac_t *mac = NULL;
     esp_eth_phy_t *phy = NULL;
 
     // Create new ESP32 Ethernet MAC instance
     mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
+    ESP_GOTO_ON_FALSE(mac, NULL, err, TAG, "create ESP32 EMAC instance failed");
 
     // Init common PHY configs to default
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -352,6 +359,10 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
     phy_config.hw_reset_assert_time_us = CONFIG_ETHERNET_PHY_RST_ASSERT_TIME_US;
     phy_config.post_hw_reset_delay_ms = CONFIG_ETHERNET_PHY_RST_DELAY_MS;
 #endif // CONFIG_ETHERNET_PHY_RST_TIMING_EN
+#if defined(ETH_INIT_SUPPORTED_FEATURE_PHY_HOLD_RESET_GPIO) && CONFIG_ETHERNET_PHY_HOLD_RESET_GPIO
+    // Independent of EMAC sleep mode: GPIO/IOMUX can still power down in Light-sleep
+    phy_config.hold_reset_gpio = true;
+#endif
 
     // Create new PHY instance based on board configuration
 #if CONFIG_ETHERNET_PHY_GENERIC
@@ -382,6 +393,7 @@ static esp_eth_handle_t eth_init_internal(char *dev_name)
     phy = esp_eth_phy_new_yt8531(&phy_config);
     (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "YT8531");
 #endif
+    ESP_GOTO_ON_FALSE(phy, NULL, err, TAG, "create PHY instance failed");
 
     // Init Ethernet driver to default and install it
     esp_eth_handle_t eth_handle = NULL;
@@ -556,7 +568,7 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
     } else if (spi_eth_module_config->dev == SPI_DEV_TYPE_W5500) {
 #if CONFIG_ETHERNET_SPI_USE_W5500
         eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(CONFIG_ETHERNET_SPI_HOST, &spi_devcfg);
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+#if defined(ETH_INIT_SUPPORTED_FEATURE_IDF_V6_PHY_SPI_DRIVERS)
         w5500_config.base.int_gpio_num = spi_eth_module_config->int_gpio;
         w5500_config.base.poll_period_ms = spi_eth_module_config->poll_period_ms;
 #else
@@ -616,6 +628,8 @@ static esp_eth_handle_t eth_init_spi(spi_eth_module_config_t *spi_eth_module_con
         ESP_LOGE(TAG, "Unsupported SPI Ethernet module type ID: %i", spi_eth_module_config->dev);
         goto err;
     }
+    ESP_GOTO_ON_FALSE(mac, NULL, err, TAG, "create SPI MAC instance failed");
+    ESP_GOTO_ON_FALSE(phy, NULL, err, TAG, "create SPI PHY instance failed");
 
     // Init Ethernet driver to default and install it
     esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac, phy);
@@ -668,7 +682,9 @@ static esp_eth_handle_t eth_init_openeth(char *dev_name)
 
     phy_config.autonego_timeout_ms = 100;
     mac = esp_eth_mac_new_openeth(&mac_config);
+    ESP_GOTO_ON_FALSE(mac, NULL, err, TAG, "create OpenETH MAC instance failed");
     phy = esp_eth_phy_new_generic(&phy_config);
+    ESP_GOTO_ON_FALSE(phy, NULL, err, TAG, "create OpenETH PHY instance failed");
     (void)snprintf(dev_name, ETH_DEV_NAME_MAX_LEN, "OPENETH");
 
     // Init Ethernet driver to default and install it

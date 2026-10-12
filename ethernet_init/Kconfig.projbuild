@@ -543,6 +543,60 @@ menu "Ethernet Configuration"
                 TX clock delay applied when operating at 100 or 10 Mbps, approximately 150 ps per step
                 (RGMII_Config1 EXT_0xA003 bits[7:4]).
 
+        config ETHERNET_PHY_HOLD_RESET_GPIO
+            bool "Hold PHY reset GPIO during sleep"
+            depends on ETHERNET_PHY_RST_GPIO >= 0 && SOC_EMAC_SUPPORT_SLEEP_RETENTION
+            default y if ETHERNET_EMAC_SLEEP_MODE_ALLOW_PD || ETHERNET_EMAC_SLEEP_MODE_MAC_WAKE_ON_LAN
+            default n
+            help
+                Latch PHY nRST high after hardware reset so the PHY stays out of
+                reset when the GPIO/IOMUX domain (typically TOP) is powered down
+                (for example during Light-sleep).
+
+                Requires ESP-IDF 6.2 or newer (eth_phy_config_t::hold_reset_gpio).
+
+                This option is independent of EMAC Light-sleep mode. Even when
+                EMAC is set to "No sleep" and the CNNT power domain stays up,
+                the PHY reset pin still needs to be held if GPIO/IOMUX is
+                powered down.
+
+        choice ETHERNET_EMAC_SLEEP_MODE
+            prompt "EMAC Light-sleep mode"
+            depends on SOC_EMAC_SUPPORT_SLEEP_RETENTION
+            default ETHERNET_EMAC_SLEEP_MODE_NO_SLEEP
+            help
+                Select internal EMAC behavior during system Light-sleep.
+                Requires ESP-IDF 6.2 or newer (eth_esp32_emac_config_t::sleep_mode).
+
+            config ETHERNET_EMAC_SLEEP_MODE_NO_SLEEP
+                bool "No sleep"
+                help
+                    Do not allocate EMAC retention chains. On targets with a
+                    connectivity power domain, EMAC driver keeps that domain
+                    powered so it survives Light-sleep. However, EMAC still
+                    prevents automatic Light-sleep while the MAC is initialized.
+
+            config ETHERNET_EMAC_SLEEP_MODE_MAC_WAKE_ON_LAN
+                bool "Wake on LAN"
+                help
+                    Keep the connectivity domain powered and wake on a magic
+                    packet.
+
+            config ETHERNET_EMAC_SLEEP_MODE_ALLOW_PD
+                bool "Allow power down"
+                help
+                    Stop EMAC during Light-sleep and retain its registers.
+                    Allow its power domain to power down if no other user
+                    needs it.
+        endchoice
+
+        config ETHERNET_EMAC_SLEEP_MODE
+            int
+            depends on SOC_EMAC_SUPPORT_SLEEP_RETENTION
+            default 0 if ETHERNET_EMAC_SLEEP_MODE_NO_SLEEP
+            default 1 if ETHERNET_EMAC_SLEEP_MODE_MAC_WAKE_ON_LAN
+            default 2 if ETHERNET_EMAC_SLEEP_MODE_ALLOW_PD
+
         choice ETHERNET_DMA_BURST_LEN
             prompt "EMAC DMA Burst Length"
             help
