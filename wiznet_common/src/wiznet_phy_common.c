@@ -15,12 +15,12 @@
 #else
 #include "esp_rom_gpio.h"
 #endif
-#include "esp_rom_sys.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "wiznet_phy_common.h"
+#include "wiznet_utils.h"
 
 static const char *TAG = "wiznet.phy";
+
+#define WIZNET_PHY_RESET_ASSERTION_TIME_US 500 //set as W5500 reset time which is the greater than W6100
 
 /**
  * @brief Common base structure for WIZnet PHY implementations (opaque)
@@ -122,19 +122,6 @@ esp_err_t phy_wiznet_loopback(esp_eth_phy_t *phy, bool enable)
     return ESP_ERR_NOT_SUPPORTED;
 }
 
-/* Delay for at least delay_us. Delays shorter than a FreeRTOS tick must be busy
- * waited. For longer delays, request one extra tick because vTaskDelay() starts
- * partway through the current tick. */
-static void phy_wiznet_delay_us(uint32_t delay_us)
-{
-    uint32_t tick_period_us = portTICK_PERIOD_MS * 1000;
-    if (delay_us < tick_period_us) {
-        esp_rom_delay_us(delay_us);
-    } else {
-        vTaskDelay((delay_us + tick_period_us - 1) / tick_period_us + 1);
-    }
-}
-
 esp_err_t phy_wiznet_reset_hw(esp_eth_phy_t *phy)
 {
     phy_wiznet_t *wiznet = __containerof(phy, phy_wiznet_t, parent);
@@ -151,10 +138,10 @@ esp_err_t phy_wiznet_reset_hw(esp_eth_phy_t *phy)
         gpio_set_direction(wiznet->reset_gpio_num, GPIO_MODE_OUTPUT);
         gpio_set_level(wiznet->reset_gpio_num, 0);
 #endif
-        phy_wiznet_delay_us(wiznet->hw_reset_assert_time_us);
+        wiznet_delay_us(wiznet->hw_reset_assert_time_us);
         gpio_set_level(wiznet->reset_gpio_num, 1);
         if (wiznet->post_hw_reset_delay_ms > 0) {
-            phy_wiznet_delay_us(wiznet->post_hw_reset_delay_ms * 1000);
+            wiznet_delay_ms(wiznet->post_hw_reset_delay_ms);
         }
     }
     return ESP_OK;
@@ -433,8 +420,14 @@ esp_eth_phy_t *phy_wiznet_new(const phy_wiznet_config_t *config)
     wiznet->addr = config->phy_addr;
     wiznet->reset_timeout_ms = config->reset_timeout_ms;
     wiznet->reset_gpio_num = config->reset_gpio_num;
-    wiznet->hw_reset_assert_time_us = config->hw_reset_assert_time_us;
-    wiznet->post_hw_reset_delay_ms = config->post_hw_reset_delay_ms;
+    if (config->hw_reset_assert_time_us > 0) {
+        wiznet->hw_reset_assert_time_us = config->hw_reset_assert_time_us;
+    } else {
+        wiznet->hw_reset_assert_time_us = WIZNET_PHY_RESET_ASSERTION_TIME_US;
+    }
+    if (config->post_hw_reset_delay_ms > 0) {
+        wiznet->post_hw_reset_delay_ms = config->post_hw_reset_delay_ms;
+    }
     wiznet->link_status = ETH_LINK_DOWN;
     wiznet->autonego_timeout_ms = config->autonego_timeout_ms;
     wiznet->phy_status_reg = config->phy_status_reg;

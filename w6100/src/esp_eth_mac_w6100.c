@@ -13,6 +13,7 @@
 #include "esp_eth_mac_w6100.h"
 #include "esp_idf_version.h"
 #include "wiznet_mac_common.h"
+#include "wiznet_utils.h"
 #include "w6100.h"
 
 static const char *TAG = "w6100.mac";
@@ -110,7 +111,7 @@ static esp_err_t w6100_mac_reset(emac_wiznet_t *emac)
 
     /* Wait for reset to complete. Datasheet specifies T_STA = 60.3ms stabilization time.
      * SYCR0 is write-only so we cannot poll it. Chip readiness is verified by w6100_verify_id. */
-    vTaskDelay(pdMS_TO_TICKS(emac_wiznet_get_sw_reset_timeout_ms(emac)));
+    wiznet_delay_ms(emac_wiznet_get_sw_reset_timeout_ms(emac));
 
 err:
     return ret;

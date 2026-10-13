@@ -10,10 +10,9 @@
 #include "esp_eth_phy_w5500.h"
 #include "esp_log.h"
 #include "esp_check.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "w5500.h"
 #include "wiznet_phy_common.h"
+#include "wiznet_utils.h"
 
 #define W5500_WAIT_FOR_RESET_MS (10) // wait for W5500 internal PLL to be Locked after reset assert
 #define W5500_HW_RESET_ASSERT_TIME_US (500) // TRC
@@ -70,7 +69,7 @@ static esp_err_t w5500_phy_reset(esp_eth_phy_t *phy)
     ESP_GOTO_ON_ERROR(eth->phy_reg_read(eth, addr, W5500_REG_PHYCFGR, (uint32_t *) & (phycfg.val)), err, TAG, "read PHYCFG failed");
     phycfg.reset = 0; // set to '0' will reset internal PHY
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-    vTaskDelay(pdMS_TO_TICKS(W5500_WAIT_FOR_RESET_MS));
+    wiznet_delay_ms(W5500_WAIT_FOR_RESET_MS);
     phycfg.reset = 1; // set to '1' after reset
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
     return ESP_OK;
@@ -150,7 +149,7 @@ static esp_err_t w5500_autonego_ctrl(esp_eth_phy_t *phy, eth_phy_autoneg_cmd_t c
         phycfg.opsel = 1; // Configure PHY Operation Mode based on registry setting
         phycfg.reset = 0; // PHY needs to be reset after configuring opsel and opmode
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
-        vTaskDelay(pdMS_TO_TICKS(W5500_WAIT_FOR_RESET_MS));
+        wiznet_delay_ms(W5500_WAIT_FOR_RESET_MS);
         phycfg.reset = 1; // reset flag needs to be put back to 1
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W5500_REG_PHYCFGR, phycfg.val), err, TAG, "write PHYCFG failed");
         *autonego_en_stat = true;

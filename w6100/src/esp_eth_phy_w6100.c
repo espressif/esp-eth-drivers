@@ -10,10 +10,9 @@
 #include "esp_eth_phy_w6100.h"
 #include "esp_log.h"
 #include "esp_check.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "w6100.h"
 #include "wiznet_phy_common.h"
+#include "wiznet_utils.h"
 
 #define W6100_WAIT_FOR_RESET_MS (2) // datasheet §8.4.1 TPRST min 0.6 ms after PHYCR1[RST]
 #define W6100_HW_RESET_ASSERT_TIME_US (2)  // TRST
@@ -99,7 +98,7 @@ static esp_err_t w6100_phy_reset(esp_eth_phy_t *phy)
     phycr1.reset = 1;
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
 
-    vTaskDelay(pdMS_TO_TICKS(W6100_WAIT_FOR_RESET_MS));
+    wiznet_delay_ms(W6100_WAIT_FOR_RESET_MS);
 
     phycr1.reset = 0;
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR1, phycr1.val), err, TAG, "write PHYCR1 failed");
@@ -174,7 +173,7 @@ static esp_err_t w6100_autonego_ctrl(esp_eth_phy_t *phy, eth_phy_autoneg_cmd_t c
     ESP_GOTO_ON_ERROR(w6100_phy_reset(phy), err, TAG, "reset PHY failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYLCKR, W6100_PHYLCKR_UNLOCK), err, TAG, "unlock PHY failed");
     ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR0, W6100_OP_MODE_AUTO), err, TAG, "write PHYCR0 failed");
-    vTaskDelay(pdMS_TO_TICKS(W6100_WAIT_FOR_RESET_MS));
+    wiznet_delay_ms(W6100_WAIT_FOR_RESET_MS);
     *autonego_en_stat = true;
     return ESP_OK;
 err:
@@ -203,7 +202,7 @@ static esp_err_t w6100_pwrctl(esp_eth_phy_t *phy, bool enable)
         uint32_t phycr0 = W6100_OP_MODE_AUTO;
         ESP_GOTO_ON_ERROR(eth->phy_reg_write(eth, addr, W6100_REG_PHYCR0, phycr0),
                           err, TAG, "write PHYCR0 (force AUTO) failed");
-        vTaskDelay(pdMS_TO_TICKS(W6100_WAIT_FOR_RESET_MS));
+        wiznet_delay_ms(W6100_WAIT_FOR_RESET_MS);
     }
     return ESP_OK;
 err:

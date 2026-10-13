@@ -1,6 +1,7 @@
 set(srcs "src/wiznet_spi.c"
          "src/wiznet_mac_common.c"
-         "src/wiznet_phy_common.c")
+         "src/wiznet_phy_common.c"
+         "src/wiznet_utils.c")
 
 set(priv_requires esp_driver_spi
                   esp_driver_gpio
