@@ -10,4 +10,4 @@ eth_dummy_phy/examples/simple:
 
 eth_dummy_phy/examples/generic_switch:
   enable:
-    - if: IDF_TARGET in ["esp32", "esp32p4"]
+    - if: IDF_TARGET in ["esp32", "esp32p4", "esp32s31"]

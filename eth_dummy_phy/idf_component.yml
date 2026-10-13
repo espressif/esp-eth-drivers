@@ -3,6 +3,7 @@ license: Apache-2.0
 targets:
   - esp32
   - esp32p4
+  - esp32s31
 description: >-
   This component creates dummy instance of Ethernet PHY and so two devices can
   be connected directly by EMAC to EMAC.

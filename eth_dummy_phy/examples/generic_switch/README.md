@@ -1,5 +1,5 @@
-| Supported Targets | ESP32 | ESP32P4 |
-| ----------------- | ----- | ------- |
+| Supported Targets | ESP32 | ESP32P4 | ESP32S31 |
+| ----------------- | ----- | ------- | -------- |
 
 # EMAC to EMAC Example - Generic Unmanaged Switch
 
@@ -11,7 +11,7 @@ This example demonstrates the usage of the `Dummy PHY` component in combination 
 
 ### Hardware Required
 
-To run this example, you need an ESP32 SoC with internal EMAC capability (ESP32 or ESP32P4) and an integrated multiple-port switch IC of your choice. You need to interconnect only the RMII data plane signals between the SoC and the multiple-port switch IC, along with the RMII REFCLK source. No control plane connection is needed for unmanaged mode. Note that if your chosen integrated multiple-port switch IC supports any other management interface such as I2C, you can implement your own device management independently of the `esp_eth` driver.
+To run this example, you need an ESP32 SoC with internal EMAC capability (ESP32, ESP32P4, or ESP32S31) and an integrated multiple-port switch IC of your choice. You need to interconnect only the RMII data plane signals between the SoC and the multiple-port switch IC, along with the RMII REFCLK source. No control plane connection is needed for unmanaged mode. Note that if your chosen integrated multiple-port switch IC supports any other management interface such as I2C, you can implement your own device management independently of the `esp_eth` driver.
 
 > [!NOTE]
 > This example has been tested using [KSZ8863 Test Board](../../../ksz8863/docs/test_board/).
