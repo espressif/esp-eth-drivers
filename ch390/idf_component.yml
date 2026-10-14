@@ -2,7 +2,7 @@ version: 0.4.1
 description: CH390 Ethernet Driver
 url: https://github.com/espressif/esp-eth-drivers/tree/master/ch390
 dependencies:
-  idf: '>=5.1'
+  idf: '>=5.4'
 examples:
   - path: ../common_examples/
 files:
