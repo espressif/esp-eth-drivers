@@ -299,7 +299,7 @@ typedef union {
 #define KSZ8863_PCR1_BASE_ADDR (0x11)
 #define KSZ8863_P1CR1_ADDR (0x11)
 #define KSZ8863_P2CR1_ADDR (0x21)
-#define KSZ8863_P3CR1_ADDR (0x21)
+#define KSZ8863_P3CR1_ADDR (0x31)
 
 /**
  * @brief Register 18/34/50: Port x Control 2
