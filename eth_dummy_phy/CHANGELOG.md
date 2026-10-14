@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/espressif/esp-eth-drivers/compare/eth_dummy_phy@v0.6.0...eth_dummy_phy@v0.7.0) (2026-10-14)
+
+
+### Features
+
+* **eth_dummy_phy:** added support of ESP32S31 ([dc0c722](https://github.com/espressif/esp-eth-drivers/commit/dc0c722a25000c24292801a758c9ad6c64647ee2))
+
 ## [0.6.0](https://github.com/espressif/esp-eth-drivers/compare/eth_dummy_phy@v0.5.0...eth_dummy_phy@v0.6.0) (2025-10-06)
 
 
