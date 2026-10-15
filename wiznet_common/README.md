@@ -11,3 +11,7 @@ This sub-component provides shared functionality for WIZnet Ethernet controllers
 - [W6100](../w6100/README.md)
 
 More controllers may be supported in the future.
+
+## Delay Utilities
+
+`wiznet_delay_us()` and `wiznet_delay_ms()` guarantee that execution is delayed for at least the requested duration. They compensate for FreeRTOS tick rounding and the partially elapsed current tick.
