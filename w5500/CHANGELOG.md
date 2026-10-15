@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/espressif/esp-eth-drivers/compare/w5500@v2.0.0...w5500@v2.0.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **wiznet_common:** Fix reset timing constrains ([c3eb0b3](https://github.com/espressif/esp-eth-drivers/commit/c3eb0b34f64a1a6fd3a94f6780befe5163fb4bd4))
+
 ## [2.0.0](https://github.com/espressif/esp-eth-drivers/compare/w5500@v1.0.1...w5500@v2.0.0) (2026-06-25)
 
 
