@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.11...ksz8863@v0.2.12) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ksz8863:** Correct KSZ8863_P3CR1_ADDR to 0x31 ([29c5878](https://github.com/espressif/esp-eth-drivers/commit/29c58782e931e5e2f8524914ac7e8c9a6521cdfa))
+
 ## [0.2.11](https://github.com/espressif/esp-eth-drivers/compare/ksz8863@v0.2.10...ksz8863@v0.2.11) (2026-03-13)
 
 
