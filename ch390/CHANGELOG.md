@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.4.1...ch390@v0.4.2) (2026-10-16)
+
+
+### Bug Fixes
+
+* **ch390:** correct hardware reset timing defaults ([ff82d27](https://github.com/espressif/esp-eth-drivers/commit/ff82d2799326ed6ae68f7b89d595877721fb80af))
+
 ## [0.4.1](https://github.com/espressif/esp-eth-drivers/compare/ch390@v0.4.0...ch390@v0.4.1) (2026-06-26)
 
 
