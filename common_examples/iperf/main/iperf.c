@@ -112,7 +112,7 @@ void app_main(void)
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
     esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
     esp_console_new_repl_uart(&uart_config, &repl_config, &repl);
-    app_register_iperf_commands();
+    ESP_ERROR_CHECK(iperf_cmd_register_iperf());
 
     printf("\n ========================================================\n");
     printf(" |                    Ethernet iperf                    |\n");
