@@ -1,0 +1,61 @@
+menu "Example options"
+
+    choice EXAMPLE_LAN86XX_ROLE
+        prompt "Device role"
+        default EXAMPLE_LAN86XX_ROLE_CLIENT
+        help
+            Select whether this firmware image acts as LAN8650 server, LAN8670 follower,
+            or as L2 bridge between W5500 (entry) and LAN8650 (T1S).
+
+        config EXAMPLE_LAN86XX_ROLE_SERVER
+            bool "Server (LAN8650 PLCA coordinator)"
+        config EXAMPLE_LAN86XX_ROLE_BRIDGE
+            bool "Bridge (W5500 <-> LAN8650)"
+        config EXAMPLE_LAN86XX_ROLE_CLIENT
+            bool "Client (LAN8670 PLCA follower)"
+    endchoice
+
+    config EXAMPLE_TCP_SERVER_PORT
+        int "TCP server listening port"
+        depends on EXAMPLE_LAN86XX_ROLE_SERVER
+        default 8080
+        help
+            Set TCP server listening port.
+
+    config EXAMPLE_ACT_AS_DHCP_SERVER
+        bool "Act as DHCP server"
+        depends on EXAMPLE_LAN86XX_ROLE_SERVER
+        default y
+        help
+            Set device to act as DHCP server on each Ethernet interface.
+
+    config EXAMPLE_DHCP_LEASE_TIME
+        int "DHCP lease time"
+        depends on EXAMPLE_LAN86XX_ROLE_SERVER && EXAMPLE_ACT_AS_DHCP_SERVER
+        default 120
+        help
+            Set DHCP lease time in units of LWIP_DHCPS_LEASE_UNIT (default 60 seconds).
+
+    config EXAMPLE_SERVER_IP_ADDRESS
+        string "Server IP address"
+        depends on EXAMPLE_LAN86XX_ROLE_CLIENT
+        default "192.168.1.1"
+        help
+            IP address of the PLCA coordinator (LAN8650 interface on the master board).
+
+    config EXAMPLE_SERVER_PORT
+        int "Server port"
+        depends on EXAMPLE_LAN86XX_ROLE_CLIENT
+        default 8080
+        range 1 65535
+        help
+            TCP server port on the coordinator board.
+
+    config EXAMPLE_CLIENT_CONNECT_TO_SERVER
+        bool "Client connects to TCP server"
+        depends on EXAMPLE_LAN86XX_ROLE_CLIENT
+        default y
+        help
+            Disable for DHCP-only validation when no TCP server is expected.
+
+endmenu

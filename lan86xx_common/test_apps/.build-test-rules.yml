@@ -1,0 +1,5 @@
+lan86xx_common/test_apps:
+  enable:
+    - if: IDF_TARGET == "esp32"
+      temporary: true
+      reason: test bed consists of ESP32 boards only
