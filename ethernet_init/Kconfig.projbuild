@@ -738,7 +738,19 @@ menu "Ethernet Configuration"
             range 5 80
             default 16
             help
-                Set the clock speed (MHz) of SPI interface.
+                Set the clock speed (MHz) of the SPI bus shared by all SPI Ethernet modules.
+                Above ~16 MHz on ESP32 you also need to set ETHERNET_SPI_INPUT_DELAY_NS.
+
+        config ETHERNET_SPI_INPUT_DELAY_NS
+            int "SPI MISO input delay (ns)"
+            range 0 80
+            default 30 if IDF_TARGET_ESP32 && ETHERNET_SPI_CLOCK_MHZ >= 25
+            default 20 if IDF_TARGET_ESP32 && ETHERNET_SPI_CLOCK_MHZ >= 16
+            default 0
+            help
+                Total external delay on MISO at the master pin.
+                The SPI master uses this to align sampling at high SCLK rates;
+                below the per-target "free" range you can leave 0.
 
         config ETHERNET_SPI_CS0_GPIO
             int "SPI CS0 GPIO number for SPI Ethernet module #1"
