@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/espressif/esp-eth-drivers/compare/lan86xx_common@v1.0.1...lan86xx_common@v1.1.0) (2026-10-21)
+
+
+### Features
+
+* **lan86xx:** add 10BASE-T1S firmware, bridge test app and CI ([5833f8c](https://github.com/espressif/esp-eth-drivers/commit/5833f8c7ea7852a5d59b73a879eb2d8ad8131769))
+
 ## [1.0.1](https://github.com/espressif/esp-eth-drivers/compare/lan86xx_common@v1.0.0...lan86xx_common@v1.0.1) (2026-06-25)
 
 
