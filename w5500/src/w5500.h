@@ -40,7 +40,7 @@
 #define W5500_REG_SOCK_MR(s)         W5500_MAKE_MAP(0x0000, W5500_BSB_SOCK_REG(s)) // Socket Mode
 #define W5500_REG_SOCK_CR(s)         W5500_MAKE_MAP(0x0001, W5500_BSB_SOCK_REG(s)) // Socket Command
 #define W5500_REG_SOCK_IR(s)         W5500_MAKE_MAP(0x0002, W5500_BSB_SOCK_REG(s)) // Socket Interrupt
-#define W5500_REG_SOCK_SR(s)         W5500_MAKE_MAP(0x0004, W5500_BSB_SOCK_REG(s)) // Socket Status
+#define W5500_REG_SOCK_SR(s)         W5500_MAKE_MAP(0x0003, W5500_BSB_SOCK_REG(s)) // Socket Status
 #define W5500_REG_SOCK_RXBUF_SIZE(s) W5500_MAKE_MAP(0x001E, W5500_BSB_SOCK_REG(s)) // Socket Receive Buffer Size
 #define W5500_REG_SOCK_TXBUF_SIZE(s) W5500_MAKE_MAP(0x001F, W5500_BSB_SOCK_REG(s)) // Socket Transmit Buffer Size
 #define W5500_REG_SOCK_TX_FSR(s)     W5500_MAKE_MAP(0x0020, W5500_BSB_SOCK_REG(s)) // Socket TX Free Size
