@@ -6,7 +6,7 @@
     "eth_dummy_phy": "0.7.0",
     "ethernet_init": "1.4.1",
     "ksz8863": "0.2.11",
-    "lan86xx_common": "1.0.1",
+    "lan86xx_common": "1.1.0",
     "lan865x": "0.2.0",
     "rtl8201": "1.1.0",
     "dm9051": "1.1.1",
