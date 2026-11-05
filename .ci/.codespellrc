@@ -1,4 +1,0 @@
-[codespell]
-skip = build,*.drawio
-ignore-words-list = emac
-write-changes = true

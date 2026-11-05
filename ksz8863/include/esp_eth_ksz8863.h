@@ -55,7 +55,7 @@ typedef enum {
 
 typedef struct {
     uint16_t start_entry;
-    uint16_t etries_num;
+    uint16_t entries_num;
     union {
         ksz8863_dyn_mac_table_t *dyn_tbls;
         ksz8863_sta_mac_table_t *sta_tbls;

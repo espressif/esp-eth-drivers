@@ -2,7 +2,6 @@ minimum_pre_commit_version: 4.0.0                        # Specifies the minimum
 default_install_hook_types: [pre-commit,commit-msg]      # Default hook types to install if not specified in individual hooks
 default_stages: [pre-commit]
 
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -47,7 +46,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell # Code spell checker
-        args: ["--write-changes", "--config=.ci/.codespellrc"]
+        args: ["--write-changes"]
         additional_dependencies: [tomli]
 
   - repo: https://github.com/espressif/astyle_py.git
