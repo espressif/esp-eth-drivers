@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/espressif/esp-eth-drivers/compare/w5500@v2.0.1...w5500@v2.0.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **w5500:** read Sn_SR at socket register offset 0x0003 ([39a21e8](https://github.com/espressif/esp-eth-drivers/commit/39a21e84363956ddd162d8a4556a0a9a56c92726))
+
 ## [2.0.1](https://github.com/espressif/esp-eth-drivers/compare/w5500@v2.0.0...w5500@v2.0.1) (2026-10-15)
 
 
