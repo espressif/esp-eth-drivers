@@ -533,16 +533,27 @@ esp_err_t emac_wiznet_transmit(esp_eth_mac_t *mac, uint8_t *buf, uint32_t length
     ESP_GOTO_ON_ERROR(wiznet_send_command(emac, ops->cmd_send, 100), err, emac->tag, "issue SEND command failed");
 
     // polling the TX done event
+    // Read the interrupt register before checking the timeout, and check it once more after the timeout expires:
+    // the read itself can be delayed (SPI bus or driver lock held by the RX task, task preemption), and the frame
+    // may already be sent by then.
     uint8_t status = 0;
-    uint64_t start = esp_timer_get_time();
-    uint64_t now = 0;
-    do {
-        now = esp_timer_get_time();
-        if (!wiznet_is_link_up(emac) || (now - start) > emac->tx_tmo) {
+    const uint64_t start = esp_timer_get_time();
+    while (true) {
+        ESP_GOTO_ON_ERROR(wiznet_read(emac, ops->reg_sock_ir, &status, sizeof(status)), err, emac->tag, "read SOCK0 IR failed");
+        if (status & ops->sir_send) {
+            break;
+        }
+        if (!wiznet_is_link_up(emac)) {
             return ESP_FAIL;
         }
-        ESP_GOTO_ON_ERROR(wiznet_read(emac, ops->reg_sock_ir, &status, sizeof(status)), err, emac->tag, "read SOCK0 IR failed");
-    } while (!(status & ops->sir_send));
+        if (esp_timer_get_time() - start > emac->tx_tmo) {
+            ESP_GOTO_ON_ERROR(wiznet_read(emac, ops->reg_sock_ir, &status, sizeof(status)), err, emac->tag, "read SOCK0 IR failed");
+            if (status & ops->sir_send) {
+                break;
+            }
+            return ESP_FAIL;
+        }
+    }
     // clear the event bit
     status = ops->sir_send;
     ESP_GOTO_ON_ERROR(wiznet_write(emac, ops->reg_sock_irclr, &status, sizeof(status)), err, emac->tag, "write SOCK0 IRCLR failed");
