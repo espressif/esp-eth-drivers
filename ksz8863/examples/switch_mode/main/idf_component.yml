@@ -3,3 +3,5 @@ dependencies:
   espressif/ksz8863:
     version: '~0.2.0'
     override_path: '../../../'
+  ksz8863-cmd:
+    override_path: '../../../components/ksz8863-cmd/'
