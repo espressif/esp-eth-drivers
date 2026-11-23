@@ -25,6 +25,12 @@ repos:
       - id: check-copyright
         args: ['--config', '.ci/check_copyright_config.yaml']
 
+  - repo: https://github.com/espressif/idf-ci
+    rev: v1.5.0
+    hooks:
+      - id: check-tests-missing-config
+        additional_dependencies: [scapy]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.5
     hooks:

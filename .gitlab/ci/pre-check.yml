@@ -1,6 +1,6 @@
 .check_pre_commit_template:
   stage: pre_check
-  image: "${CI_DOCKER_REGISTRY}/esp-idf-pre-commit:2"
+  image: "$CI_REGISTRY/ci/images/pre-commit-idf-v6.3:1"
   tags: [brew, internet]
   variables:
     GIT_STRATEGY: fetch
@@ -21,3 +21,30 @@ check_pre_commit:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
+
+# Advisory only: the maintainer decides whether to update consuming manifests.
+check_release_manifest_deps:
+  stage: pre_check
+  image: "$CI_REGISTRY/ci/images/idf-v6.3:1"
+  tags: [brew, internet]
+  needs: []
+  allow_failure: true
+  resource_group: "release-manifest-comment-${CI_MERGE_REQUEST_IID}"
+  variables:
+    GIT_DEPTH: 0
+  rules:
+    - if: >-
+        $CI_PIPELINE_SOURCE == "merge_request_event" &&
+        $CI_MERGE_REQUEST_TITLE =~ /^chore\(master\): release( |$)/ &&
+        $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_MERGE_REQUEST_PROJECT_ID &&
+        $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"
+  before_script:
+    - python -m pip install -r .ci/release-manifest-requirements.txt
+  script:
+    - git fetch --no-tags origin "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+    - python tools/check_release_manifest_deps.py --base-ref "$CI_MERGE_REQUEST_DIFF_BASE_SHA" --post-comment
+  artifacts:
+    when: always
+    paths:
+      - release-manifest-report.md
+    expire_in: 1 week

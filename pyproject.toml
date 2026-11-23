@@ -4,6 +4,8 @@
 
     [[tool.mypy.overrides]]
     module = [
+        'gitlab.*',
+        'idf_component_tools.*',
         'scapy.*',
         'pytest_embedded.*',
     ]

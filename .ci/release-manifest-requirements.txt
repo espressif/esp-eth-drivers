@@ -1,0 +1,3 @@
+idf-component-manager>=2,<4
+PyYAML>=6,<7
+python-gitlab>=8,<9
