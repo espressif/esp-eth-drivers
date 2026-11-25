@@ -10,9 +10,19 @@ include:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     inputs:
       build-job-image: "espressif/idf:latest"
-      test-job-image: "$CI_REGISTRY/ci/images/idf-v6.2-target-test:1"
+      test-job-image: "$CI_REGISTRY/ci/images/idf-v6.3-target-test:1"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-latest"
+      generate-build-child-pipeline-before-script:
+        - pip install -r .ci/requirements.txt
+  - component: $CI_SERVER_FQDN/ci/actions/idf-dynamic-pipeline/ci-component@main
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    inputs:
+      build-job-image: "espressif/idf:release-v6.2"
+      test-job-image: "$CI_REGISTRY/ci/images/idf-v6.2-target-test:1"
+      build-job-tags: ["brew", "build"]
+      job-suffix: ":idf-v6.2"
       generate-build-child-pipeline-before-script:
         - pip install -r .ci/requirements.txt
   - component: $CI_SERVER_FQDN/ci/actions/idf-dynamic-pipeline/ci-component@main
@@ -66,6 +76,14 @@ include:
       build-job-image: "espressif/idf:latest"
       build-job-tags: ["brew", "build"]
       job-suffix: ":idf-latest"
+      max-apps-per-node: 40
+  - local: '.ci/build_idf_dynamic_pipeline.yml'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    inputs:
+      build-job-image: "espressif/idf:release-v6.2"
+      build-job-tags: ["brew", "build"]
+      job-suffix: ":idf-v6.2"
       max-apps-per-node: 40
   - local: '.ci/build_idf_dynamic_pipeline.yml'
     rules:
